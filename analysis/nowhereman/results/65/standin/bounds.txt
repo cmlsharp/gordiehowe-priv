@@ -1,0 +1,28 @@
+### ML-DSA-65 ideal (host A + host B)
+# run mode ideal param ML-DSA-65 K 2 M 1 master 6c5851b1bec9a3e6793885cc5d6379d72b66d6c6f5f2c12e72517e3c5163988b units 0..3300000000 block 5000000 threads 200
+# run mode ideal param ML-DSA-65 K 2 M 1 master 45def21d933c4e968794cdcbfd172ee4c36542b5ffe44e49601af52e3f62e3f4 units 0..2700000000 block 5000000 threads 180
+field z N 6000000000 mean 2.391260e-06 (log2 -18.674) var 2.414350e-06 sd 1.5538e-03 se 2.006e-08 z 119.21
+own_mean 0.996206172 other_mean 0.996203781 attempts_per_unit 10.2767 mismatch 0 block_secs 35938.7
+EB lower bound (1-2^-40, one-sided) 2.217924e-06 (log2 -18.782)
+EB two-sided interval (1-2^-40) [2.215552e-06, 2.566968e-06]
+Hoeffding lower bound -9.374387e-05; implied advantage lower bound (EB/2) 1.108962e-06 (log2 -19.782)
+projection: N for EB lower bound >= 0.25 * mean: 1.601e+08 units
+projection: N for EB lower bound >= 0.50 * mean: 2.738e+08 units
+field za N 6000000000 mean 2.430944e-06 (log2 -18.650) var 6.377615e-06 sd 2.5254e-03 se 3.260e-08 z 74.56
+EB lower bound (1-2^-40, one-sided) 2.163045e-06 (log2 -18.819)
+projection: N for EB lower bound >= 0.25 * mean: 2.365e+08 units
+projection: N for EB lower bound >= 0.50 * mean: 4.460e+08 units
+### ML-DSA-65 deployed (host A + host B)
+# run mode deployed param ML-DSA-65 K 2 M 1 master 6c5851b1bec9a3e6793885cc5d6379d72b66d6c6f5f2c12e72517e3c5163988b units 0..660000000 block 5000000 threads 200
+# run mode deployed param ML-DSA-65 K 2 M 1 master 45def21d933c4e968794cdcbfd172ee4c36542b5ffe44e49601af52e3f62e3f4 units 0..540000000 block 5000000 threads 180
+field z N 1200000000 mean 2.440383e-06 (log2 -18.644) var 2.414390e-06 sd 1.5538e-03 se 4.486e-08 z 54.41
+own_mean 0.996206190 other_mean 0.996203750 attempts_per_unit 2.0000 mismatch 0 block_secs 34456.8
+EB lower bound (1-2^-40, one-sided) 1.991696e-06 (log2 -18.938)
+EB two-sided interval (1-2^-40) [1.984901e-06, 2.895864e-06]
+Hoeffding lower bound -2.125243e-04; implied advantage lower bound (EB/2) 9.958480e-07 (log2 -19.938)
+projection: N for EB lower bound >= 0.25 * mean: 1.525e+08 units
+projection: N for EB lower bound >= 0.50 * mean: 2.738e+08 units
+field za N 1200000000 mean 2.463550e-06 (log2 -18.631) var 6.377674e-06 sd 2.5254e-03 se 7.290e-08 z 33.79
+EB lower bound (1-2^-40, one-sided) 1.803415e-06 (log2 -19.081)
+projection: N for EB lower bound >= 0.25 * mean: 2.365e+08 units
+projection: N for EB lower bound >= 0.50 * mean: 4.460e+08 units

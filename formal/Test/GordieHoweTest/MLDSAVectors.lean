@@ -31,6 +31,7 @@ import GordieHoweTest.SampleInBall44Check
 import GordieHoweTest.Verify44Check
 import GordieHoweTest.ExpandA65Check
 import GordieHoweTest.Verify65Check
+import GordieHoweTest.KeyGenCheck
 
 namespace GordieHoweTest
 
@@ -69,7 +70,14 @@ def runAllChecks : IO Unit := do
   allOk := allOk && okE
   IO.println ""
 
-  IO.println "(e) Falcon hashToPoint / verify512: SKIPPED, no known-answer vectors exist \
+  IO.println "(e) keyGenFromSeed at concretePrimitivesKeyGen (ML-DSA-44, 65, 87) vs OpenSSL 3.6.4 \
+    pk and sk bytes, seeds (j, 0, ..., 0) for j = 0, 1, 2:"
+  let okK ← checkKeyGen
+  IO.println (if okK then "PASS KeyGen" else "FAIL KeyGen (see above)")
+  allOk := allOk && okK
+  IO.println ""
+
+  IO.println "(f) Falcon hashToPoint / verify512: SKIPPED, no known-answer vectors exist \
     in the C++ Falcon tests (see this file's header)."
   IO.println ""
 

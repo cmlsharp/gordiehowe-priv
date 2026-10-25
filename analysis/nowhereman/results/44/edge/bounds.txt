@@ -1,0 +1,6 @@
+ML-DSA-44: n=540000000 mean=1.165045e-05 var=3.1588e-07 B=1.507365 delta=2^-40
+  var term 1.823e-07  range term 3.702e-07  LCB(E[m|E]) = 1.109791e-05
+  Pr[E] = 0.0938393227 (exact rational, 23548-bit numerator)
+  Adv(g) >= 5.193121e-07 = 2^-20.877  (confidence 1 - 2^-40)
+  units for deductions <= 10% of the mean: 2.263e+08
+  units for deductions <= 5% of the mean: 5.070e+08

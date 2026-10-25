@@ -1,0 +1,3 @@
+test keyaware param ML-DSA-44 seed 38 theta 0.97528662226164164 threads 48 secs 137.4 c_mismatch 0
+RESULT alpha_test N_real 6000000 N_sim 6000000 p_real 0.5056343 p_sim 0.5001637 adv 5.470667e-03 se 2.887e-04 z 18.95
+aux mean_alpha real 0.972462396 sim 0.972237660 diff 2.2474e-04 se 8.460e-06 z 26.56

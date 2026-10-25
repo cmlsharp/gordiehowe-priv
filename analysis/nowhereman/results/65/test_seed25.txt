@@ -1,0 +1,3 @@
+test keyaware param ML-DSA-65 seed 25 theta 0.99379995855397385 threads 48 secs 1450.7 c_mismatch 0
+RESULT alpha_test N_real 40000000 N_sim 40000000 p_real 0.5015519 p_sim 0.5006339 adv 9.180500e-04 se 1.118e-04 z 8.21
+aux mean_alpha real 0.993383306 sim 0.993376416 diff 6.8900e-06 se 5.804e-07 z 11.87

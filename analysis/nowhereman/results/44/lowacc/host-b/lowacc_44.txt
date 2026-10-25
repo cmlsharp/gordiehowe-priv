@@ -1,0 +1,18 @@
+lowacc ML-DSA-44 keys 1073741824..2147483648 M 16 block 67108864 threads 180
+block k0 1073741824 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.910367 mean 0.985447 | total 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.910367 secs 325.2
+block k0 1140850688 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.901960 mean 0.985448 | total 134217728 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 650.5
+block k0 1207959552 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.913304 mean 0.985447 | total 201326592 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 973.3
+block k0 1275068416 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.913456 mean 0.985447 | total 268435456 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 1298.5
+block k0 1342177280 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.908104 mean 0.985446 | total 335544320 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 1621.7
+block k0 1409286144 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.915273 mean 0.985447 | total 402653184 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 1944.6
+block k0 1476395008 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.917580 mean 0.985447 | total 469762048 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 2267.7
+block k0 1543503872 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.915215 mean 0.985446 | total 536870912 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 2593.3
+block k0 1610612736 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.906700 mean 0.985448 | total 603979776 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 2918.5
+block k0 1677721600 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.921608 mean 0.985446 | total 671088640 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 3241.7
+block k0 1744830464 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.919340 mean 0.985446 | total 738197504 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 3564.8
+block k0 1811939328 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.916531 mean 0.985447 | total 805306368 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 3887.8
+block k0 1879048192 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.916558 mean 0.985446 | total 872415232 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 4213.4
+block k0 1946157056 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.907104 mean 0.985446 | total 939524096 below0.5 0 below0.7 0 below0.9 0 min 0.901960 secs 4538.6
+block k0 2013265920 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.901889 mean 0.985446 | total 1006632960 below0.5 0 below0.7 0 below0.9 0 min 0.901889 secs 4861.7
+block k0 2080374784 n 67108864 below0.5 0 below0.7 0 below0.9 0 min 0.919211 mean 0.985447 | total 1073741824 below0.5 0 below0.7 0 below0.9 0 min 0.901889 secs 5187.1
+done total 1073741824 below0.5 0 min 0.901889 mean 0.985447 secs 5187.1

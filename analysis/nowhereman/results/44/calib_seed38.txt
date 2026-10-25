@@ -1,0 +1,1 @@
+calib seed 38 ncal 2000000 mean_alpha 0.972243688 delta 5.718575e-03 log2_delta -7.450 theta 0.97528662226164164 pred_adv 5.575556e-03 secs 1.8

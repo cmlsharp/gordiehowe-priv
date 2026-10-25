@@ -1,0 +1,11 @@
+edge selftest twin marginals exact over all 16781312 r: ok (|ap-am|<=1 for 1.000000)
+edge selftest 4000 keys: fold-DP twins vs standin_score ok, vs standin_score_ref ok, A vs dense ok, |s+ - s-| <= L=0.9388 ok
+edge selftest key sampler: 2000 E-keys, 5.593 attempts per key (expect 1/Pr[E])
+edge selftest PASSED
+selftest ntt_fast 200 products vs schoolbook: ok
+selftest keygen 20 seeds (8 index seeds + random): own fast KeyGen t0/t1/s1/s2/A, own exact KeyGen pk/sk/t0 and OpenSSL pk/sk agree; mismatches 0
+selftest score 2000 inputs (half accepted ideal samples, half random challenges with zero/edge/uniform buckets), own and other key: fast vs long-double reference max|diff| 6.481e-15 (bad 0); at zero buckets vs nm_attack alpha_score max|diff| 1.776e-15 (bad 0)
+selftest hintCount 2000 (r1, a, b) triples incl. buckets 0 and m-1 and |b| = gamma2-1, beta+-3: brute-force FIPS MakeHint count over the bucket equals the Lean formula, r0-pass count equals 2(gamma2-beta)-1; mismatches 0
+selftest attempt 200 (y, c~) pairs (128 accepted): fast idealAttempt accept and w1 vs exact schoolbook reference; mismatches 0
+selftest deployed 20 OpenSSL signatures: verified, H(mu||w1Encode(w1)) = c~ mismatches 0
+selftest PASSED
