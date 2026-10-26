@@ -1890,6 +1890,13 @@ class BasicPrepared {
   BasicPrepared(const BasicCompiledSystem<S> &cs, const Assignment &st,
                 const SetupTamper &tamper = nullptr)
       : cs_(cs) {
+    // Multi-threaded (the threading knob), the statement's per-element work
+    // and its public computations split their chunks over a pool
+    // (util/parallel.h); single-threaded, the caller's runner, none by
+    // default. The values are the same in both modes.
+    const auto pool = make_pool(default_multithreaded());
+    std::optional<parallel::Scope> par_scope;
+    if (pool) par_scope.emplace(pool.get());
     statement(st);
     if (rejected_.empty()) setup(tamper);
   }

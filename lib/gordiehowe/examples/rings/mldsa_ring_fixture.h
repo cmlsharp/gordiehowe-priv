@@ -22,6 +22,7 @@
 #include "params/param_sets_testing.h"
 #include "gordiehowe/examples/instances.h"
 #include "gordiehowe/examples/rings/mldsa_ring_testing.h"
+#include "gordiehowe/threads_testing.h"
 #include "random/secure_random_engine.h"
 #include "gtest/gtest.h"
 
@@ -107,6 +108,62 @@ template <class Arm>
 void proves_at(size_t R) {
   Fixture<Arm> f(R);
   EXPECT_TRUE(f.prove_verify()) << Arm::kName << " R=" << R;
+}
+
+// The ring setup with and without a runner (util/parallel.h: a pool of 8
+// threads installed around prepare, as a multi-threaded prepare installs
+// its own) on a ring of 100 members: the statement's cached public
+// computations are the same values, fixed-seed proofs are the same bytes,
+// and a proof made under one mode's prepare verifies under the other's;
+// and single- and multi-threaded proofs cross-verify.
+template <class Arm>
+void setup_modes_agree() {
+  using Fx = Fixture<Arm>;
+  using Value = typename Fx::Value;
+  Fx f(100);
+  gordiehowe::internal::TaskPool pool(7);
+  auto in_mode = [&pool](bool multi, auto fn) {
+    parallel::Scope scope(multi ? &pool : nullptr);
+    return fn();
+  };
+  auto values = [&](bool multi) {
+    f.c->forget_setup();
+    std::map<size_t, Value> out;
+    in_mode(multi, [&] {
+      f.c->prepare(f.statement(),
+                   [&out](size_t id, Value &v) { out.emplace(id, v); });
+      return 0;
+    });
+    return out;
+  };
+  const auto single = values(false);
+  const auto multi = values(true);
+  EXPECT_FALSE(single.empty()) << Arm::kName;
+  EXPECT_TRUE(single == multi) << Arm::kName;
+  // Fixed-seed proofs (the uncached mu limbs included) are the same bytes.
+  std::vector<std::vector<uint8_t>> proofs;
+  for (const bool prove_multi : {false, true}) {
+    f.c->forget_setup();
+    const auto proof = in_mode(prove_multi, [&] {
+      auto prep = f.c->prepare(f.statement());
+      typename Fx::Sys::ProveOptions opt;
+      opt.fixed_seed = 7;
+      opt.multithreaded = false;
+      SecureRandomEngine rng;
+      return prep.prove(f.witness(), rng, opt);
+    });
+    proofs.push_back(proof);
+    f.c->forget_setup();
+    EXPECT_TRUE(in_mode(!prove_multi, [&] {
+      return f.c->prepare(f.statement()).verify(proof, nullptr, false);
+    })) << Arm::kName << " proved with a runner: " << prove_multi;
+  }
+  EXPECT_TRUE(proofs[0] == proofs[1]) << Arm::kName;
+  f.c->forget_setup();
+  // Single- and multi-threaded proofs (the row digests on the pool among
+  // them) verify in both modes.
+  const auto prep = f.c->prepare(f.statement());
+  gordiehowe::threads_testing::expect_threads_cross_verify(prep, f.witness());
 }
 
 // Domain H's values, both arms: c~', H's mu and w1Encode.

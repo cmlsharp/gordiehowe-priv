@@ -33,6 +33,7 @@
 #include "gordiehowe/linear.h"
 #include "gordiehowe/ops/ntt.h"
 #include "util/panic.h"
+#include "util/parallel.h"
 
 namespace proofs::gordiehowe::ops {
 // Negacyclic convolution by a public vector h of length n:
@@ -1370,7 +1371,9 @@ bool narrow_u64(const F &f, const typename F::Elt &x, uint64_t &out,
 // products. TYPED says the rows are values of a prime-field type (Bit, or
 // Subfield of a domain whose designated subfield is the prime field),
 // checked where they are computed, so no entry is checked again. Every
-// value here is public.
+// value here is public. The rows split into chunks on the calling thread's
+// runner (util/parallel.h, the multi-threaded mode's pool); each row's
+// digest is computed alone, so the values do not depend on the chunking.
 template <class F>
 std::vector<typename F::Elt> row_dots(const F &f, const typename F::Elt *rows,
                                       size_t R, size_t W,
@@ -1398,45 +1401,67 @@ std::vector<typename F::Elt> row_dots(const F &f, const typename F::Elt *rows,
           coef[i * D + t] = uint32_t(base.from_montgomery(G[i].e[t]).u64()[0]);
       // A row's entries as base residues, read once into a narrow buffer;
       // an entry with another nonzero coordinate is outside the prime field.
-      std::vector<uint32_t> row(W);
-      for (size_t j = 0; j < R && ok; ++j) {
-        const Elt *rj = rows + j * W;
-        for (size_t i = 0; i < W; ++i) {
-          row[i] = uint32_t(base.from_montgomery(rj[i].e[0]).u64()[0]);
-          if (!typed)
-            for (size_t t = 1; t < D; ++t) ok = ok && rj[i].e[t] == base.zero();
+      // The rows split into chunks (util/parallel.h), each with its own
+      // buffer and flag.
+      const size_t grain = parallel::grain_for(R, parallel::kChunks);
+      std::vector<uint8_t> chunk_ok(parallel::chunks(R, grain), 1);
+      parallel::for_chunks(R, grain, [&](size_t b, size_t e_) {
+        bool cok = true;
+        std::vector<uint32_t> row(W);
+        for (size_t j = b; j < e_ && cok; ++j) {
+          const Elt *rj = rows + j * W;
+          for (size_t i = 0; i < W; ++i) {
+            row[i] = uint32_t(base.from_montgomery(rj[i].e[0]).u64()[0]);
+            if (!typed)
+              for (size_t t = 1; t < D; ++t)
+                cok = cok && rj[i].e[t] == base.zero();
+          }
+          uint64_t s[D] = {};
+          for (size_t i = 0; i < W; ++i) {
+            const uint64_t x = row[i];
+            for (size_t t = 0; t < D; ++t) s[t] += x * coef[i * D + t];
+          }
+          Elt e{};
+          for (size_t t = 0; t < D; ++t)
+            e.e[t] = base.of_scalar(uint64_t(s[t] % uint64_t(q)));
+          d[j] = e;
         }
-        uint64_t s[D] = {};
-        for (size_t i = 0; i < W; ++i) {
-          const uint64_t x = row[i];
-          for (size_t t = 0; t < D; ++t) s[t] += x * coef[i * D + t];
-        }
-        Elt e{};
-        for (size_t t = 0; t < D; ++t)
-          e.e[t] = base.of_scalar(uint64_t(s[t] % uint64_t(q)));
-        d[j] = e;
-      }
+        chunk_ok[b / grain] = cok;
+      });
+      for (uint8_t c : chunk_ok) ok = ok && c;
       if (ok) return d;
       d.assign(R, f.zero());
     }
   } else if constexpr (PrescaledDot<F>::value) {
     std::vector<typename F::NatScaledForDot> gs(W);
     for (size_t i = 0; i < W; ++i) gs[i] = f.prescale_for_dot(G[i]);
-    std::vector<Nat<1>> row(W);
-    bool ok = true;
-    for (size_t j = 0; j < R && ok; ++j) {
-      for (size_t i = 0; i < W; ++i) {
-        uint64_t x = 0;
-        ok = narrow_u64(f, rows[j * W + i], x, typed) && ok;
-        row[i] = Nat<1>(x);
+    // The rows in chunks (util/parallel.h), each with its own buffer and
+    // flag.
+    const size_t grain = parallel::grain_for(R, parallel::kChunks);
+    std::vector<uint8_t> chunk_ok(parallel::chunks(R, grain), 1);
+    parallel::for_chunks(R, grain, [&](size_t b, size_t e) {
+      bool cok = true;
+      std::vector<Nat<1>> row(W);
+      for (size_t j = b; j < e && cok; ++j) {
+        for (size_t i = 0; i < W; ++i) {
+          uint64_t x = 0;
+          cok = narrow_u64(f, rows[j * W + i], x, typed) && cok;
+          row[i] = Nat<1>(x);
+        }
+        d[j] = f.dot(W, row.data(), gs.data());
       }
-      d[j] = f.dot(W, row.data(), gs.data());
-    }
+      chunk_ok[b / grain] = cok;
+    });
+    bool ok = true;
+    for (uint8_t c : chunk_ok) ok = ok && c;
     if (ok) return d;
     d.assign(R, f.zero());
   }
-  for (size_t j = 0; j < R; ++j)
-    for (size_t i = 0; i < W; ++i) f.add(d[j], f.mulf(rows[j * W + i], G[i]));
+  parallel::for_each(R, parallel::grain_for(R, parallel::kChunks),
+                     [&](size_t j) {
+                       for (size_t i = 0; i < W; ++i)
+                         f.add(d[j], f.mulf(rows[j * W + i], G[i]));
+                     });
   return d;
 }
 }  // namespace row_dot_internal

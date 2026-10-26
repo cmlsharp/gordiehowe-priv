@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <new>
@@ -126,6 +127,30 @@ struct ForOverwrite {
 // A vector whose elements the caller's chunks write (ForOverwrite).
 template <class T>
 using Buffer = std::vector<T, ForOverwrite<T>>;
+
+// A std::vector of N value-initialized elements for chunks to overwrite.
+// Under a runner, its storage is reserved and its pages first written in
+// chunks (zero bytes into the reserved storage, which holds no element
+// yet), so the page faults of a large output fall on every runner thread;
+// the value-initialization then writes memory already mapped. Without a
+// runner, or below 1 MiB, it is std::vector<T>(n). Either way the result is
+// the same vector.
+template <class T>
+std::vector<T> presized(size_t n) {
+  static_assert(std::is_trivially_copyable_v<T>,
+                "presized: elements the chunks overwrite");
+  std::vector<T> v;
+  const size_t bytes = n * sizeof(T);
+  if (current != nullptr && bytes >= (size_t(1) << 20)) {
+    v.reserve(n);
+    unsigned char *p = reinterpret_cast<unsigned char *>(v.data());
+    for_chunks(bytes, size_t(1) << 22, [p](size_t b, size_t e) {
+      std::memset(p + b, 0, e - b);
+    });
+  }
+  v.resize(n);
+  return v;
+}
 
 // OUT resized to N copies of X, written in chunks under a runner. OUT
 // keeps its capacity, so a buffer reused from proof to proof

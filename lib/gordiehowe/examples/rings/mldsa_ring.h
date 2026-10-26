@@ -20,10 +20,12 @@
 #ifndef PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_EXAMPLES_RINGS_MLDSA_RING_H_
 #define PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_EXAMPLES_RINGS_MLDSA_RING_H_
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -37,6 +39,7 @@
 #include "gordiehowe/relation.h"
 #include "gordiehowe/system.h"
 #include "gordiehowe/examples/rings/ml_dsa_ring_shake.h"
+#include "util/parallel.h"
 
 namespace proofs::gordiehowe::examples::mldsa {
 
@@ -90,6 +93,32 @@ inline MLDSARingStatement<Value> ring_statement_shape(size_t R,
 template <class HF>
 constexpr size_t tr_elements = (kTrBytes + HF::kBytes - 1) / HF::kBytes;
 
+// The R members' rows of WIDTH elements each, [R][WIDTH]: FN(BEGIN, END,
+// PUT) computes the members [BEGIN, END) and stores element I of the
+// output by PUT(I, x), in increasing I. On the calling thread's runner
+// (util/parallel.h: the pool a multi-threaded prepare installs,
+// GH_THREADS=multi), the members split into chunks writing a presized
+// output; without a runner, one chunk appends to a reserved output, so the
+// single-threaded setup writes each element once. Each chunk writes only
+// its own members' elements, so the values are the same in both modes.
+// The first exception in member order is rethrown.
+template <class Elt, class Fn>
+std::vector<Elt> member_rows(size_t R, size_t width, Fn fn) {
+  namespace par = ::proofs::parallel;
+  if (par::current == nullptr) {
+    std::vector<Elt> out;
+    out.reserve(R * width);
+    fn(size_t(0), R, [&out](size_t, const Elt &x) { out.push_back(x); });
+    return out;
+  }
+  auto out = par::presized<Elt>(R * width);
+  par::for_chunks(R, par::grain_for(R, 8 * par::kChunks),
+                  [&](size_t b, size_t e) {
+                    fn(b, e, [&out](size_t i, const Elt &x) { out[i] = x; });
+                  });
+  return out;
+}
+
 // The members' rows in two column blocks: the key part (the arm's decode,
 // cached per statement) and the mu limbs (per message), both of A's field.
 template <class HF, class AF>
@@ -104,7 +133,8 @@ struct RingRows {
 
 // The rows of the ring statement ST, in scope S. DECODE_ID and DECODE name
 // and compute a member's key part from its pkEncode (5120 canonical
-// integers below q); the decode runs once per ring (cache).
+// integers below q); the decode runs once per ring (cache). The per-member
+// work (tr, the decode, mu) splits over the members (member_rows).
 template <class DH, class DA, class Decode,
           class HF = std::decay_t<decltype(std::declval<DH &>().field())>,
           class AF = std::decay_t<decltype(std::declval<DA &>().field())>>
@@ -123,57 +153,65 @@ RingRows<HF, AF> ring_rows(const Scope &s, DH &H, DA &A,
   if (R < 2) fail("ring_rows: a ring of fewer than two members");
   const HF *ph = &H.field();
   const AF *pa = &A.field();
-  auto sh256 = std::make_shared<const ::proofs::Shake256>();
   RingRows<HF, AF> rows;
   // tr_j, its bytes in the elements' serialization.
   rows.tr =
       s[H].pub(Field{}, "tr", Shape{R, tr_elements<HF>}, depends_on(pk),
                computes("shake256", {kTrBytes, R}),
-               [ph, R, sh256](const std::vector<uint8_t> &keys) {
-                 std::vector<HElt> out;
-                 for (size_t j = 0; j < R; ++j) {
-                   std::array<uint8_t, tr_elements<HF> * HF::kBytes> t{};
-                   (*sh256)(keys.data() + j * kPkBytes, kPkBytes, t.data(),
+               [ph, R](const std::vector<uint8_t> &keys) {
+                 constexpr size_t W = tr_elements<HF>;
+                 return member_rows<HElt>(
+                     R, W, [&](size_t b, size_t end, auto &&put) {
+                       const ::proofs::Shake256 sh;
+                       for (size_t j = b; j < end; ++j) {
+                         std::array<uint8_t, W * HF::kBytes> t{};
+                         sh(keys.data() + j * kPkBytes, kPkBytes, t.data(),
                             kTrBytes);
-                   for (size_t e = 0; e < tr_elements<HF>; ++e)
-                     out.push_back(
-                         *ph->of_bytes_field(t.data() + e * HF::kBytes));
-                 }
-                 return out;
+                         for (size_t e = 0; e < W; ++e)
+                           put(j * W + e,
+                               *ph->of_bytes_field(t.data() + e * HF::kBytes));
+                       }
+                     });
                })
           .cache();
   rows.keys =
       s[A].pub(Subfield{}, "keys", Shape{R, kKeyCells}, depends_on(pk),
                decode_id,
                [pa, R, decode](const std::vector<uint8_t> &keys) {
-                 std::vector<AElt> out;
-                 out.reserve(R * kKeyCells);
-                 for (size_t j = 0; j < R; ++j) {
-                   const std::vector<uint8_t> key(
-                       keys.begin() + long(j * kPkBytes),
-                       keys.begin() + long((j + 1) * kPkBytes));
-                   for (uint64_t x : decode(key))
-                     out.push_back(pa->of_scalar(x));
-                 }
-                 return out;
+                 return member_rows<AElt>(
+                     R, kKeyCells, [&](size_t b, size_t end, auto &&put) {
+                       for (size_t j = b; j < end; ++j) {
+                         const std::vector<uint8_t> key(
+                             keys.begin() + long(j * kPkBytes),
+                             keys.begin() + long((j + 1) * kPkBytes));
+                         const auto row = decode(key);
+                         if (row.size() != kKeyCells)
+                           throw std::runtime_error(
+                               "ring_rows: a key row of another width");
+                         for (size_t k = 0; k < kKeyCells; ++k)
+                           put(j * kKeyCells + k, pa->of_scalar(row[k]));
+                       }
+                     });
                })
           .cache();
   // mu_j from tr_j, the message and the context, as 22-bit limbs.
-  auto limbs = [ph, pa, R, sh256](const Tensor<HElt> &tr,
-                                  const std::vector<uint8_t> &m,
-                                  const std::vector<uint8_t> &c) {
-    std::vector<AElt> out;
-    out.reserve(R * kMuLimbs);
-    for (size_t j = 0; j < R; ++j) {
-      std::array<uint8_t, tr_elements<HF> * HF::kBytes> t{};
-      for (size_t e = 0; e < tr_elements<HF>; ++e)
-        ph->to_bytes_field(t.data() + e * HF::kBytes,
-                           tr[j * tr_elements<HF> + e]);
-      const auto mu = ring_host::mu_of(*sh256, t.data(), m, c);
-      for (uint64_t x : ring_host::mu_limbs(mu.data()))
-        out.push_back(pa->of_scalar(x));
-    }
-    return out;
+  auto limbs = [ph, pa, R](const Tensor<HElt> &tr,
+                           const std::vector<uint8_t> &m,
+                           const std::vector<uint8_t> &c) {
+    return member_rows<AElt>(
+        R, kMuLimbs, [&](size_t b, size_t end, auto &&put) {
+          const ::proofs::Shake256 sh;
+          for (size_t j = b; j < end; ++j) {
+            std::array<uint8_t, tr_elements<HF> * HF::kBytes> t{};
+            for (size_t e = 0; e < tr_elements<HF>; ++e)
+              ph->to_bytes_field(t.data() + e * HF::kBytes,
+                                 tr[j * tr_elements<HF> + e]);
+            const auto mu = ring_host::mu_of(sh, t.data(), m, c);
+            const auto l = ring_host::mu_limbs(mu.data());
+            for (size_t k = 0; k < kMuLimbs; ++k)
+              put(j * kMuLimbs + k, pa->of_scalar(l[k]));
+          }
+        });
   };
   const Computes mu_id =
       computes("mldsa_mu_limbs", {kMuLimbBits, R, msg_bytes, ctx_bytes});

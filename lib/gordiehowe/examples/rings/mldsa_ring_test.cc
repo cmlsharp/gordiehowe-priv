@@ -12,6 +12,8 @@
 //                                 witness's
 //   TamperRejected                a wrong index, a key off the ring, a bad
 //                                 signature, a wrong mu, a broken MAC
+//   SetupModesAgree               the ring setup and the proofs agree
+//                                 across the threading knob's modes
 //   RingHost.BoundedExpandA       the ring's bounded ExpandA (6 SHAKE128
 //                                 blocks per call) equals the unbounded
 //                                 reference on a 64-member ring's keys, and
@@ -65,6 +67,9 @@ TYPED_TEST(MLDSARing, NativeMatchesHostWitness) {
 
 TYPED_TEST(MLDSARing, NativeTamperRejected) {
   tamper_rejected<NativeArm<TypeParam>>();
+}
+TYPED_TEST(MLDSARing, NativeSetupModesAgree) {
+  setup_modes_agree<NativeArm<TypeParam>>();
 }
 
 // A Bytes statement of the native field F_q^k, whose serialization at

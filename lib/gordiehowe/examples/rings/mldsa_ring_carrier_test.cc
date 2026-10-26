@@ -65,5 +65,9 @@ TYPED_TEST(MLDSARingCarrier, CarrierTamperRejected) {
   tamper_rejected<CarrierArm<TypeParam>>();
 }
 
+TYPED_TEST(MLDSARingCarrier, CarrierSetupModesAgree) {
+  setup_modes_agree<CarrierArm<TypeParam>>();
+}
+
 }  // namespace
 }  // namespace proofs::gordiehowe::examples::mldsa

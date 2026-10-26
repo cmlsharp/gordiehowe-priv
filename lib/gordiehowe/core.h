@@ -2908,36 +2908,54 @@ template <class F>
 std::vector<typename F::Elt> pack_bytes(const F &f,
                                         const std::vector<uint8_t> &b) {
   const size_t k = pack_bytes_per_coordinate(f);
-  std::vector<typename F::Elt> out;
+  // The elements split into chunks on the calling thread's runner
+  // (util/parallel.h); each element is packed alone.
   if constexpr (!kCoordinateAligned<F>) {
     // Each coordinate's value over the extension basis of F over its
     // prime field (zk_extension_packed.h): an injective packing whatever
     // the serialization.
     constexpr size_t D = ExtensionTraits<F>::degree;
     const auto &basis = ExtensionBasis<F>::get(f).beta;
-    for (size_t at = 0; at < b.size(); at += k * D) {
-      typename F::Elt e = f.zero();
-      for (size_t j = 0; j < D; ++j) {
-        uint64_t v = 0;
-        for (size_t i = 0; i < k && at + j * k + i < b.size(); ++i)
-          v |= uint64_t(b[at + j * k + i]) << (8 * i);
-        f.add(e, f.mulf(f.of_scalar(v), basis[j]));
-      }
-      out.push_back(e);
-    }
+    const size_t n = (b.size() + k * D - 1) / (k * D);
+    auto out = parallel::presized<typename F::Elt>(n);
+    parallel::for_each(n, parallel::grain_for(n, parallel::kChunks),
+                       [&](size_t m) {
+                         const size_t at = m * k * D;
+                         typename F::Elt e = f.zero();
+                         for (size_t j = 0; j < D; ++j) {
+                           uint64_t v = 0;
+                           for (size_t i = 0;
+                                i < k && at + j * k + i < b.size(); ++i)
+                             v |= uint64_t(b[at + j * k + i]) << (8 * i);
+                           f.add(e, f.mulf(f.of_scalar(v), basis[j]));
+                         }
+                         out[m] = e;
+                       });
     return out;
   }
   const size_t coords = F::kBytes / domain_subfield<F>::kBytes;
   const size_t per = k * coords;
-  for (size_t at = 0; at < b.size(); at += per) {
-    uint8_t buf[F::kBytes] = {};
-    for (size_t j = 0; j < coords; ++j)
-      for (size_t i = 0; i < k && at + j * k + i < b.size(); ++i)
-        buf[j * domain_subfield<F>::kBytes + i] = b[at + j * k + i];
-    auto e = f.of_bytes_field(buf);
-    if (!e) fail("pack_bytes: a packed element is not canonical");
-    out.push_back(*e);
-  }
+  const size_t n = (b.size() + per - 1) / per;
+  auto out = parallel::presized<typename F::Elt>(n);
+  const size_t grain = parallel::grain_for(n, parallel::kChunks);
+  std::vector<uint8_t> chunk_ok(parallel::chunks(n, grain), 1);
+  parallel::for_chunks(n, grain, [&](size_t lo, size_t hi) {
+    for (size_t m = lo; m < hi; ++m) {
+      const size_t at = m * per;
+      uint8_t buf[F::kBytes] = {};
+      for (size_t j = 0; j < coords; ++j)
+        for (size_t i = 0; i < k && at + j * k + i < b.size(); ++i)
+          buf[j * domain_subfield<F>::kBytes + i] = b[at + j * k + i];
+      auto e = f.of_bytes_field(buf);
+      if (!e) {
+        chunk_ok[lo / grain] = 0;
+        return;
+      }
+      out[m] = *e;
+    }
+  });
+  for (uint8_t c : chunk_ok)
+    if (!c) fail("pack_bytes: a packed element is not canonical");
   return out;
 }
 
