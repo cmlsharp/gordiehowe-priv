@@ -17,7 +17,7 @@ public import GordieHowe.Generated.Falcon512.Native.ROMParams.Plan
 # GordieHowe: the interpretation of `Falcon512.Native.ROMParams`
 
 The fields of the realized program of the native Falcon proof of possession at the ROM parameters
-(`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program`, export `c825eb05`: domain `H` over field
+(`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program`, export `3ed06086`: domain `H` over field
 `0`, `GF(2^128)`; domain `A` over field `1`, `F_q^9`, `q = 12289`), read in Lean, for the proof system
 and the frontend alike:
 

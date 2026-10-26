@@ -15,7 +15,7 @@ public import GordieHowe.Applications.Falcon512.Spec.KeyNTT
 # GordieHowe frontend: native Falcon, the relation and the extractor
 
 The frontend of the theorem at the realized program for the native Falcon proofs of possession
-(`Falcon512.Native.ROMParams` and `Falcon512.Native.QROMParams`, export `c825eb05`), generic in the program `program` and in the fields of
+(`Falcon512.Native.ROMParams` and `Falcon512.Native.QROMParams`, export `3ed06086`), generic in the program `program` and in the fields of
 its domains (`falconInterpOf FH FA`, `GordieHowe/Applications/Falcon512/Frontend/Fields.lean`): the program
 facts it reads are the fields of `FalconHBase` (decided per program), `FalconHConsts` (the
 selection's labels in `FH`, read by the hash's padding) and `FalconSelField` (the selection's field:
@@ -23,11 +23,11 @@ selection's labels in `FH`, read by the hash's padding) and `FalconSelField` (th
 `A`'s layout:
 
 * **The selection** (`selShape`, `firstAccepted_or_badAt`, `selectEvent`): the source program's
-  first-`512` selection of the `639` samples below `61445` (`h2p.select.*`), at the selection field
-  of `FH` (`GordieHowe.Falcon512.HField.sel`), its event at `h2p.select.delta` of probability `639/2^bits`.
+  first-`512` selection of the `717` samples below `61445` (`h2p.select.*`), at the selection field
+  of `FH` (`GordieHowe.Falcon512.HField.sel`), its event at `h2p.select.delta` of probability `717/2^bits`.
 * **The crossing** (`natOfBits_raw_eq`): `mac.equal` makes sample `j` of `select.raw` and of `c_A`
   the same natural.
-* **The statement** (`keyOf`, `stmtOf`): the statement value `statement.hhat` (value `544`, `512`
+* **The statement** (`keyOf`, `stmtOf`): the statement value `statement.hhat` (value `593`, `512`
   coordinates of `F_q`) is the key's transform `key_hat`; `keyOf` decodes it as the verifier's
   preprocessing does (`GordieHowe.Falcon512.KeyNTT.falconDecode`: every entry below `q`, then the C++ inverse
   transform), `stmtOf` writes a key's `keyHat` (`keyOf_stmtOf`).
@@ -45,7 +45,7 @@ selection's labels in `FH`, read by the hash's padding) and `FalconSelField` (th
   `proj`, given the hash view and, at the key, some algebra advice satisfying Falcon native's
   algebra constraints (`AlgebraAt`, domain `A`'s obligation).
 * **Round-by-round knowledge soundness of `Π_P₀`** (`rbr_of_views`): `GordieHowe.RealizedProgram.rbr_of_events` at the
-  selection's event (`selectEvent`, `639/2^bits` at `h2p.select.delta`), the two obligations as
+  selection's event (`selectEvent`, `717/2^bits` at `h2p.select.delta`), the two obligations as
   hypotheses. Domain `A`'s (`AlgebraSound`) is proved in
   `GordieHowe/Applications/Falcon512/Native/ROMParams/Frontend/Algebra.lean` (`algebraSound`), the hash
   view in `GordieHowe/Applications/Falcon512/Native/ROMParams/Frontend/Hash.lean` (`falconHashView`).
@@ -60,29 +60,29 @@ open scoped NNReal ENNReal
 /-! ## The program facts -/
 
 /-- **The selection of a native Falcon program** (`h2p.select.*`, domain `H`): the counter `count`
-(value `541`), the completion flags `full` (`542`), the challenge value `δ` (`543`), the selected
-words' bits `select.raw` (`540`), the shared expressions `489` (the stream: the masked sum of the
-views of the squeezed state `h2p.shake.state` and the output blocks `h2p.shake.out.p1`–`p9`), `490`
-(the comparisons) and `491` (the acceptance bits), and the constants `1` (`26`), `0` (`0`), the
+(value `590`), the completion flags `full` (`591`), the challenge value `δ` (`592`), the selected
+words' bits `select.raw` (`589`), the shared expressions `537` (the stream: the masked sum of the
+views of the squeezed state `h2p.shake.state` and the output blocks `h2p.shake.out.p1`–`p10`), `538`
+(the comparisons) and `539` (the acceptance bits), and the constants `1` (`26`), `0` (`0`), the
 zeros (`35`, `37`), the ones (`33`), `g` (`34`), `g^512` (`36`), `e_u` (`38`), `g^j` (`39`) and the
 bits of `61445` (`32`). -/
 abbrev selShape : RealizedProgram.SelectShape :=
-  ⟨0, 541, 542, 543, 540, 489, 490, 491, 26, 0, 35, 37, 33, 34, 36, 38, 39, 32⟩
+  ⟨0, 590, 591, 592, 589, 537, 538, 539, 26, 0, 35, 37, 33, 34, 36, 38, 39, 32⟩
 
 /-- **The program facts the native Falcon frontend reads outside the Keccak trace and domain `A`**,
-each decided per program: the selection's predicates `246`–`249` and its shape, the constants'
+each decided per program: the selection's predicates `270`–`273` and its shape, the constants'
 entries, `δ` the source program's one challenge; `mac.equal` and `crossing.c_A.boolean`; the
-statement's member check of `hhat` (value `544`) and the values the extractor reads. -/
+statement's member check of `hhat` (value `593`) and the values the extractor reads. -/
 class FalconHBase (program : RealizedProgram) : Prop where
   /-- The selection's predicates are `h2p.select.start`, `.step`, `.done` and `.route`, source
   predicates. -/
-  selectPreds : program.predByName "h2p.select.start" = some 246 ∧
-    program.predByName "h2p.select.step" = some 247 ∧
-    program.predByName "h2p.select.done" = some 248 ∧
-    program.predByName "h2p.select.route" = some 249 ∧
-    (∀ p ∈ [246, 247, 248, 249], program.inSource (program.predicate p) = true)
-  /-- The selection has the first-`n` shape at `(S, n, w) = (639, 512, 16)`. -/
-  selectShape_eq : program.selectShape? 639 512 16 246 247 248 249 = some selShape
+  selectPreds : program.predByName "h2p.select.start" = some 270 ∧
+    program.predByName "h2p.select.step" = some 271 ∧
+    program.predByName "h2p.select.done" = some 272 ∧
+    program.predByName "h2p.select.route" = some 273 ∧
+    (∀ p ∈ [270, 271, 272, 273], program.inSource (program.predicate p) = true)
+  /-- The selection has the first-`n` shape at `(S, n, w) = (717, 512, 16)`. -/
+  selectShape_eq : program.selectShape? 717 512 16 270 271 272 273 = some selShape
   /-- The program's shared expressions read only earlier entries. -/
   refsOrdered : program.RefsOrdered
   /-- Domain `H` has field `0`. -/
@@ -93,18 +93,18 @@ class FalconHBase (program : RealizedProgram) : Prop where
   const_entries :
     (program.constEntries 39).getD 0 0 = 1 ∧ (program.constEntries 26).getD 0 0 = 1 ∧
       (program.constEntries 0).getD 0 0 = 0 ∧
-      (∀ i < 638, (program.constEntries 35).getD i 0 = 0) ∧
-      (∀ t < 127, (program.constEntries 37).getD t 0 = 0) ∧
-      (∀ t < 127, (program.constEntries 33).getD t 0 = 1) ∧
+      (∀ i < 716, (program.constEntries 35).getD i 0 = 0) ∧
+      (∀ t < 205, (program.constEntries 37).getD t 0 = 0) ∧
+      (∀ t < 205, (program.constEntries 33).getD t 0 = 1) ∧
       (program.constEntries 34).getD 0 0 = (program.constEntries 39).getD 1 0 ∧
       (∀ u < 16, (program.constEntries 38).getD u 0 = (program.constEntries 39).getD u 0) ∧
       (∀ u < 16, (program.constEntries 32).getD u 0 = 61445 / 2 ^ u % 2)
   /-- `δ` is challenge `0`. -/
-  deltaKind : (program.value 543).kind = .challenge 0
+  deltaKind : (program.value 592).kind = .challenge 0
   /-- `δ`'s field is its challenge's. -/
-  deltaField : program.chalField 0 = program.valueField 543
+  deltaField : program.chalField 0 = program.valueField 592
   /-- The selection's committed values read nothing from the run. -/
-  selReads_nil : ∀ v ∈ 541 :: 542 :: 540 :: program.exprNodes (.ref 489),
+  selReads_nil : ∀ v ∈ 590 :: 591 :: 589 :: program.exprNodes (.ref 537),
     program.nodeReads program.fuel v = []
   /-- Challenge `0` is full, of one coordinate, in field `0`. -/
   chal0 : (program.challenge 0).size = 1 ∧ (program.challenge 0).sampler = .full ∧
@@ -115,8 +115,8 @@ class FalconHBase (program : RealizedProgram) : Prop where
 /-- **The program facts the Falcon frontend reads about domain `A`**, each decided per program, at
 the identifiers `cA` of the sample bits `crossing.c_A` and `s2` of the signature polynomial: domain
 `A` has field `1`; `mac.equal` and `crossing.c_A.boolean`; the statement's member check of `hhat`
-(value `544`) and the values the extractor reads. The native programs have `(cA, s2) = (545, 546)`,
-the emulated ones `(546, 547)`. -/
+(value `593`) and the values the extractor reads. The native programs have `(cA, s2) = (594, 595)`,
+the emulated ones `(595, 596)`. -/
 class FalconACore (program : RealizedProgram) where
   /-- The identifier of `crossing.c_A`. -/
   cA : ℕ
@@ -126,26 +126,26 @@ class FalconACore (program : RealizedProgram) where
   domainField1 : program.domainField 1 = 1
   /-- `mac.equal` is `cross(H, select.raw, A, c_A)` of width `1`, a source predicate. -/
   macEqual : ∃ p, program.predByName "mac.equal" = some p ∧
-    (program.predicate p).body.crossLeaves? = some ⟨0, 540, 1, cA⟩ ∧
+    (program.predicate p).body.crossLeaves? = some ⟨0, 589, 1, cA⟩ ∧
     program.inSource (program.predicate p) = true
   /-- `crossing.c_A.boolean` is `c_A · c_A = c_A` in `A`, a source predicate. -/
   cABoolean : ∃ p, program.predByName "crossing.c_A.boolean" = some p ∧
     (program.predicate p).body.boolCheck? = some ⟨1, cA⟩ ∧
     program.inSource (program.predicate p) = true
   /-- `select.raw` is a bit view; it and `c_A` have `8192` coordinates. -/
-  raw_facts : program.isBitView 540 = true ∧ (program.value 540).size = 8192 ∧
+  raw_facts : program.isBitView 589 = true ∧ (program.value 589).size = 8192 ∧
     (program.value (cA)).size = 8192
   /-- The member check `falcon_key_canonical [12289]` of `hhat`. -/
   hhatCheck : RealizedProgram.MemberCheck.mk "hhat" 0 1024 "falcon_key_canonical" [12289] ∈
     program.statement.checks
-  /-- `hhat` is value `544`. -/
-  hhatValue : program.memberValue? "hhat" = some 544
+  /-- `hhat` is value `593`. -/
+  hhatValue : program.memberValue? "hhat" = some 593
   /-- `hhat` has `512` coordinates. -/
-  hhatSize : (program.value 544).size = 512
+  hhatSize : (program.value 593).size = 512
   /-- `hhat` is a value of field `1`. -/
-  hhatField : program.valueField 544 = 1
+  hhatField : program.valueField 593 = 1
   /-- The values the extractor reads read nothing from the run. -/
-  srcReads_nil : ∀ v ∈ [45, 46, 47, 540, cA, s2], program.nodeReads program.fuel v = []
+  srcReads_nil : ∀ v ∈ [45, 46, 47, 589, cA, s2], program.nodeReads program.fuel v = []
 
 /-- **The selection's labels in domain `H`'s field** (decided in the field `FH`): entry `j < 512` of
 the constant `39` is `g^j`, the constant `36` is `g^512`. -/
@@ -196,7 +196,7 @@ theorem selField : RealizedProgram.SelectShape.field program selShape = 0 := Fal
 
 /-- **The selection field** of the selection's field (`HField.sel`: `GF(2^16)`, `X`, `g` the
 subfield's generator, `e_u = g^u`). -/
-def selF [FalconSelField program FH FA] : SelectionField (interp (RealizedProgram.SelectShape.field program selShape)).K 639 16 :=
+def selF [FalconSelField program FH FA] : SelectionField (interp (RealizedProgram.SelectShape.field program selShape)).K 717 16 :=
   HField.sel (FH := SelField program FH FA)
 
 instance [FalconSelField program FH FA] : CharP (interp (RealizedProgram.SelectShape.field program selShape)).K 2 :=
@@ -248,12 +248,12 @@ theorem selConsts [FalconSelField program FH FA] : selShape.Consts program inter
 /-! ### Soundness and the event at `h2p.select.delta` -/
 
 /-- **The selection's shape** (`FalconHBase.selectShape_eq`). -/
-theorem selectMatches : program.SelectMatches 639 512 16 246 247 248 249 selShape :=
+theorem selectMatches : program.SelectMatches 717 512 16 270 271 272 273 selShape :=
   RealizedProgram.selectMatches_of_selectShape? FalconHBase.selectShape_eq
 
 /-- **The stream's samples** (`h2p.select`'s view of `shake.out`, `16` bits each). -/
 abbrev selSample (e : program.Env interp) :
-    Fin 639 → BitWires (interp (RealizedProgram.SelectShape.field program selShape)).K 16 :=
+    Fin 717 → BitWires (interp (RealizedProgram.SelectShape.field program selShape)).K 16 :=
   selShape.sample program (program.reader e)
 
 /-- **The selected words** (`select.raw`, `16` bits each). -/
@@ -263,17 +263,17 @@ abbrev selWord (e : program.Env interp) :
 
 /-- **The route** (`count`, and `full` from sample `512` on). -/
 abbrev selRoute (e : program.Env interp) :
-    Fin 639 → Route (interp (RealizedProgram.SelectShape.field program selShape)).K :=
+    Fin 717 → Route (interp (RealizedProgram.SelectShape.field program selShape)).K :=
   selShape.route program (program.reader e) 512
 
 /-- **The selection's event** at the committed values: `SelectFirstN.badEvent` of the samples, the
-selected words and the route (degree `639`). -/
+selected words and the route (degree `717`). -/
 noncomputable def selBad [FalconSelField program FH FA] (e : program.Env interp) :
     ChallengeEvent (interp (RealizedProgram.SelectShape.field program selShape)).K :=
   SelectFirstN.badEvent selF 61445 (selSample e) (selWord e) (selRoute e) (by decide)
 
-/-- **The selection's event has degree `639`.** -/
-theorem selBad_deg [FalconSelField program FH FA] (e : program.Env interp) : (selBad e).deg = 639 := rfl
+/-- **The selection's event has degree `717`.** -/
+theorem selBad_deg [FalconSelField program FH FA] (e : program.Env interp) : (selBad e).deg = 717 := rfl
 
 /-- **The selection's soundness** where the source program holds: the selected words are the
 first `512` samples below `61445` (`firstAccepted`), or `δ` is a root of the selection's event. -/
@@ -284,10 +284,10 @@ theorem firstAccepted_or_badAt [FalconSelField program FH FA] {e : program.Env i
       (selBad e).BadAt (selShape.deltaAt program (program.reader e)) := by
   obtain ⟨h1, h2, h3, h4, hsrc⟩ := FalconHBase.selectPreds (program := program)
   exact selectMatches.firstAccepted_or_badAt FalconHBase.refsOrdered selConsts (by norm_num)
-    (by decide) (by decide) hs (hs.holdsAt_of_predByName h1 (hsrc 246 (by simp)))
-    (hs.holdsAt_of_predByName h2 (hsrc 247 (by simp)))
-    (hs.holdsAt_of_predByName h3 (hsrc 248 (by simp)))
-    (hs.holdsAt_of_predByName h4 (hsrc 249 (by simp)))
+    (by decide) (by decide) hs (hs.holdsAt_of_predByName h1 (hsrc 270 (by simp)))
+    (hs.holdsAt_of_predByName h2 (hsrc 271 (by simp)))
+    (hs.holdsAt_of_predByName h3 (hsrc 272 (by simp)))
+    (hs.holdsAt_of_predByName h4 (hsrc 273 (by simp)))
 
 /-- **`δ` is challenge `0`** (`h2p.select.delta`), read in the selection's field. -/
 theorem selDelta_eq (e : program.Env interp) :
@@ -300,7 +300,7 @@ theorem selDelta_eq (e : program.Env interp) :
 theorem selBad_congr [FalconSelField program FH FA] {e e' : program.Env interp} (hs : e.stmt = e'.stmt) (ha : e.asg = e'.asg) :
     selBad e = selBad e' := by
   obtain ⟨h1, h2, h3⟩ :=
-    RealizedProgram.selectReadings_congr (s := selShape) (S := 639) (n := 512) (w := 16)
+    RealizedProgram.selectReadings_congr (s := selShape) (S := 717) (n := 512) (w := 16)
     (rd := program.reader e) (rd' := program.reader e') fun v hv =>
       RealizedProgram.reader_eq_of_nodeReads_nil (FalconHBase.selReads_nil v hv) hs ha
   unfold selBad selSample selWord selRoute
@@ -328,11 +328,11 @@ theorem card_sel [FalconSelField program FH FA] :
   rw [← FalconSelField.bits_eq (program := program) (FA := FA)]
   exact HField.card (FH := SelField program FH FA)
 
-/-- **The event's probability** over `h2p.select.delta`, uniform in `FH`: at most `639/2^bits`
+/-- **The event's probability** over `h2p.select.delta`, uniform in `FH`: at most `717/2^bits`
 (`RealizedProgram.probUniform_badAt_setChal_le`, Schwartz–Zippel). -/
 theorem selectEvent_prob [FalconSelField program FH FA] (e : program.Env interp) :
     Pr[c ← program.ChalVal interp 0 : selectEvent 0 (e.setChal 0 c)] ≤
-      ((639 / 2 ^ HField.bits FH : ℝ≥0) : ℝ≥0∞) := by
+      ((717 / 2 ^ HField.bits FH : ℝ≥0) : ℝ≥0∞) := by
   have hset : ∀ c, selectEvent 0 (e.setChal 0 c) ↔
       (selBad e).BadAt (RealizedProgram.castElt ((e.setChal 0 c).chal 0 0)) := fun c => by
     simp only [selectEvent, true_and]
@@ -344,12 +344,12 @@ theorem selectEvent_prob [FalconSelField program FH FA] (e : program.Env interp)
   rw [selBad_deg, card_sel]
   norm_num
 
-/-- **The round errors of `Π_P₀`'s challenges**: `639/2^bits` at `h2p.select.delta`, `0`
+/-- **The round errors of `Π_P₀`'s challenges**: `717/2^bits` at `h2p.select.delta`, `0`
 elsewhere. -/
-noncomputable def selectEps (j : ℕ) : ℝ≥0 := if j = 0 then 639 / 2 ^ HField.bits FH else 0
+noncomputable def selectEps (j : ℕ) : ℝ≥0 := if j = 0 then 717 / 2 ^ HField.bits FH else 0
 
 /-- **The events' probabilities** (`RealizedProgram.rbr_of_events`' `hbound`): at the source program's
-challenge `h2p.select.delta`, at most `639/2^bits` (`selectEvent_prob`). -/
+challenge `h2p.select.delta`, at most `717/2^bits` (`selectEvent_prob`). -/
 theorem selectEvent_bound [FalconSelField program FH FA] : ∀ j, program.IsSourceChal j → ∀ e : program.Env interp,
     Pr[c ← program.ChalVal interp j : selectEvent j (e.setChal j c)] ≤ selectEps (FH := FH) j := by
   intro j hj e
@@ -400,11 +400,11 @@ theorem natOfBits_wordAt_congr {I : RealizedProgram.Interp} {rd : program.Valuat
   subst h
   rfl
 
-/-- **The selected samples** (`h2p.select.raw`, value `540`, domain `H`): sample `j` is word `j` of
+/-- **The selected samples** (`h2p.select.raw`, value `589`, domain `H`): sample `j` is word `j` of
 `16` bits, read in `FH`. -/
 def rawBits (e : program.Env interp) (j : Fin falcon512.n) :
     BitWires (interp 0).K falconSampleBits :=
-  program.wordAt (program.reader e) 0 540 16 j
+  program.wordAt (program.reader e) 0 589 16 j
 
 /-! ## The message and the hash -/
 
@@ -449,7 +449,7 @@ theorem messageBytes_congr {rd rd' : program.Valuation interp} (h46 : rd 46 = rd
   rw [hm, hL]
 
 /-- **The hash of a native Falcon program as the frontend reads it**: one SHAKE256 call of domain `H`
-squeezing `2 · 639` bytes (`SpongeView`), whose input bytes are the nonce's then the message's, at
+squeezing `2 · 717` bytes (`SpongeView`), whose input bytes are the nonce's then the message's, at
 the length the in-message flags encode (`input_bytes`, `messageBytes`), and whose output, two bytes
 per sample (`HashCircuit.sampleAt`: byte `2i + 1` as bits `0 … 7`, byte `2i` as bits `8 … 15`), is
 the stream the selection reads (`samples`), where the source program holds. The instance reads the
@@ -502,14 +502,14 @@ theorem natOfBits_raw_eq {e : program.Env interp} (h : program.SourceSatAt e)
   obtain ⟨pb, hpb, hbc, hsrcb⟩ := FalconACore.cABoolean (program := program)
   have hcross := h.holdsAt_of_predByName hpm hsrcm
   have hbool := h.holdsAt_of_predByName hpb hsrcb
-  have hj : (j : ℕ) * 16 + 16 ≤ (program.value 540).size := by
+  have hj : (j : ℕ) * 16 + 16 ≤ (program.value 589).size := by
     rw [hsize]
     have := j.isLt
     change (j : ℕ) < 512 at this
     omega
   have hd0 := FalconHBase.domainField0 (program := program)
   have hd1 := FalconACore.domainField1 (program := program)
-  have key := RealizedProgram.natOfBits_wordAt_eq_of_cross (s := ⟨0, 540, 1, (FalconACore.cA program)⟩) hcl hcross
+  have key := RealizedProgram.natOfBits_wordAt_eq_of_cross (s := ⟨0, 589, 1, (FalconACore.cA program)⟩) hcl hcross
     (by change (interp (program.domainField 0)).toNat 0 = 0; rw [hd0]; exact HField.toNat_zero)
     (by change (interp (program.domainField 0)).toNat 1 = 1; rw [hd0]; exact HField.toNat_one)
     (by change (interp (program.domainField 1)).toNat 0 = 0; rw [hd1]; exact AReading.toNat_zero)
@@ -518,40 +518,40 @@ theorem natOfBits_raw_eq {e : program.Env interp} (h : program.SourceSatAt e)
     (fun i hi => RealizedProgram.bool_of_boolCheck hbc hbool
       (by change i < (program.value (FalconACore.cA program)).size; rw [hsizeA]; rw [hsize] at hi; exact hi))
     hj
-  change Bits.natOfBits (program.wordAt (program.reader e) (program.domainField 0) 540 16 j) =
+  change Bits.natOfBits (program.wordAt (program.reader e) (program.domainField 0) 589 16 j) =
     Bits.natOfBits (program.wordAt (program.reader e) (program.domainField 1) (FalconACore.cA program) 16 j) at key
   rw [hd0, hd1] at key
   exact key
 
 /-! ## The statement -/
 
-/-- **The key of a statement**: the statement value `statement.hhat` (value `544`) read as naturals
+/-- **The key of a statement**: the statement value `statement.hhat` (value `593`) read as naturals
 (`FieldInterp.toNat`) and decoded as the verifier's preprocessing decodes `key_hat`
 (`FalconKeyNTT.falconDecode 512 12289`: every entry below `q`, then the C++ inverse transform); none
 when an entry is not below `q`. -/
 -- spec-side
 def keyOf (x : program.Valuation interp) : Option PublicKey :=
   (KeyNTT.falconDecode 512 12289
-      fun i => (interp (program.valueField 544)).toNat (x 544 i)).map
+      fun i => (interp (program.valueField 593)).toNat (x 593 i)).map
     fun c => ⟨Falcon512.ofCoeff fun i => (c i : _root_.Falcon.Coeff)⟩
 
 /-- **The statement of a key**: `statement.hhat` holds the key's transform `keyHat` (the forward
 C++ transform of its coefficients), every other statement coordinate `0`. -/
 def stmtOf (pk : PublicKey) : program.Valuation interp := fun v i =>
-  if h : v = 544 ∧ i < 512 then
+  if h : v = 593 ∧ i < 512 then
     RealizedProgram.castElt (a := 1) ((KeyNTT.keyHat pk ⟨i, h.2⟩ : ℕ) : (interp 1).K)
   else 0
 
 /-- `statement.hhat` of a key's statement holds the key's transform. -/
 theorem stmtOf_hhat (pk : PublicKey) (i : Fin 512) :
-    (stmtOf pk : program.Valuation interp) 544 i = RealizedProgram.castElt (a := 1) ((KeyNTT.keyHat pk i : ℕ) : (interp 1).K) := by
+    (stmtOf pk : program.Valuation interp) 593 i = RealizedProgram.castElt (a := 1) ((KeyNTT.keyHat pk i : ℕ) : (interp 1).K) := by
   unfold stmtOf
-  rw [dif_pos (show 544 = 544 ∧ (i : ℕ) < 512 from ⟨rfl, i.isLt⟩)]
+  rw [dif_pos (show 593 = 593 ∧ (i : ℕ) < 512 from ⟨rfl, i.isLt⟩)]
 
 /-- **The key of a key's statement is the key.** -/
 theorem keyOf_stmtOf (pk : PublicKey) : keyOf (stmtOf pk : program.Valuation interp) = some pk := by
-  have hread : (fun i : Fin 512 => (interp (program.valueField 544)).toNat
-      ((stmtOf pk : program.Valuation interp) 544 i)) =
+  have hread : (fun i : Fin 512 => (interp (program.valueField 593)).toNat
+      ((stmtOf pk : program.Valuation interp) 593 i)) =
       KeyNTT.keyHat pk := funext fun i => by
     rw [stmtOf_hhat, RealizedProgram.toNat_castElt FalconACore.hhatField.symm]
     exact AReading.toNat_natCast (KeyNTT.keyHat_lt pk i)
@@ -563,7 +563,7 @@ theorem keyOf_stmtOf (pk : PublicKey) : keyOf (stmtOf pk : program.Valuation int
 naturals is `keyHat pk` (`KeyNTT.falconDecode_512_eq_some_iff`). -/
 theorem toNat_hhat_of_keyOf {x : program.Valuation interp} {pk : PublicKey}
     (h : keyOf x = some pk) (s : Fin 512) :
-    (interp (program.valueField 544)).toNat (x 544 s) = KeyNTT.keyHat pk s := by
+    (interp (program.valueField 593)).toNat (x 593 s) = KeyNTT.keyHat pk s := by
   unfold keyOf at h
   obtain ⟨c, hc, hpk⟩ := Option.map_eq_some_iff.1 h
   obtain ⟨hlt, hntt⟩ := (KeyNTT.falconDecode_512_eq_some_iff _ c).1 hc
@@ -578,14 +578,14 @@ theorem toNat_hhat_of_keyOf {x : program.Valuation interp} {pk : PublicKey}
 /-! ## The relation -/
 
 /-- **A statement that passes the member checks decodes to a key**: the check
-`falcon_key_canonical [12289]` of `hhat` (value `544`, `RealizedProgram.StatementOk`) bounds every entry
+`falcon_key_canonical [12289]` of `hhat` (value `593`, `RealizedProgram.StatementOk`) bounds every entry
 below `q`, where `KeyNTT.falconDecode` succeeds. -/
 theorem exists_keyOf_of_statementOk {x : program.Valuation interp}
     (hx : program.StatementOk interp x) : ∃ pk, keyOf x = some pk := by
   have hm := FalconACore.hhatCheck (program := program)
   have hv := FalconACore.hhatValue (program := program)
   have hsize := FalconACore.hhatSize (program := program)
-  have hlt : ∀ i : Fin 512, (interp (program.valueField 544)).toNat (x 544 i) < 12289 :=
+  have hlt : ∀ i : Fin 512, (interp (program.valueField 593)).toNat (x 593 i) < 12289 :=
     fun i => hx.toNat_lt hm hv (by decide) (by rw [hsize]; exact i.isLt)
   unfold keyOf
   rw [KeyNTT.falconDecode, if_pos hlt]
@@ -676,7 +676,7 @@ def AlgebraSound : Prop :=
 
 /-- **The committed values read alike** in an environment and in the environment of its statement
 and committed assignment (`commitEnv`). -/
-theorem reader_commitEnv (e : program.Env interp) {v : ℕ} (hv : v ∈ [45, 46, 47, 540, FalconACore.cA program, FalconACore.s2 program]) :
+theorem reader_commitEnv (e : program.Env interp) {v : ℕ} (hv : v ∈ [45, 46, 47, 589, FalconACore.cA program, FalconACore.s2 program]) :
     program.reader (commitEnv e.stmt e.asg) v = program.reader e v :=
   RealizedProgram.reader_eq_of_nodeReads_nil (FalconACore.srcReads_nil v hv) rfl rfl
 
@@ -740,7 +740,7 @@ theorem mem_rel_of_source [FalconSelField program FH FA]
     rw [srcOf_raw, funext (natOfBits_selSample0 e)]
     have hw : (fun j : Fin 512 => Bits.natOfBits (selWord e j)) =
         fun j => Bits.natOfBits (rawBits e j) :=
-      funext fun j => natOfBits_wordAt_congr selField 540 16 j
+      funext fun j => natOfBits_wordAt_congr selField 589 16 j
     rw [hw] at hfirst
     exact hfirst
   · intro j
@@ -767,7 +767,7 @@ theorem sound_of_views [FalconSelField program FH FA]
 /-- **Round-by-round knowledge soundness of `Π_P₀` for the native Falcon programs**, the proof
 system headline's hypothesis (`RealizedProgram.rbr_of_events`), given the two obligations the frontend leaves open:
 the hash view (`FalconHashView`, the Keccak trace's instance) and the algebra at the decoded key
-wherever the source program holds (`AlgebraSound`, domain `A`). The errors are `639/2^bits` at
+wherever the source program holds (`AlgebraSound`, domain `A`). The errors are `717/2^bits` at
 `h2p.select.delta` and `0` elsewhere (`selectEps`); the extractor is `extractor`. -/
 theorem rbr_of_views [FalconSelField program FH FA]
     (hv : FalconHashView (program := program) (FH := FH) (FA := FA))

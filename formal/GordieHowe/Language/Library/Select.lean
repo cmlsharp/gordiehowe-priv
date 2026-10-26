@@ -43,7 +43,7 @@ are the program's constant values, whose decoded entries the caller supplies
   (`SelectFirstN.badEvent`, degree `S`), which reads only the committed values
   (`GordieHowe.RealizedProgram.selectReadings_congr`).
 
-The native Falcon programs' selection (`h2p.select.*` at `(S, n, w) = (639, 512, 16)`,
+The native Falcon programs' selection (`h2p.select.*` at `(S, n, w) = (717, 512, 16)`,
 `bound = 61445 = 5q`) is read in `GordieHowe/Applications/Falcon512/Native/ROMParams/Frontend/Basic.lean`.
 -/
 

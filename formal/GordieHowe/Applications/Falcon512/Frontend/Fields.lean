@@ -21,7 +21,7 @@ over an extension `FA` of `F_q`, `q = 12289` (`falconInterpOf FH FA`); its facts
 hold for any interpretations with the data and facts below, discharged once per field:
 
 * **domain `H`'s field** (`GordieHowe.Falcon512.HField`): the selection field of the hash-to-point selection at
-  `S = 639` samples (`sel`: the subfield `GF(2^16)`, `X`, the labels `g^j`, the embedding basis
+  `S = 717` samples (`sel`: the subfield `GF(2^16)`, `X`, the labels `g^j`, the embedding basis
   `e_u = g^u`, linearly independent over `GF(2)`), characteristic two, `|K| = 2^bits`, the decodings
   of `0`, `1`, `2 = X` and of xors, and the integer readings of `0` and `1`. Instances: `GF(2^128)`
   (`gf128`, `Falcon512.Native.ROMParams`) and `GF(2^256)` (`gf256`, `Falcon512.Native.QROMParams`).

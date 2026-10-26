@@ -17,7 +17,7 @@ public import GordieHowe.Generated.Falcon512.Native.QROMParams.Realize
 # GordieHowe: the proof system of `Falcon512.Native.QROMParams`
 
 The security theorem of the proof system at the realized program of the native Falcon proof of possession at the QROM parameters
-(`GordieHowe.Generated.Falcon512.Native.QROMParams.Program.program`, export `c825eb05`: domain `H` over
+(`GordieHowe.Generated.Falcon512.Native.QROMParams.Program.program`, export `3ed06086`: domain `H` over
 `GF(2^256)` with the GKR circuit `c.H` and its batch on bits, domain `A` over `F_q^20` with the GKR
 circuit `c.A` and the batches `norm.center`, `norm.column1` and `A.boolean`; two phases: the
 source challenge `h2p.select.delta` with the MAC key `mac.beta`, then the lookup challenge

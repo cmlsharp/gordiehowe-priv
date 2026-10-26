@@ -44,12 +44,12 @@ theorem phaseError_le (_C : Compiled) (k : Fin program.phases) :
     program.phaseError interp (program.roundError interp (selectEps (FH := RealizedProgram.gf256))) k ≤
       (errorMax : ℝ≥0) / 2 ^ 260 :=
   RealizedProgram.phaseError_le_of (selectEps (FH := RealizedProgram.gf256))
-    (src := fun _ => (639, 2 ^ 256))
+    (src := fun _ => (717, 2 ^ 256))
     fieldCard
     (fun j _ => by
       unfold selectEps
       split_ifs
-      · show (639 : ℝ≥0) / 2 ^ 256 ≤ _
+      · show (717 : ℝ≥0) / 2 ^ 256 ≤ _
         norm_num
       · exact zero_le')
     (by decide +kernel) k

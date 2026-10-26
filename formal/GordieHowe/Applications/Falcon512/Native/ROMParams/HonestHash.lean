@@ -14,7 +14,7 @@ public import GordieHowe.Applications.Falcon512.System.Honest
 
 The converse of the frontend's hash view (`GordieHowe/Applications/Falcon512/Native/ROMParams/Frontend/Hash.lean`): at the source environment
 of honest committed values whose trace words are the packed states of an honest Keccak trace
-(`WordsAgree`), the `240` round predicates hold (`round_holds`, `GordieHowe.RealizedProgram.holdsWith_of_shapes` on the
+(`WordsAgree`), the `264` round predicates hold (`round_holds`, `GordieHowe.RealizedProgram.holdsWith_of_shapes` on the
 round relations of the trace, `KeccakTrace.roundRelation_iff`). Generic in the program
 (`FalconHHonest`: the frontend's hash facts and the honest prover's views, decided per program) and
 the fields.
@@ -26,7 +26,7 @@ open Generated.Falcon512.Native.ROMParams.Program hiding program
 open GordieHowe.Bits GordieHowe.Keccak GordieHowe.KeccakTrace
 
 /-- **The committed words of round `t` of permutation `p`**: the value its output view reads. -/
-def wordsVal (p : Fin 10) (t : Fin 24) : ℕ := outVal p t - 1
+def wordsVal (p : Fin 11) (t : Fin 24) : ℕ := outVal p t - 1
 
 /-- **The program facts of the honest hash** (`FalconHHash` and): each round's output and
 `h2p.shake.state` are bit views `idx0` of their committed words, `100` words of `GF(2^16)` in
@@ -34,7 +34,7 @@ domain `H`'s field; the nonce, the message part and the flags are committed cell
 Each program instantiates it by `decide`. -/
 class FalconHHonest (program : RealizedProgram) : Prop extends FalconHHash program where
   /-- The rounds' outputs are bit views of their committed words. -/
-  words_checks : ∀ p : Fin 10, ∀ t : Fin 24,
+  words_checks : ∀ p : Fin 11, ∀ t : Fin 24,
     program.isBitsB (outVal p t) (wordsVal p t) idx0 = true ∧
       program.privCellB (wordsVal p t) = true ∧ program.valueField (outVal p t) = 0 ∧
       program.valueField (wordsVal p t) = 0 ∧ (program.value (outVal p t)).size = 1600 ∧
@@ -98,16 +98,16 @@ theorem evalE_words {val : program.Valuation interp} {x : program.Valuation inte
 
 /-- **An honest Keccak trace of the batch**: Boolean permutation inputs, every squeeze's input
 Keccak-f of the previous permutation's (twenty-four rounds, `iterRounds`). -/
-structure HonestTrace (S : Fin 10 → State FH.K) : Prop where
+structure HonestTrace (S : Fin 11 → State FH.K) : Prop where
   /-- The inputs are Boolean. -/
   bool : ∀ p x y, AllBool (S p x y)
   /-- Each squeeze starts from the previous permutation's output. -/
-  chain : ∀ p : Fin 9, S p.succ = iterRounds (S p.castSucc) 24
+  chain : ∀ p : Fin 10, S p.succ = iterRounds (S p.castSucc) 24
 
 /-- **The committed trace words are the packed states of the trace** `S`: round `t` of
 permutation `p` holds the words of its output `iterRounds (S p) (t + 1)`, `h2p.shake.state` the
 words of the first squeeze's input. -/
-structure WordsAgree (val : program.Valuation interp) (S : Fin 10 → State FH.K) : Prop where
+structure WordsAgree (val : program.Valuation interp) (S : Fin 11 → State FH.K) : Prop where
   /-- The rounds' words. -/
   rounds : ∀ p t, ∀ i < 100, val (wordsVal p t) i =
     RealizedProgram.castElt (a := 0) (RealizedProgram.stateWords HField.packing (iterRounds (S p) ((t : ℕ) + 1)) i)
@@ -117,10 +117,10 @@ structure WordsAgree (val : program.Valuation interp) (S : Fin 10 → State FH.K
 section Rounds
 
 variable {val x : program.Valuation interp} {c : ∀ k, (program.layout interp).Ch k}
-  {π : (program.layout interp).Pads} {S : Fin 10 → State FH.K}
+  {π : (program.layout interp).Pads} {S : Fin 11 → State FH.K}
 
 /-- **Round `t`'s output reads the trace** at the source environment. -/
-theorem stateOf_out (hS : HonestTrace S) (hw : WordsAgree val S) (p : Fin 10) (t : Fin 24) :
+theorem stateOf_out (hS : HonestTrace S) (hw : WordsAgree val S) (p : Fin 11) (t : Fin 24) :
     RealizedProgram.stateOf (program.evalE (program.reader (program.srcEnv interp x val c π)) 0
       (.leaf (outVal p t))) = iterRounds (S p) ((t : ℕ) + 1) := by
   obtain ⟨hb, hpw, hfv, hfw, hsv, hsw, hn⟩ := (words_checks (program := program)) p t
@@ -140,7 +140,7 @@ theorem evalE_state_honest (hS : HonestTrace S) (hw : WordsAgree val S) {j : ℕ
 (`ref 2`) reads the absorb permutation's input. -/
 theorem stateOf_src (hS : HonestTrace S) (hw : WordsAgree val S)
     (habs : ∀ j < 1600, program.evalE (program.reader (program.srcEnv interp x val c π)) 0
-      (.ref 2) j = RealizedProgram.stateBit (S 0) j) (p : Fin 10) (t : Fin 24) :
+      (.ref 2) j = RealizedProgram.stateBit (S 0) j) (p : Fin 11) (t : Fin 24) :
     RealizedProgram.stateOf (program.evalE (program.reader (program.srcEnv interp x val c π)) 0
       (roundSrc p t.castSucc).expr) = iterRounds (S p) t := by
   by_cases ht : (t : ℕ) = 0
@@ -172,7 +172,7 @@ theorem stateOf_src (hS : HonestTrace S) (hw : WordsAgree val S)
           show (p : ℕ) ≠ 1 by omega, ite_false]
       rw [h]
       have hc := hS.chain ⟨p - 1, by omega⟩
-      have hps : (⟨p - 1, by omega⟩ : Fin 9).succ = p := Fin.ext (by simp; omega)
+      have hps : (⟨p - 1, by omega⟩ : Fin 10).succ = p := Fin.ext (by simp; omega)
       rw [hps] at hc
       have := stateOf_out (x := x) (c := c) (π := π) hS hw ⟨p - 1, by omega⟩ 23
       exact this.trans hc.symm
@@ -191,7 +191,7 @@ theorem stateOf_src (hS : HonestTrace S) (hw : WordsAgree val S)
 of `permRelation`). -/
 theorem round_holds (hS : HonestTrace S) (hw : WordsAgree val S)
     (habs : ∀ j < 1600, program.evalE (program.reader (program.srcEnv interp x val c π)) 0
-      (.ref 2) j = RealizedProgram.stateBit (S 0) j) (p : Fin 10) (t : Fin 24) :
+      (.ref 2) j = RealizedProgram.stateBit (S 0) j) (p : Fin 11) (t : Fin 24) :
     program.HoldsWith (program.reader (program.srcEnv interp x val c π))
       (program.predicate (roundPred p t)).body := by
   obtain ⟨hb, hlin, hcol⟩ := (roundShapes (program := program)) p t
@@ -414,7 +414,7 @@ theorem zeros_honest (hb : BufAgree val B L) (hp : PadAgree B L) :
 
 /-- **`h2p.shake.padding.output` holds**: `h2p.shake.state` holds the absorb permutation's
 output. -/
-theorem output_honest {S : Fin 10 → State FH.K} (hS : HonestTrace S)
+theorem output_honest {S : Fin 11 → State FH.K} (hS : HonestTrace S)
     (hw : WordsAgree val S) :
     program.HoldsWith (program.reader (program.srcEnv interp x val c π))
       (program.predicate 29).body := by
@@ -431,10 +431,10 @@ theorem output_honest {S : Fin 10 → State FH.K} (hS : HonestTrace S)
   have hout := congrFun (congrFun (congrFun (stateOf_out (x := x) (c := c) (π := π) hS hw 0 23)
     x') y') z
   simp only [RealizedProgram.stateOf] at hout
-  rw [show outVal ((0 : Fin 10) : ℕ) ((23 : Fin 24) : ℕ) = 95 from rfl] at hout
+  rw [show outVal ((0 : Fin 11) : ℕ) ((23 : Fin 24) : ℕ) = 95 from rfl] at hout
   rw [hout, RealizedProgram.stateBit_keccakIdx, show ((23 : Fin 24) : ℕ) + 1 = 24 from rfl]
   have hc := hS.chain 0
-  rw [show (0 : Fin 9).succ = 1 from rfl, show (0 : Fin 9).castSucc = 0 from rfl] at hc
+  rw [show (0 : Fin 10).succ = 1 from rfl, show (0 : Fin 10).castSucc = 0 from rfl] at hc
   rw [hc]
   exact CharTwo.add_self_eq_zero _
 
@@ -443,15 +443,15 @@ end Padding
 /-! ## The SHAKE256 call -/
 
 /-- **The predicates of `h2p.shake`**: the absorb rounds `0 … 23`, the padding `24 … 29`, the
-squeeze rounds `30 … 245`. -/
-def IsShakePred (q : ℕ) : Prop := q < 246
+squeeze rounds `30 … 269`. -/
+def IsShakePred (q : ℕ) : Prop := q < 270
 
 /-- **The honest SHAKE256 call holds** at the source environment of honest values agreeing with an
 honest trace `S` whose absorb input is the block `B` xored into the zero state, `B` padded past the
-input's `40 + L ≤ 72` bytes: the `246` predicates of `h2p.shake`. -/
+input's `40 + L ≤ 72` bytes: the `270` predicates of `h2p.shake`. -/
 theorem shake_holds {val x : program.Valuation interp} {c : ∀ k, (program.layout interp).Ch k}
     {π : (program.layout interp).Pads} {B : Fin 136 → BitWires FH.K 8} {L : ℕ}
-    {S : Fin 10 → State FH.K} (hS : HonestTrace S) (hw : WordsAgree val S)
+    {S : Fin 11 → State FH.K} (hS : HonestTrace S) (hw : WordsAgree val S)
     (hb : BufAgree val B L) (hL : L ≤ 32) (hp : PadAgree B L)
     (h0 : S 0 = Shake256.xorinBlock Shake256.SpongeSpec.shake256 (fun _ _ _ => 0) B)
     {q : ℕ} (hq : IsShakePred q) :
@@ -506,7 +506,7 @@ theorem hStarts_zero : hStarts FH y 0 =
 
 /-- **The honest sponge is an honest trace** for a message of at most `95` bytes (one absorb
 block): Boolean, each later input twenty-four rounds of the previous. -/
-theorem honestTrace_hStarts (hL : L ≤ 95) : HonestTrace fun p : Fin 10 => hStarts FH y p where
+theorem honestTrace_hStarts (hL : L ≤ 95) : HonestTrace fun p : Fin 11 => hStarts FH y p where
   bool p := spongeStart_allBool
     (Emulated.seed_allBool (HashCircuit.wiresOfByteVec_allBool _) (HashCircuit.wiresOfByteVec_allBool _)) p
   chain p := by
@@ -550,8 +550,8 @@ end Sponge
 /-! ## The honest values of the hash -/
 
 /-- **The round whose committed words are value `v`**, if any. -/
-def wordsOwner? (v : ℕ) : Option (Fin 10 × Fin 24) :=
-  ((List.finRange 10).flatMap fun p => (List.finRange 24).map fun t => (p, t)).find?
+def wordsOwner? (v : ℕ) : Option (Fin 11 × Fin 24) :=
+  ((List.finRange 11).flatMap fun p => (List.finRange 24).map fun t => (p, t)).find?
     fun pt => wordsVal pt.1 pt.2 == v
 
 /-- The rounds' words are distinct values, none the nonce, the message part, the flags or the
@@ -569,7 +569,7 @@ variable {L : ℕ} (y : Falcon512.PoP.HonestInput L)
 part the bits of the padded block (`hBlock`), the flags the prefix of length `40 + L`, the state's
 and the rounds' words the packed states of the honest trace (`hStarts`); `0` elsewhere.
 
-Running time: computing these values takes ten Keccak-f permutations (the trace) and `16`
+Running time: computing these values takes eleven Keccak-f permutations (the trace) and `16`
 packing sums per word. This running time is argued here, not proved in Lean. -/
 -- spec-side
 noncomputable def hashVal (v i : ℕ) : (interp (program.valueField v)).K :=
@@ -593,7 +593,7 @@ def IsHashValue (v : ℕ) : Prop :=
 variable {y} {val : program.Valuation interp}
 
 theorem wordsAgree_of_hashVal (h : ∀ v, IsHashValue v → val v = hashVal y v) :
-    WordsAgree val fun p : Fin 10 => hStarts FH y p := by
+    WordsAgree val fun p : Fin 11 => hStarts FH y p := by
   obtain ⟨hw, h45, h46, h47, h96⟩ := wordsOwner_checks
   refine ⟨fun p t i _ => ?_, fun i _ => ?_⟩
   · have hv : wordsVal p t ≠ 45 ∧ wordsVal p t ≠ 46 ∧ wordsVal p t ≠ 47 ∧ wordsVal p t ≠ 96 := by

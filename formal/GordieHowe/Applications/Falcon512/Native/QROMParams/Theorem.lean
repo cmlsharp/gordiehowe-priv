@@ -19,10 +19,10 @@ proof-of-possession relation (`GordieHowe.Falcon512.Native.ROMParams.rbr_of_view
 fields, at the program facts of `GordieHowe/Applications/Falcon512/Native/QROMParams/Frontend/Facts.lean`,
 `GordieHowe/Applications/Falcon512/Native/QROMParams/Frontend/HashFacts.lean` and
 `GordieHowe/Applications/Falcon512/Native/QROMParams/Frontend/AlgebraFacts.lean`: the relation `rel` at the decoded key, the extractor `proj`, the
-error `639/2^256` at `h2p.select.delta`) composed with the proof system
+error `717/2^256` at `h2p.select.delta`) composed with the proof system
 (`GordieHowe.RealizedProgram.ProofSystem.FieldBranches.causal_rbr_knowledge_soundness` at the forked domains of `proofSystem`): the proof system's protocol is
 round-by-round knowledge sound for `rel` at the proof system's extractor reading `proj`, with the
-phase errors (`GordieHowe.RealizedProgram.phaseError`) `639/2^256 + 32/2^256` and `18175/(q^20 − 189)` and the
+phase errors (`GordieHowe.RealizedProgram.phaseError`) `717/2^256 + 32/2^256` and `18175/(q^20 − 189)` and the
 domain proofs' errors. The frontend's two obligations are the generic frontend's: the hash view
 (`falconHashView`) and domain A's algebra (`algebraSound`).
 
@@ -45,7 +45,7 @@ theorem sourceError_final :
   simp only [RealizedProgram.roundError, hi]
 
 /-- **Round-by-round knowledge soundness of `Π_P₀` for `Falcon512.Native.QROMParams`** at the relation
-`rel`, the extractor `extractor` and the errors `639/2^256` at `h2p.select.delta`, `0` elsewhere
+`rel`, the extractor `extractor` and the errors `717/2^256` at `h2p.select.delta`, `0` elsewhere
 (`rbr_of_views` at the hash view `falconHashView` and domain A's `algebraSound`). -/
 theorem source_rbr_knowledge_soundness :
     rbrKnowledgeSoundness rel (program.sourceVerifier interp) extractor

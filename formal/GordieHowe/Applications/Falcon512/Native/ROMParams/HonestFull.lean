@@ -39,13 +39,13 @@ structure HonestIn where
   /-- The input. -/
   y : Falcon512.PoP.HonestInput L
   /-- The input is valid (`HonestInput.Valid`: bytes, the implemented sampler succeeds within its
-  `639` candidates, the signature verifies at the key, its payload encodes). -/
+  `717` candidates, the signature verifies at the key, its payload encodes). -/
   valid : y.Valid
 
 /-- **The Falcon-512 relation at the key, at the supported signatures**: the witness is a message
 of some length `L ≤ 32` and a signature on it in `Falcon512.PoP.relSupported L` (the signature
-verifies and its `HashToPoint` succeeds within the H circuit's `639` samples). It lies within
-the relation at the key `keyWitRel`; the excluded fraction of hash streams is at most `2^-102`
+verifies and its `HashToPoint` succeeds within the H circuit's `717` samples). It lies within
+the relation at the key `keyWitRel`; the excluded fraction of hash streams is at most `2^-256`
 (`Falcon512.unsupportedFraction_le`). -/
 abbrev keySupportedRel :
     Set (_root_.Falcon.PublicKey _root_.Falcon.Concrete.params512 × VarWitness) :=
@@ -86,22 +86,22 @@ variable (program FH FA) in
 /-- **The honest source values** of an honest input (`hashVal`, `selVal`, `algVal`); `0` for every
 other value (the realization's values are generated, `RealizedProgram.genCommitted`).
 
-Running time: computing these values takes ten Keccak-f permutations, one negacyclic product, and a
+Running time: computing these values takes eleven Keccak-f permutations, one negacyclic product, and a
 constant number of digit operations per coefficient. This running time is argued here, not proved in
 Lean. -/
 -- spec-side
 noncomputable def honestVal (i : HonestIn) (v j : ℕ) : (interp (program.valueField v)).K :=
   if IsHashValue v then hashVal i.y v j
-  else if v ∈ [539, 541, 542] then selVal program FH FA i.y v j
+  else if v ∈ [588, 590, 591] then selVal program FH FA i.y v j
   else if v ∈ NormValues program then algVal program i.y v j
   else 0
 
 /-- **The selection's and the norm's values are none of the hash's**, and the blind none of the
 norm's. -/
 class FalconHValues (program : RealizedProgram) [FalconACore program] [Norm.FalconNorm program] [Norm.FalconNormHonest program] [FalconAHonest program] : Prop where
-  not_hash_sel : ∀ v ∈ [539, 541, 542], ¬ IsHashValue v
-  not_hash_norm : ∀ v ∈ NormValues program, ¬ IsHashValue v ∧ v ∉ [539, 541, 542]
-  blind_not : 557 ∉ NormValues program
+  not_hash_sel : ∀ v ∈ [588, 590, 591], ¬ IsHashValue v
+  not_hash_norm : ∀ v ∈ NormValues program, ¬ IsHashValue v ∧ v ∉ [588, 590, 591]
+  blind_not : 606 ∉ NormValues program
 
 variable [FalconHValues program]
 
@@ -109,7 +109,7 @@ theorem honestVal_hash (i : HonestIn) : ∀ v, IsHashValue v →
     honestVal program FH FA i v = hashVal i.y v :=
   fun v hv => funext fun j => by unfold honestVal; rw [if_pos hv]
 
-theorem honestVal_sel (i : HonestIn) : ∀ v ∈ [539, 541, 542],
+theorem honestVal_sel (i : HonestIn) : ∀ v ∈ [588, 590, 591],
     honestVal program FH FA i v = selVal program FH FA i.y v :=
   fun v hv => funext fun j => by
     unfold honestVal
@@ -130,7 +130,7 @@ variable (program) in
 equation's row: the selection's four, the norm's, the signature's, the encoding's, the crossing's
 type check, the norm's carries' check, the parity, the digit ranges, `mac.equal`. -/
 def aPreds : List ℕ :=
-  [246, 247, 248, 249, FalconNorm.p0 program, FalconNorm.p0 program + 1, FalconNorm.p0 program + 2,
+  [270, 271, 272, 273, FalconNorm.p0 program, FalconNorm.p0 program + 1, FalconNorm.p0 program + 2,
     FalconNorm.p0 program + 3, FalconNorm.p0 program + 4, FalconNorm.p0 program + 5,
     FalconNorm.p0 program + 6, FalconNorm.p0 program + 7, FalconNorm.p0 program + 8,
     FalconNorm.p0 program + 9,
@@ -143,13 +143,13 @@ def aPreds : List ℕ :=
 
 variable (program) in
 /-- **The program facts of the honest strategy** (each program instantiates them by `decide`): the
-statement bound `hhat < q`, the MAC `mac` with a grouped tail (`mac.equal`, `x_H = 540`, `y_A = 545`) and its role predicates, the
-only cross-field `equal` the MAC's, the blind (value `557`, the pad copy of the tag `560`), the
+statement bound `hhat < q`, the MAC `mac` with a grouped tail (`mac.equal`, `x_H = 589`, `y_A = 594`) and its role predicates, the
+only cross-field `equal` the MAC's, the blind (value `606`, the pad copy of the tag `609`), the
 covering of the source predicates and the field-form row (`src_cover`), the committed values'
 classes and the node-typed values' classes. -/
 class FalconHonestFull (PN : outParam (ℕ → List String)) where
-  /-- The program's one statement bound: the key's entries `hhat` (value `544`) below `q`. -/
-  bounds : program.declaredRanges = [(544, 12289)] := by decide +kernel
+  /-- The program's one statement bound: the key's entries `hhat` (value `593`) below `q`. -/
+  bounds : program.declaredRanges = [(593, 12289)] := by decide +kernel
   /-- The MAC. -/
   mac : program.GroupedMac PN
   /-- Its role predicates. -/
@@ -157,33 +157,33 @@ class FalconHonestFull (PN : outParam (ℕ → List String)) where
   /-- The blind's width. -/
   bw : ℕ
   /-- The MAC is `mac.equal` of the raw view and `c_A`. -/
-  mac_shape : mac.pid = FalconAHonest.pMac program ∧ mac.dx = 0 ∧ mac.x = .leaf 540 ∧
-    mac.dy = 1 ∧ mac.y = .leaf 545 ∧ mac.cdy = 1 ∧ mac.cy = .leaf 545
+  mac_shape : mac.pid = FalconAHonest.pMac program ∧ mac.dx = 0 ∧ mac.x = .leaf 589 ∧
+    mac.dy = 1 ∧ mac.y = .leaf 594 ∧ mac.cdy = 1 ∧ mac.cy = .leaf 594
   /-- The only cross-field `equal` is the MAC's. -/
   crossMac : ∀ p ∈ program.predicates, ∀ dx x dy y k real, p.body = .cross dx x dy y k real →
     (program.predicate mac.pid).body = p.body
   /-- Every other predicate is the hash's or of `aPreds`. -/
   src_cover : ∀ q < program.predicates.length, q ∉ macRolePreds →
     (program.inSource (program.predicate q) = true ∨ program.fieldRowRealB q = true) →
-      q < 246 ∨ q ∈ aPreds program
+      q < 270 ∨ q ∈ aPreds program
   /-- The statement's one member check: the key below `q`. -/
   checks_list : program.statement.checks = [⟨"hhat", 0, 1024, "falcon_key_canonical", [12289]⟩]
   /-- The blind's cells. -/
-  blind_cells : (program.value 557).kind = .padCopy 560 "polynomialBits" ∧
-    (program.value 557).domain < program.domains.length ∧
-    (∀ j < bw, CellKey.val 557 j ∈ program.cellKeys (program.value 557).domain) ∧
-    program.valueField 557 = 1 ∧ (program.value 557).size = bw
+  blind_cells : (program.value 606).kind = .padCopy 609 "polynomialBits" ∧
+    (program.value 606).domain < program.domains.length ∧
+    (∀ j < bw, CellKey.val 606 j ∈ program.cellKeys (program.value 606).domain) ∧
+    program.valueField 606 = 1 ∧ (program.value 606).size = bw
   /-- The committed source values' classes. -/
   cell_classes : (List.range program.values.length).all (fun v =>
     !program.isCellValue (program.value v).domain v || !decide (program.IsSourceValue v) ||
       (program.valueField v == 0 && (program.value v).node.map (·.name) == some "GF(2^16)" &&
-        (v == 96 || (wordsOwner? v).isSome || v == 539 || v == 541)) ||
+        (v == 96 || (wordsOwner? v).isSome || v == 588 || v == 590)) ||
       (program.valueField v == 0 && (program.value v).node.map (·.name) == some "bit" &&
-        [45, 46, 47, 542].contains v) ||
+        [45, 46, 47, 591].contains v) ||
       (program.valueField v == 1 && (program.value v).node.map (·.name) == some "GF(p^1)" &&
         (NormValues program).contains v)) = true
   /-- Only the blind is a pad copy. -/
-  padCopy_only : (List.range program.values.length).all (fun w => w == 557 ||
+  padCopy_only : (List.range program.values.length).all (fun w => w == 606 ||
     match (program.value w).kind with
     | .padCopy _ _ => false
     | _ => true) = true
@@ -282,9 +282,9 @@ theorem srcMac_holds :
   have hn := honestVal_norm (program := program) (FH := FH) (FA := FA) i
   obtain ⟨hpid, hdx, hx, hdy, hy, -, -⟩ :=
     mac_shape (program := program) (PN := PN)
-  have hsz : program.exprLen (.leaf 540) = 8192 := by
+  have hsz : program.exprLen (.leaf 589) = 8192 := by
     rw [RealizedProgram.exprLen_leaf]; exact (FalconACore.raw_facts (program := program)).2.1
-  have hszy : program.exprLen (.leaf 545) = 8192 := by
+  have hszy : program.exprLen (.leaf 594) = 8192 := by
     rw [RealizedProgram.exprLen_leaf]; exact FalconAHonest.sizes_H (program := program)
   have hcr := cross_honest (x := x) (c := c) (π := π) hsel hn
   rw [RealizedProgram.HoldsAt, ← hpid, (FalconHonestFull.mac (program := program) (PN := PN)).hb] at hcr
@@ -295,28 +295,28 @@ theorem srcMac_holds :
     unfold RealizedProgram.evalWith
     rw [FalconHBase.domainField0 (program := program)]
     rw [raw_honest hsel hj]
-    rcases (show hNat program i.y 545 j = 0 ∨ hNat program i.y 545 j = 1 by
-      have := hNat545_lt (program := program) (y := i.y) j; omega) with h0 | h0 <;> rw [h0] <;> simp
+    rcases (show hNat program i.y 594 j = 0 ∨ hNat program i.y 594 j = 1 by
+      have := hNat594_lt (program := program) (y := i.y) j; omega) with h0 | h0 <;> rw [h0] <;> simp
   · rw [hy] at hj ⊢
     rw [hszy] at hj
     rw [hdy]
     unfold RealizedProgram.evalWith
     rw [FalconACore.domainField1 (program := program)]
-    exact rdA545_bool hn hj
+    exact rdA594_bool hn hj
   · rw [hy] at hj ⊢
     rw [hszy] at hj
     rw [hdy]
     unfold RealizedProgram.evalWith
     rw [FalconACore.domainField1 (program := program)]
     rw [RealizedProgram.evalIntWith_leaf]
-    change ia _ 545 j = if rdA _ 545 j = 1 then 1 else 0
-    have hs545 : j < (program.value 545).size := by
+    change ia _ 594 j = if rdA _ 594 j = 1 then 1 else 0
+    have hs545 : j < (program.value 594).size := by
       rw [FalconAHonest.sizes_H (program := program)]; exact hj
     rw [ia_algVal hn (by simp [NormValues]) hs545
-      (by have := hNat545_lt (program := program) (y := i.y) j; omega),
+      (by have := hNat594_lt (program := program) (y := i.y) j; omega),
       rdA_algVal hn (by simp [NormValues]) hs545]
-    rcases (show hNat program i.y 545 j = 0 ∨ hNat program i.y 545 j = 1 by
-      have := hNat545_lt (program := program) (y := i.y) j; omega) with h0 | h0 <;> rw [h0] <;> simp
+    rcases (show hNat program i.y 594 j = 0 ∨ hNat program i.y 594 j = 1 by
+      have := hNat594_lt (program := program) (y := i.y) j; omega) with h0 | h0 <;> rw [h0] <;> simp
 
 end Mac
 
@@ -392,7 +392,7 @@ theorem honest_cell_mem (i : HonestIn) (π : (program.layout interp).Pads) {v : 
   simp only [hc, hsrc, decide_true, Bool.not_true, Bool.false_or, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq,
     hS, Option.some.injEq, List.contains_iff_mem] at hcl
   have hbl := blind_cells (program := program)
-  have hpriv : v ≠ 557 → program.copyVal interp (honestVal program FH FA i) π v j =
+  have hpriv : v ≠ 606 → program.copyVal interp (honestVal program FH FA i) π v j =
       honestVal program FH FA i v j := by
     intro h557
     unfold RealizedProgram.copyVal
@@ -406,12 +406,12 @@ theorem honest_cell_mem (i : HonestIn) (π : (program.layout interp).Pads) {v : 
   have zero0 : ∀ T, (0 : (interp 0).K) ∈ (interp 0).node T := fun T => zero_mem _
   have hsf := selField (program := program)
   rcases hcl with (⟨⟨hf, rfl⟩, hw⟩ | ⟨⟨hf, rfl⟩, hb⟩) | ⟨⟨hf, rfl⟩, ha⟩
-  · have h557 : v ≠ 557 := by
+  · have h557 : v ≠ 606 := by
       rintro rfl
       rw [hbl.2.2.2.1] at hf
       exact absurd hf (by norm_num)
     rw [hpriv h557]
-    have hw' : (v = 96 ∨ (wordsOwner? v).isSome) ∨ v = 539 ∨ v = 541 := by tauto
+    have hw' : (v = 96 ∨ (wordsOwner? v).isSome) ∨ v = 588 ∨ v = 590 := by tauto
     rcases hw' with hh | hs
     · have hH : IsHashValue v := by unfold IsHashValue; tauto
       rw [honestVal_hash i v hH]
@@ -432,13 +432,13 @@ theorem honest_cell_mem (i : HonestIn) (π : (program.layout interp).Pads) {v : 
         exact mem_castElt_of_eq (a := 0) hf.symm (gf16_mem_pack _)
       · rw [if_neg (by norm_num), if_pos rfl]
         refine mem_castElt_of_eq (a := SelectShape.field program selShape) (hsf.trans hf.symm) ?_
-        by_cases hj : j < 639
+        by_cases hj : j < 717
         · simp only [hj, ↓reduceDIte]
           unfold hRoute SelectFirstN.Model.hashToPointRoute
           exact gf16_mem_gpow _
         · simp only [hj, ↓reduceDIte]
           exact zero_mem _
-  · have h557 : v ≠ 557 := by rintro rfl; simp at hb
+  · have h557 : v ≠ 606 := by rintro rfl; simp at hb
     rw [hpriv h557]
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hb
     rcases hb with rfl | rfl | rfl | rfl
@@ -465,11 +465,11 @@ theorem honest_cell_mem (i : HonestIn) (π : (program.layout interp).Pads) {v : 
       split_ifs
       · exact Or.inr rfl
       · exact Or.inl rfl
-    · rw [honestVal_sel i 542 (by simp)]
+    · rw [honestVal_sel i 591 (by simp)]
       unfold selVal
       rw [if_neg (by norm_num), if_neg (by norm_num), if_pos rfl]
       refine mem_castElt_of_eq (a := SelectShape.field program selShape) (hsf.trans hf.symm) ?_
-      by_cases hj : j < 127
+      by_cases hj : j < 205
       · simp only [hj, ↓reduceDIte]
         refine bit_mem_sel ?_
         unfold hRoute SelectFirstN.Model.hashToPointRoute
@@ -545,7 +545,7 @@ theorem checks_stmtOf (pk : Emulated.PublicKey) :
   intro m hm
   rw [checks_list (program := program), List.mem_singleton] at hm
   subst hm
-  have hv : program.memberValue? "hhat" = some 544 := FalconACore.hhatValue
+  have hv : program.memberValue? "hhat" = some 593 := FalconACore.hhatValue
   have hq : (MemberCheck.mk "hhat" 0 1024 "falcon_key_canonical" [12289]).entryBound? = some 12289 :=
     by decide
   unfold RealizedProgram.MemberHolds

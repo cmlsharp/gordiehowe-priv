@@ -36,41 +36,41 @@ open Emulated (PublicKey)
 /-! ## The program facts of domain `A` -/
 
 /-- **The program facts domain `A` reads beyond the norm** (each program instantiates them by
-`decide` and `rfl`): `c_A` (`545`) and `s2` (`546`), the field-form signature equation (`pSig`) with
-its body and operators, the values `s2` and `signature.s1` (`547`) prime-typed private source values
+`decide` and `rfl`): `c_A` (`594`) and `s2` (`595`), the field-form signature equation (`pSig`) with
+its body and operators, the values `s2` and `signature.s1` (`596`) prime-typed private source values
 of field `1`, `c_A` of field `1`, no value bound to an expression, `statement.hhat` opaque. -/
 class FalconAAlg (program : RealizedProgram) [FalconACore program] where
-  /-- `crossing.c_A` is value `545`. -/
-  cA_eq : FalconACore.cA program = 545
-  /-- `s2` is value `546`. -/
-  s2_eq : FalconACore.s2 program = 546
+  /-- `crossing.c_A` is value `594`. -/
+  cA_eq : FalconACore.cA program = 594
+  /-- `s2` is value `595`. -/
+  s2_eq : FalconACore.s2 program = 595
   /-- The field-form `signature.equation`. -/
   pSig : ℕ
   /-- The signature equation is a source predicate. -/
   inSource_sig : pSig < program.predicates.length ∧ program.inSource (program.predicate pSig) = true
   /-- The field-form `signature.equation`. -/
   sig : ∃ real, (program.predicate pSig).body = .mod 1 12289
-    (.add (.leaf 547) (.apply (.negacyclicConv 544 (.ntt 10302)) (.leaf 546)))
-    (.apply (.batched 512 (.fromDigits 16 2)) (.leaf 545)) real
+    (.add (.leaf 596) (.apply (.negacyclicConv 593 (.ntt 10302)) (.leaf 595)))
+    (.apply (.batched 512 (.fromDigits 16 2)) (.leaf 594)) real
   /-- `s2` and `signature.s1` have `512` coordinates. -/
-  sizes_sig : (program.value 546).size = 512 ∧ (program.value 547).size = 512
+  sizes_sig : (program.value 595).size = 512 ∧ (program.value 596).size = 512
   /-- `s2` and `signature.s1` are prime-typed private source values. -/
-  primeA_sig : ∀ v ∈ [546, 547], v < program.values.length ∧
+  primeA_sig : ∀ v ∈ [595, 596], v < program.values.length ∧
     program.IsSourceValue v ∧ (program.value v).typeSource = .node ∧
     (program.value v).type = .sub "GF(p^1)" ∧ program.valueField v = 1 ∧
     program.isConstant v = false
   /-- `c_A` is a non-constant value of field `1`. -/
-  fields_cA : program.valueField 545 = 1 ∧ program.isConstant 545 = false
+  fields_cA : program.valueField 594 = 1 ∧ program.isConstant 594 = false
   /-- The program binds no value to an expression. -/
   noBound : ∀ v < program.values.length,
     (match (program.value v).kind with
       | .bound _ => false
       | _ => true) = true
   /-- `statement.hhat` is an opaque statement value of no argument. -/
-  hhatKind : (program.value 544).kind = .pub (.opaque "statement.hhat" [])
+  hhatKind : (program.value 593).kind = .pub (.opaque "statement.hhat" [])
   /-- The named operators of `signature.equation`. -/
-  ops_sig : RealizedProgram.NamedOp.cols program (.negacyclicConv 544 (.ntt 10302)) = 512 ∧
-    RealizedProgram.NamedOp.rows program (.negacyclicConv 544 (.ntt 10302)) = 512 ∧
+  ops_sig : RealizedProgram.NamedOp.cols program (.negacyclicConv 593 (.ntt 10302)) = 512 ∧
+    RealizedProgram.NamedOp.rows program (.negacyclicConv 593 (.ntt 10302)) = 512 ∧
     RealizedProgram.NamedOp.cols program (.batched 512 (.fromDigits 16 2)) = 8192 ∧
     RealizedProgram.NamedOp.rows program (.batched 512 (.fromDigits 16 2)) = 512
 
@@ -89,15 +89,15 @@ instance : CharP (interp 1).K 12289 := AField.charQ (FA := FA)
 def rdA (e : program.Env interp) (v i : ℕ) : (interp 1).K :=
   program.evalE (program.reader e) 1 (.leaf v) i
 
-/-- **`s2` is value `546`** (`FalconAAlg.s2_eq`). -/
+/-- **`s2` is value `595`** (`FalconAAlg.s2_eq`). -/
 theorem s2Vals_eq (e : program.Env interp) (i : Fin falcon512.n) :
-    s2Vals (program.reader e) i = rdA e 546 i := by
+    s2Vals (program.reader e) i = rdA e 595 i := by
   unfold s2Vals rdA
   rw [FalconAAlg.s2_eq]
 
-/-- **`c_A` is value `545`** (`FalconAAlg.cA_eq`). -/
+/-- **`c_A` is value `594`** (`FalconAAlg.cA_eq`). -/
 theorem cABits_eq (e : program.Env interp) (j : Fin falcon512.n) :
-    cABits e j = program.wordAt (program.reader e) 1 545 16 j := by
+    cABits e j = program.wordAt (program.reader e) 1 594 16 j := by
   unfold cABits
   rw [FalconAAlg.cA_eq]
 
@@ -160,7 +160,7 @@ theorem holdsAt {e : program.Env interp} (hs : program.SourceSatAt e) {p : ℕ}
   hs.preds _ (RealizedProgram.predicate_mem hp) hsrc
 
 /-- `s2` and `signature.s1` are prime-typed private source values. -/
-theorem primeA {v : ℕ} (hv : v ∈ [546, 547]) : PrimeA program v :=
+theorem primeA {v : ℕ} (hv : v ∈ [595, 596]) : PrimeA program v :=
   FalconAAlg.primeA_sig v hv
 
 /-! ## The advice -/
@@ -194,10 +194,10 @@ theorem nA_cast {e : program.Env interp} (hs : program.SourceSatAt e) {v : ℕ} 
 /-! ## The norm and the encoding -/
 
 /-- **Advice for the norm and the encoding at `e`**: native advice whose `s1` is
-`signature.s1` (`547`), at which the native norm's constraints (`NativeNorm.Holds` at the norm's
+`signature.s1` (`596`), at which the native norm's constraints (`NativeNorm.Holds` at the norm's
 inputs `s1 ‖ s2`), the encoding's Boolean checks and the requests hold. -/
 def NormAdvice (e : program.Env interp) : Prop :=
-  ∃ alg : Native.Committed (interp 1).K, (∀ i, alg.s1 i = rdA e 547 i) ∧
+  ∃ alg : Native.Committed (interp 1).K, (∀ i, alg.s1 i = rdA e 596 i) ∧
     NativeNorm.Holds (Native.normInputs (s2Vals (program.reader e)) alg) alg.norm ∧
     NativeEncoding.BitsHold alg.norm ∧ Native.AlgRequests alg
 
@@ -324,28 +324,28 @@ transform of `statement.hhat` are the key's coefficients, at a statement that de
 theorem coord0_keyPoly {e : program.Env interp} {pk : PublicKey} (hpk : keyOf e.stmt = some pk)
     {a : ℕ} (ha : a < 512) :
     coord0 (RealizedProgram.Ops.inverseNtt 512 ((10302 : ℕ) : (interp 1).K)
-      (fun s => (RealizedProgram.castElt (program.reader e 544 s) : (interp 1).K)) a) = Falcon512.coeff pk.h ⟨a, ha⟩ := by
+      (fun s => (RealizedProgram.castElt (program.reader e 593 s) : (interp 1).K)) a) = Falcon512.coeff pk.h ⟨a, ha⟩ := by
   rw [coord0_inverseNtt]
-  have hread : program.reader e 544 = e.stmt 544 :=
+  have hread : program.reader e 593 = e.stmt 593 :=
     RealizedProgram.reader_of_opaque_nil e (name := "statement.hhat") (FalconAAlg.hhatKind (program := program))
   rw [RealizedProgram.Ops.inverseNtt_congr
     (y := RealizedProgram.Ops.ofFin fun j : Fin 512 => (KeyNTT.keyHat pk j : ZMod 12289))
     (fun m hm => ?_), KeyNTT.inverseNtt_keyHat pk ha]
   rw [RealizedProgram.Ops.ofFin_of_lt _ hm, hread, ← toNat_hhat_of_keyOf hpk ⟨m, hm⟩]
-  have h1 : program.valueField 544 = 1 := FalconACore.hhatField
-  change coord0 (RealizedProgram.castElt (e.stmt 544 m) : (interp 1).K) =
-    (((interp (program.valueField 544)).toNat (e.stmt 544 m) : ℕ) : ZMod 12289)
+  have h1 : program.valueField 593 = 1 := FalconACore.hhatField
+  change coord0 (RealizedProgram.castElt (e.stmt 593 m) : (interp 1).K) =
+    (((interp (program.valueField 593)).toNat (e.stmt 593 m) : ℕ) : ZMod 12289)
   rw [← RealizedProgram.toNat_castElt h1, toNat_eq_val, ZMod.natCast_zmod_val]
 
 /-- **The samples' bits are bits** (`crossing.c_A.boolean`). -/
 theorem cA_bool {e : program.Env interp} (hs : program.SourceSatAt e) {t : ℕ} (ht : t < 8192) :
-    rdA e 545 t = 0 ∨ rdA e 545 t = 1 := by
+    rdA e 594 t = 0 ∨ rdA e 594 t = 1 := by
   obtain ⟨pb, hpb, hbc, hsrcb⟩ := FalconACore.cABoolean (program := program)
   have hsz := (FalconACore.raw_facts (program := program)).2.2
   rw [FalconAAlg.cA_eq] at hbc hsz
   have hbool := hs.holdsAt_of_predByName hpb hsrcb
   have := RealizedProgram.bool_of_boolCheck hbc hbool (i := t)
-    (by change t < (program.value 545).size; rw [hsz]; exact ht)
+    (by change t < (program.value 594).size; rw [hsz]; exact ht)
   rw [FalconACore.domainField1] at this
   exact this
 
@@ -360,7 +360,7 @@ set_option maxRecDepth 4096 in
 `signature.equation`'s constant coordinates. -/
 theorem signatureRows {e : program.Env interp} (hs : program.SourceSatAt e) {pk : PublicKey}
     (hpk : keyOf e.stmt = some pk) (alg : Native.Committed (interp 1).K)
-    (hs1 : ∀ i, alg.s1 i = rdA e 547 i) :
+    (hs1 : ∀ i, alg.s1 i = rdA e 596 i) :
     Native.SignatureRows pk.h (cABits e) (s2Vals (program.reader e)) alg := by
   intro i
   have hi := i.isLt
@@ -373,60 +373,60 @@ theorem signatureRows {e : program.Env interp} (hs : program.SourceSatAt e) {pk 
   have hZ := (ZMod.intCast_zmod_eq_zero_iff_dvd _ 12289).2 hdvd
   rw [Int.cast_sub, sub_eq_zero, RealizedProgram.evalIntWith_add, RealizedProgram.evalIntWith_apply,
     RealizedProgram.evalIntWith_apply, Int.cast_add, RealizedProgram.evalIntWith_leaf] at hZ
-  have h546 : ∀ t < 512, φq (coord0 (rdA e 546 t)) = rdA e 546 t := fun t ht =>
-    φq_coord0 (nA_cast hs (primeA (program := program) (v := 546) (by simp)) (by rw [(FalconAAlg.sizes_sig (program := program)).1]; exact ht))
-  have h547 : φq (coord0 (rdA e 547 i)) = rdA e 547 i :=
-    φq_coord0 (nA_cast hs (primeA (program := program) (v := 547) (by simp)) (by rw [(FalconAAlg.sizes_sig (program := program)).2]; exact hi))
-  have h545 : ∀ t < 8192, φq (coord0 (rdA e 545 t)) = rdA e 545 t := fun t ht =>
+  have h546 : ∀ t < 512, φq (coord0 (rdA e 595 t)) = rdA e 595 t := fun t ht =>
+    φq_coord0 (nA_cast hs (primeA (program := program) (v := 595) (by simp)) (by rw [(FalconAAlg.sizes_sig (program := program)).1]; exact ht))
+  have h547 : φq (coord0 (rdA e 596 i)) = rdA e 596 i :=
+    φq_coord0 (nA_cast hs (primeA (program := program) (v := 596) (by simp)) (by rw [(FalconAAlg.sizes_sig (program := program)).2]; exact hi))
+  have h545 : ∀ t < 8192, φq (coord0 (rdA e 594 t)) = rdA e 594 t := fun t ht =>
     φq_coord0_bool (cA_bool hs ht)
   obtain ⟨hcN, hrN, hcB, hrB⟩ := FalconAAlg.ops_sig (program := program)
-  rw [applyInt_cast e _ (primeA (v := 546) (by simp)).2.2.2.2.1
-      (primeA (v := 546) (by simp)).2.2.2.2.2
+  rw [applyInt_cast e _ (primeA (v := 595) (by simp)).2.2.2.2.1
+      (primeA (v := 595) (by simp)).2.2.2.2.2
       (fun t ht => h546 t (hcN ▸ ht)) (hrN ▸ hi),
     applyInt_cast e _ (FalconAAlg.fields_cA (program := program)).1 (FalconAAlg.fields_cA (program := program)).2
       (fun t ht => h545 t (hcB ▸ ht)) (hrB ▸ hi)] at hZ
-  change ((ia e 547 i : ℤ) : ZMod 12289) + _ = _ at hZ
-  rw [ia_eq_nA e (primeA (v := 547) (by simp)).2.2.2.2.1 (primeA (v := 547) (by simp)).2.2.2.2.2,
+  change ((ia e 596 i : ℤ) : ZMod 12289) + _ = _ at hZ
+  rw [ia_eq_nA e (primeA (v := 596) (by simp)).2.2.2.2.1 (primeA (v := 596) (by simp)).2.2.2.2.2,
     Int.cast_natCast, nA, toNat_eq_val,
     ZMod.natCast_zmod_val] at hZ
-  have hsz : (program.value 544).size = 512 := FalconACore.hhatSize
-  have hN : RealizedProgram.NamedOp.block program 1 (program.reader e) (.negacyclicConv 544 (.ntt 10302))
-      (fun t => rdA e 546 t) i =
+  have hsz : (program.value 593).size = 512 := FalconACore.hhatSize
+  have hN : RealizedProgram.NamedOp.block program 1 (program.reader e) (.negacyclicConv 593 (.ntt 10302))
+      (fun t => rdA e 595 t) i =
       LatticeCrypto.negacyclicConvCoeff
         (RealizedProgram.Ops.toFin 512 (RealizedProgram.Ops.inverseNtt 512 ((10302 : ℕ) : (interp 1).K)
-          (fun s => (RealizedProgram.castElt (program.reader e 544 s) : (interp 1).K))))
-        (RealizedProgram.Ops.toFin 512 fun t => rdA e 546 t) ⟨i, hi⟩ := by
+          (fun s => (RealizedProgram.castElt (program.reader e 593 s) : (interp 1).K))))
+        (RealizedProgram.Ops.toFin 512 fun t => rdA e 595 t) ⟨i, hi⟩ := by
     simp only [RealizedProgram.NamedOp.block, RealizedProgram.NamedOp.formPoly, RealizedProgram.Ops.negacyclic]
     erw [AField.decode_eq (FA := FA) 10302]
-    generalize (program.value 544).size = N at hsz ⊢
+    generalize (program.value 593).size = N at hsz ⊢
     subst hsz
     exact RealizedProgram.Ops.ofFin_of_lt (R := (interp 1).K) _ hi
   have hB : RealizedProgram.NamedOp.block program 1 (program.reader e) (.batched 512 (.fromDigits 16 2))
-      (fun t => rdA e 545 t) i = ∑ l : Fin 16, ((2 ^ (l : ℕ) : ℕ) : (interp 1).K) *
-        rdA e 545 (i * 16 + l) := by
+      (fun t => rdA e 594 t) i = ∑ l : Fin 16, ((2 ^ (l : ℕ) : ℕ) : (interp 1).K) *
+        rdA e 594 (i * 16 + l) := by
     simp only [RealizedProgram.NamedOp.block, RealizedProgram.NamedOp.rows, RealizedProgram.NamedOp.cols, RealizedProgram.Ops.fromDigits, Nat.mul_one,
       Nat.div_one, Nat.mod_one, ite_true, if_pos hi, Nat.cast_pow]
     simp only [AField.decode_eq]
-  rw [hN, hB, coord0_negacyclicConvCoeff _ (RealizedProgram.Ops.toFin 512 fun t => rdA e 546 t)
+  rw [hN, hB, coord0_negacyclicConvCoeff _ (RealizedProgram.Ops.toFin 512 fun t => rdA e 595 t)
     (fun t => h546 t t.isLt), map_sum] at hZ
-  have hcA : ∀ l : Fin 16, coord0 (((2 ^ (l : ℕ) : ℕ) : (interp 1).K) * rdA e 545 (i * 16 + l)) =
-      ((2 ^ (l : ℕ) : ℕ) : ZMod 12289) * coord0 (rdA e 545 (i * 16 + l)) := fun l => by
+  have hcA : ∀ l : Fin 16, coord0 (((2 ^ (l : ℕ) : ℕ) : (interp 1).K) * rdA e 594 (i * 16 + l)) =
+      ((2 ^ (l : ℕ) : ℕ) : ZMod 12289) * coord0 (rdA e 594 (i * 16 + l)) := fun l => by
     rw [← map_natCast φq, coord0_φq_mul]
   simp only [hcA] at hZ
   have hφ := congrArg (φq (FH := FH) (FA := FA)) hZ
   rw [map_add, h547, DFT.negacyclicConvCoeff_map (φq (FH := FH) (FA := FA)), map_sum] at hφ
   simp only [map_mul, map_natCast, Function.comp_def] at hφ
   have hkey : ∀ a : Fin 512, φq (coord0 (RealizedProgram.Ops.toFin 512 (RealizedProgram.Ops.inverseNtt 512
-      ((10302 : ℕ) : (interp 1).K) (fun s => (RealizedProgram.castElt (program.reader e 544 s) : (interp 1).K))) a)) =
+      ((10302 : ℕ) : (interp 1).K) (fun s => (RealizedProgram.castElt (program.reader e 593 s) : (interp 1).K))) a)) =
       ((EmulatedAlgebraCircuit.keyCoeffs pk.h a : ℕ) : (interp 1).K) := fun a => by
     rw [φq_apply, RealizedProgram.Ops.toFin_apply, coord0_keyPoly hpk a.isLt]
     rfl
-  have hfin : ∀ t : Fin 512, φq (coord0 (RealizedProgram.Ops.toFin 512 (fun t => rdA e 546 t) t)) =
+  have hfin : ∀ t : Fin 512, φq (coord0 (RealizedProgram.Ops.toFin 512 (fun t => rdA e 595 t) t)) =
       s2Vals (program.reader e) t := fun t => (h546 t t.isLt).trans (s2Vals_eq e t).symm
   simp only [hkey, hfin, fun l : Fin 16 => h545 (i * 16 + l) (by omega)] at hφ
   unfold Emulated.sampleValue
   simp only [cABits_eq]
-  change ∑ b : Fin 16, (2 : (interp 1).K) ^ (b : ℕ) * rdA e 545 (i * 16 + b) - _ - alg.s1 i = 0
+  change ∑ b : Fin 16, (2 : (interp 1).K) ^ (b : ℕ) * rdA e 594 (i * 16 + b) - _ - alg.s1 i = 0
   rw [hs1 i]
   push_cast at hφ
   have hconv : LatticeCrypto.negacyclicConvCoeff (n := 512)

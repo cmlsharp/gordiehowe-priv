@@ -25,16 +25,16 @@ open Generated.Falcon512.Native.ROMParams.Program hiding program
 open GordieHowe.Bits GordieHowe.Keccak GordieHowe.KeccakTrace
 
 /-- **The selection's committed values** (each program instantiates them by `decide`): the selected
-words (`539`) with their bit view (`540`, the identity `idx3` on `512` words), the counter (`541`)
-and the completion flags (`542`), committed cells of field `0`. -/
+words (`588`) with their bit view (`589`, the identity `idx3` on `512` words), the counter (`590`)
+and the completion flags (`591`), committed cells of field `0`. -/
 class FalconHSelHonest (program : RealizedProgram) : Prop where
   /-- The selection's committed values, decided. -/
-  sel_checks : program.privCellB 539 = true ∧ program.privCellB 541 = true ∧
-    program.privCellB 542 = true ∧ program.isBitsB 540 539 idx3 = true ∧
-    program.valueField 539 = 0 ∧ program.valueField 540 = 0 ∧ program.valueField 541 = 0 ∧
-    program.valueField 542 = 0 ∧ (program.value 539).size = 512 ∧ (program.value 540).size = 8192 ∧
-    (program.value 541).size = 639 ∧ (program.value 542).size = 127 ∧ idx3.size = 512 ∧
-    (∀ j < 512, idx3.entry j = j) ∧ (program.value 539).type.nodeName = some "GF(2^16)"
+  sel_checks : program.privCellB 588 = true ∧ program.privCellB 590 = true ∧
+    program.privCellB 591 = true ∧ program.isBitsB 589 588 idx3 = true ∧
+    program.valueField 588 = 0 ∧ program.valueField 589 = 0 ∧ program.valueField 590 = 0 ∧
+    program.valueField 591 = 0 ∧ (program.value 588).size = 512 ∧ (program.value 589).size = 8192 ∧
+    (program.value 590).size = 717 ∧ (program.value 591).size = 205 ∧ idx3.size = 512 ∧
+    (∀ j < 512, idx3.entry j = j) ∧ (program.value 588).type.nodeName = some "GF(2^16)"
 
 open FalconHSelHonest
 
@@ -60,26 +60,26 @@ variable (program FH FA) in
 /-- **The honest route** of the selection: the model's route on the candidate stream, in the
 selection's field. -/
 -- spec-side
-noncomputable def hRoute : Fin 639 → Route (interp (RealizedProgram.SelectShape.field program selShape)).K :=
+noncomputable def hRoute : Fin 717 → Route (interp (RealizedProgram.SelectShape.field program selShape)).K :=
   SelectFirstN.Model.hashToPointRoute 512 (selF (program := program) (FH := FH) (FA := FA)) 61445
     (hStream y)
 
 variable (program FH FA) in
-/-- **The honest values of the selection**: the selected words (value `539`) pack the samples' bits
-(`Bits.constBit`), the counter (value `541`) and the completion flags (value `542`) are the honest
+/-- **The honest values of the selection**: the selected words (value `588`) pack the samples' bits
+(`Bits.constBit`), the counter (value `590`) and the completion flags (value `591`) are the honest
 route's, read from the selection's field; `0` elsewhere.
 
-Running time: computing these values takes one SHAKE256 call (the stream) and a scan of its `639`
+Running time: computing these values takes one SHAKE256 call (the stream) and a scan of its `717`
 candidates. This running time is argued here, not proved in Lean. -/
 -- spec-side
 noncomputable def selVal (v i : ℕ) : (interp (program.valueField v)).K :=
-  if v = 539 then
+  if v = 588 then
     RealizedProgram.castElt (a := 0) (PackedClaim.pack (HField.packing (FH := FH)) fun b =>
       decide (Bits.constBit (K := FH.K) (if h : i < 512 then y.samples ⟨i, h⟩ else 0) b = 1))
-  else if v = 541 then RealizedProgram.castElt (a := RealizedProgram.SelectShape.field program selShape)
-    (if h : i < 639 then (hRoute program FH FA y ⟨i, h⟩).count_enc else 0)
-  else if v = 542 then RealizedProgram.castElt (a := RealizedProgram.SelectShape.field program selShape)
-    (if h : i < 127 then (hRoute program FH FA y ⟨512 + i, by omega⟩).full else 0)
+  else if v = 590 then RealizedProgram.castElt (a := RealizedProgram.SelectShape.field program selShape)
+    (if h : i < 717 then (hRoute program FH FA y ⟨i, h⟩).count_enc else 0)
+  else if v = 591 then RealizedProgram.castElt (a := RealizedProgram.SelectShape.field program selShape)
+    (if h : i < 205 then (hRoute program FH FA y ⟨512 + i, by omega⟩).full else 0)
   else 0
 
 end Values
@@ -101,7 +101,7 @@ variable {L : ℕ} {y : Falcon512.PoP.HonestInput L} {val x : program.Valuation 
   {c : ∀ k, (program.layout interp).Ch k} {π : (program.layout interp).Pads}
 
 /-- **The selected words read the samples' bits** at the source environment. -/
-theorem selWord_honest (h : ∀ v ∈ [539, 541, 542], val v = selVal program FH FA y v)
+theorem selWord_honest (h : ∀ v ∈ [588, 590, 591], val v = selVal program FH FA y v)
     (j : Fin 512) :
     selWord (program.srcEnv interp x val c π) j =
       fun b : Fin 16 =>
@@ -114,7 +114,7 @@ theorem selWord_honest (h : ∀ v ∈ [539, 541, 542], val v = selVal program FH
   simp only [selWord, RealizedProgram.SelectShape.word, RealizedProgram.wordAt]
   rw [RealizedProgram.evalE_leaf, RealizedProgram.reader_srcEnv_bits x val c π hb540 h539 (by
     rw [hs540, hi3, hq, he3 _ j.isLt, hs539]; exact j.isLt), hs540, hi3, hq, he3 _ j.isLt, hr,
-    h 539 (by simp), hn539]
+    h 588 (by simp), hn539]
   unfold selVal
   rw [if_pos rfl, dif_pos j.isLt, coord_castElt hf539]
   erw [HField.coord_pack]
@@ -128,15 +128,15 @@ theorem selWord_honest (h : ∀ v ∈ [539, 541, 542], val v = selVal program FH
   split_ifs <;> simp_all
 
 /-- **The route reads the honest route** at the source environment. -/
-theorem selRoute_honest (h : ∀ v ∈ [539, 541, 542], val v = selVal program FH FA y v) :
+theorem selRoute_honest (h : ∀ v ∈ [588, 590, 591], val v = selVal program FH FA y v) :
     selRoute (program.srcEnv interp x val c π) = hRoute program FH FA y := by
   obtain ⟨-, h541, h542, -, -, -, hf541, hf542, -, -, hs541, hs542, -⟩ :=
     sel_checks (program := program)
   funext i
   have e1 : program.evalE (program.reader (program.srcEnv interp x val c π))
-      (RealizedProgram.SelectShape.field program selShape) (.leaf 541) i = (hRoute program FH FA y i).count_enc := by
+      (RealizedProgram.SelectShape.field program selShape) (.leaf 590) i = (hRoute program FH FA y i).count_enc := by
     refine evalE_selF h541 hf541 ?_ (by rw [hs541]; exact i.isLt)
-    rw [h 541 (by simp)]
+    rw [h 590 (by simp)]
     unfold selVal
     rw [if_neg (by norm_num), if_pos rfl]
     simp only [i.isLt, ↓reduceDIte]
@@ -145,14 +145,14 @@ theorem selRoute_honest (h : ∀ v ∈ [539, 541, 542], val v = selVal program F
   by_cases hi : 512 ≤ (i : ℕ)
   · rw [if_pos hi]
     have e2 : program.evalE (program.reader (program.srcEnv interp x val c π))
-        (RealizedProgram.SelectShape.field program selShape) (.leaf 542) (i - 512) =
+        (RealizedProgram.SelectShape.field program selShape) (.leaf 591) (i - 512) =
           (hRoute program FH FA y i).full := by
       refine evalE_selF h542 hf542 ?_ (by rw [hs542]; omega)
-      rw [h 542 (by simp)]
+      rw [h 591 (by simp)]
       unfold selVal
       rw [if_neg (by norm_num), if_neg (by norm_num), if_pos rfl]
-      have hlt : (i : ℕ) - 512 < 127 := by omega
-      have hfin : (⟨512 + ((i : ℕ) - 512), by omega⟩ : Fin 639) = i := Fin.ext (by simp only; omega)
+      have hlt : (i : ℕ) - 512 < 205 := by omega
+      have hfin : (⟨512 + ((i : ℕ) - 512), by omega⟩ : Fin 717) = i := Fin.ext (by simp only; omega)
       simp only [hlt, ↓reduceDIte, hfin]
     rw [e2]
   · rw [if_neg hi]
@@ -165,11 +165,11 @@ hash's inputs, `selVal` on the selection's), the predicates `h2p.select.start`, 
 and `.route` hold at every `δ`. -/
 theorem select_holds (hL : L ≤ 32) (hy : y.Valid)
     (hh : ∀ v, IsHashValue v → val v = hashVal (program := program) y v)
-    (hsel : ∀ v ∈ [539, 541, 542], val v = selVal program FH FA y v) :
-    program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 246).body ∧
-      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 247).body ∧
-      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 248).body ∧
-      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 249).body := by
+    (hsel : ∀ v ∈ [588, 590, 591], val v = selVal program FH FA y v) :
+    program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 270).body ∧
+      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 271).body ∧
+      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 272).body ∧
+      program.HoldsAt (program.srcEnv interp x val c π) (program.predicate 273).body := by
   set e := program.srcEnv interp x val c π
   have hs : HashSat e := hashSat_honest hL hh
   have hstream : (fun i => Bits.natOfBits (selSample e i)) = hStream y := by

@@ -17,7 +17,7 @@ public import GordieHowe.Generated.Falcon512.Native.ROMParams.Realize
 # GordieHowe: the proof system of `Falcon512.Native.ROMParams`
 
 The security theorem of the proof system at the realized program of the native Falcon proof of possession at the ROM parameters
-(`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program`, export `c825eb05`: domain `H` over
+(`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program`, export `3ed06086`: domain `H` over
 `GF(2^128)` with the GKR circuit `c.H` and its batch on bits, domain `A` over `F_q^9` with the GKR
 circuit `c.A` and the batches `norm.center`, `norm.column0`, `norm.column1`, `norm.column2` and
 `A.boolean`; two phases: the source challenge `h2p.select.delta` with
@@ -30,7 +30,7 @@ sources `src` of its circuits:
   locality `GordieHowe.Falcon512.Native.ROMParams.Locality`) and the model of the interpretation
   (`GordieHowe.Falcon512.Native.ROMParams.interpModel`);
 * **the ready data** (`ready`): domain `H`'s (`readyH`: `gf128Packing`, the tableau
-  `gf128K282R2Cert`, the checks `fieldOkH`) and domain `A`'s (`fq9Packing`, the tableau
+  `gf128K300R2Cert`, the checks `fieldOkH`) and domain `A`'s (`fq9Packing`, the tableau
   `GordieHowe.RealizedProgram.falconNativeROMACert`, the checks `fieldOkA`), the checks `GordieHowe.RealizedProgram.fieldOkB` by
   `decide +kernel`;
 * **the proof system** (`proofSystem`): every domain's circuit proof the generic per-field domain
@@ -62,13 +62,13 @@ abbrev fieldPkH : (interp.field (program.domainField 0)).Packing := RealizedProg
 
 /-- **Domain `H`'s checks** (`RealizedProgram.fieldOkB`). -/
 theorem fieldOkH : program.fieldOkB (I := interp) 0 Generated.Falcon512.Native.ROMParams.Plan.plan
-    fieldPkH RealizedProgram.gf128K282R2Cert = true := by
+    fieldPkH RealizedProgram.gf128K300R2Cert = true := by
   decide +kernel
 
 /-- **Domain `H`'s ready data** (`RealizedProgram.FieldReady`): `gf128Packing`, the tableau
-`gf128K282R2Cert`, the checks `fieldOkH`. -/
+`gf128K300R2Cert`, the checks `fieldOkH`. -/
 def readyH : program.FieldReady interp 0 Generated.Falcon512.Native.ROMParams.Plan.plan :=
-  ⟨fieldPkH, RealizedProgram.gf128K282R2Cert, fieldOkH, Generated.Falcon512.Native.ROMParams.Valid.wellFormed⟩
+  ⟨fieldPkH, RealizedProgram.gf128K300R2Cert, fieldOkH, Generated.Falcon512.Native.ROMParams.Valid.wellFormed⟩
 
 /-- Domain `A`'s packing facts. -/
 abbrev fieldPkA : (interp.field (program.domainField 1)).Packing := RealizedProgram.fq9Packing

@@ -34,7 +34,7 @@ public key's statement values). Its compiled argument is spBCS's
 * **The round errors** (`forkError_le`): every round of the composite on its own is at most
   `errorMax / 2^140` (`GordieHowe.RealizedProgram.ProofSystem.fieldForkError_le`).
 * **The queries and the leaves** (`forkFigures`, in the configuration file): at most `63 + 90`
-  opened columns, trees of `3392` and `1694` leaves.
+  opened columns, trees of `3604` and `1694` leaves.
 -/
 
 namespace GordieHowe.Falcon512.Native.ROMParams
@@ -181,11 +181,11 @@ theorem roundsH_le :
     program.FieldRoundsLe (ready domainH)
       ((errorMax : ℝ≥0) / 2 ^ 140) :=
   .of_num (ready domainH) (by convert gf2_128_card <;> rfl)
-    (Tableau.gf128K282R2Commit_le.trans (div_two_pow_le (by norm_num)))
-    (Tableau.gf128K282R2Test_le.trans (div_two_pow_le (by norm_num)))
+    (Tableau.gf128K300R2Commit_le.trans (div_two_pow_le (by norm_num)))
+    (Tableau.gf128K300R2Test_le.trans (div_two_pow_le (by norm_num)))
     (by
         rw [if_neg (by decide +kernel)]
-        exact Tableau.gf128K282R2Column_le.trans (div_two_pow_le (by norm_num)))
+        exact Tableau.gf128K300R2Column_le.trans (div_two_pow_le (by norm_num)))
     (by decide +kernel) (by decide +kernel) (by decide +kernel)
 
 /-- **Domain `A`'s round charges are at most `errorMax / 2^140`**

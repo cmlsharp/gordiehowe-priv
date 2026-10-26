@@ -160,7 +160,7 @@ message bytes, the samples the fixed-stream `HashToPoint` takes on them
 A pair of `relSupported` samples and decodes (`valid_ofWitness`); elsewhere the defaults are
 read.
 
-Running time: one SHAKE256 call of `1278` bytes with the selection over its `639` samples, and
+Running time: one SHAKE256 call of `1434` bytes with the selection over its `717` samples, and
 one `decompress` of the `625`-byte payload. -/
 def ofWitness : HonestInput msgLen where
   pk := pk

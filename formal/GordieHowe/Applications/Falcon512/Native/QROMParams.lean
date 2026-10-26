@@ -191,7 +191,7 @@ theorem configurationFacts : configuration.GrantedFacts where
 
 /-- **The honest inputs of the supported pairs of the paper's relation**
 (`Configuration.HonestOf` at `ROMParams.keySupportedRel`: the pairs of `keyWitRel` whose
-`HashToPoint` succeeds within the H circuit's `639` samples, `Falcon512.PoP.relSupported`): every
+`HashToPoint` succeeds within the H circuit's `717` samples, `Falcon512.PoP.relSupported`): every
 such pair has the honest input `ROMParams.HonestIn.ofRel` at its key. -/
 def honestOfRel : configuration.HonestOf where
   rel := ROMParams.keySupportedRel

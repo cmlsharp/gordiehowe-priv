@@ -29,7 +29,7 @@ least `λ − 64`.
 |---|---|---|
 | `GordieHowe.MLDSA44.Emulated.ROMParams` | ROM | `116.46` |
 | `GordieHowe.MLDSA44.Emulated.QROMParams` | QROM | `180.19` |
-| `GordieHowe.Falcon512.Native.ROMParams` | ROM | `116.68` |
+| `GordieHowe.Falcon512.Native.ROMParams` | ROM | `116.62` |
 | `GordieHowe.Falcon512.Native.QROMParams` | QROM | `180.15` |
 
 The statements name the setting as `Configuration.Common.setting mergeConfig mergeFacts C`, which the
@@ -98,21 +98,21 @@ namespace Falcon512.Native.ROMParams
 
 -- The budget's exponents (up to `2^2780`) exceed `norm_num`'s default evaluation threshold.
 set_option exponentiation.threshold 3000 in
-/-- **The ROM zero-knowledge budget of `Falcon512.Native.ROMParams`** is at most `2^-116.68`: at most
-`5087/2^129`, dominated by the leaf term of the `5086` positions. -/
-theorem zkBudgetROM_le : configuration.zkBudgetROM ≤ (2 : ℝ) ^ (-116.68 : ℝ) := by
-  refine real_le_two_rpow_of_le_ratio (M := 5087) (E := 129) (n := 100) (e := 11668)
+/-- **The ROM zero-knowledge budget of `Falcon512.Native.ROMParams`** is at most `2^-116.62`: at most
+`5299/2^129`, dominated by the leaf term of the `5298` positions. -/
+theorem zkBudgetROM_le : configuration.zkBudgetROM ≤ (2 : ℝ) ^ (-116.62 : ℝ) := by
+  refine real_le_two_rpow_of_le_ratio (M := 5299) (E := 129) (n := 100) (e := 11662)
     (by norm_num) (by norm_num) ?_ (by decide +kernel)
   simp only [Configuration.zkBudgetROM, configuration, Nat.choose_two_right]
   norm_num
 
 /-- **The bit security of everlasting zero knowledge of the Falcon-512 proof of possession at the ROM
 parameters**: for every `t ≥ 1` hash queries and `Q ≤ 2^64` proof queries, the error of
-`everlasting_zero_knowledge_rom` is at most `Q · t · 2^-116.68`. -/
+`everlasting_zero_knowledge_rom` is at most `Q · t · 2^-116.62`. -/
 @[headline]
 theorem zero_knowledge_bits_rom (C : Compiled) {t Q : ℕ} (ht : 1 ≤ t) (hQ : Q ≤ 2 ^ 64) :
     (Configuration.Common.setting configuration configurationFacts C).model.zkErrorROM 0 t Q ≤
-      Q * t * (2 : ℝ) ^ (-116.68 : ℝ) :=
+      Q * t * (2 : ℝ) ^ (-116.62 : ℝ) :=
   Configuration.ZKBits.zkErrorROM_le_bits configuration configurationFacts C
     zkBudgetROM_le ht hQ
 

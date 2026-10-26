@@ -12,7 +12,7 @@ public import GordieHowe.Generated.Falcon512.Native.QROMParams.Realize
 # GordieHowe: the honest prover's MAC of `Falcon512.Native.QROMParams`
 
 The program facts of the honest strategy from an execution (`GordieHowe.RealizedProgram.HonestStrategy.ofCompletion`) on the
-realized program of `Falcon512.Native.QROMParams` (export `c825eb05`): its one MAC `mac.equal` with the
+realized program of `Falcon512.Native.QROMParams` (export `3ed06086`): its one MAC `mac.equal` with the
 grouped tail `mac` (`mac`, a `GordieHowe.RealizedProgram.GroupedMac`), each fact by `decide +kernel`.
 -/
 
@@ -27,34 +27,34 @@ noncomputable abbrev Pg : RealizedProgram := Generated.Falcon512.Native.QROMPara
 noncomputable abbrev PN : ℕ → List String :=
   primeNodesOf Generated.Falcon512.Native.QROMParams.Plan.plan Generated.Falcon512.Native.QROMParams.Program.program
 
-/-- **The MAC realization** of `mac.equal` (predicate `285`). -/
+/-- **The MAC realization** of `mac.equal` (predicate `309`). -/
 noncomputable def real : MacRealization :=
-  match (Pg.predicate 285).body with
+  match (Pg.predicate 309).body with
   | .cross _ _ _ _ _ r => r
   | _ => default
-/-- **The realization of the MAC's tail** `mac` (predicate `283`). -/
+/-- **The realization of the MAC's tail** `mac` (predicate `307`). -/
 noncomputable def realT : ModRealization :=
-  match (Pg.predicate 283).body with
+  match (Pg.predicate 307).body with
   | .mod _ _ _ _ r => r
   | _ => default
 /-- **The left side of the MAC's tail.** -/
 noncomputable def L : Expr :=
-  match (Pg.predicate 283).body with
+  match (Pg.predicate 307).body with
   | .mod _ _ l _ _ => l
   | _ => default
 /-- **The right side of the MAC's tail.** -/
 noncomputable def R : Expr :=
-  match (Pg.predicate 283).body with
+  match (Pg.predicate 307).body with
   | .mod _ _ _ r _ => r
   | _ => default
 /-- **The grouping of the MAC's tail.** -/
 noncomputable def G : GroupedMod := realT.grouped.getD default
 /-- **The units of the MAC's tail**: the blind, the powers and the A operand. -/
 noncomputable def u : MacUnits := (macUnits? L).getD ⟨0, 0, 0, 0, [], default⟩
-/-- **`mac.equal` is the cross-field `equal` of `x_H = 540` and `y_A = 545`.** -/
-theorem hb : (Pg.predicate 285).body = .cross 0 (.leaf 540) 1 (.leaf 545) {} real := rfl
+/-- **`mac.equal` is the cross-field `equal` of `x_H = 589` and `y_A = 594`.** -/
+theorem hb : (Pg.predicate 309).body = .cross 0 (.leaf 589) 1 (.leaf 594) {} real := rfl
 /-- **The tail is a `mod_2` of domain `1`.** -/
-theorem hbt : (Pg.predicate 283).body = .mod 1 2 L R realT := rfl
+theorem hbt : (Pg.predicate 307).body = .mod 1 2 L R realT := rfl
 /-- **The honest accumulators' quotients fit their two base-`64` digits**: a group of eight
 chunks sums to at most `8 · 1017` (`Conv.convMax_gf2_256`). -/
 theorem fit : ∀ fc ∈ G.groups, fc.2 * GordieHowe.Conv.convMax u.width u.taps.toFinset / 2 < G.base ^ G.digitCount := by
@@ -62,29 +62,29 @@ theorem fit : ∀ fc ∈ G.groups, fc.2 * GordieHowe.Conv.convMax u.width u.taps
   have ht : u.taps.toFinset = GordieHowe.Conv.gf2_256Taps := by decide +kernel
   rw [hw, ht, GordieHowe.Conv.convMax_gf2_256]
   decide +kernel
-/-- **The blind `557` is the pad copy `polynomialBits` of the tag `560`.** -/
-theorem kind557 : (Pg.value 557).kind = .padCopy real.tag "polynomialBits" :=
+/-- **The blind `606` is the pad copy `polynomialBits` of the tag `609`.** -/
+theorem kind606 : (Pg.value 606).kind = .padCopy real.tag "polynomialBits" :=
   RealizedProgram.kind_of_isPadCopyB (by decide +kernel)
 /-- **The program's MAC with a grouped tail** (`RealizedProgram.GroupedMac`), every fact by
 `decide +kernel` through the checkers of `GordieHowe/Language/Honest/Source.lean`. -/
 noncomputable def mac : Pg.GroupedMac PN where
-  pid := 285
+  pid := 309
   dx := 0
-  x := .leaf 540
+  x := .leaf 589
   cdy := 1
-  cy := .leaf 545
+  cy := .leaf 594
   dy := 1
-  y := .leaf 545
+  y := .leaf 594
   k := {}
   real := real
   hpid := by decide +kernel
   hb := hb
-  sb := 557
+  sb := 606
   hside := Or.inl ⟨RealizedProgram.MacHostedCore.of_B (by decide +kernel),
     rfl, zeroPadB_self (by decide +kernel), rfl, by decide +kernel⟩
   dyLt := by decide +kernel
   yOk := by decide +kernel
-  t := 283
+  t := 307
   ht := by decide +kernel
   htB := by decide +kernel
   realT := realT
@@ -96,9 +96,9 @@ noncomputable def mac : Pg.GroupedMac PN where
   hG := rfl
   u := u
   hu := rfl
-  acc := 567
+  acc := 616
   hA := rfl
-  gq := 568
+  gq := 617
   hD := rfl
   tagOwn := by decide +kernel
   tagHist := by decide +kernel
@@ -117,13 +117,13 @@ noncomputable def mac : Pg.GroupedMac PN where
   gqLate := by decide +kernel
   gqField := by decide +kernel
   xNoLate := fun v hv => noLateRead_of_B Generated.Falcon512.Native.QROMParams.Valid.wellFormed
-    (List.all_eq_true.1 (by decide +kernel : ((Pg.exprNodes (.leaf 540)).all Pg.noLateReadB) = true) v hv)
+    (List.all_eq_true.1 (by decide +kernel : ((Pg.exprNodes (.leaf 589)).all Pg.noLateReadB) = true) v hv)
   cyNoLate := fun v hv => noLateRead_of_B Generated.Falcon512.Native.QROMParams.Valid.wellFormed
-    (List.all_eq_true.1 (by decide +kernel : ((Pg.exprNodes (.leaf 545)).all Pg.noLateReadB) = true) v hv)
+    (List.all_eq_true.1 (by decide +kernel : ((Pg.exprNodes (.leaf 594)).all Pg.noLateReadB) = true) v hv)
   yNoLate := fun v hv => noLateRead_of_B Generated.Falcon512.Native.QROMParams.Valid.wellFormed
     (List.all_eq_true.1 (by decide +kernel : ((Pg.exprNodes u.operand).all Pg.noLateReadB) = true) v hv)
   powNoLate := noLateRead_of_B Generated.Falcon512.Native.QROMParams.Valid.wellFormed (by decide +kernel)
-  blindCopy := kind557
+  blindCopy := kind606
   fit := fit
   macChar := by decide +kernel
   digitsRoom := digitsRoom_of_B (by decide +kernel)

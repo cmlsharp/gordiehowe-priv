@@ -30,8 +30,10 @@ more than one configuration uses:
   domain A of `MLDSA44.Emulated.QROMParams` (`GordieHowe/Generated/`);
 * **`GF(2^128)` with `k = 282` at two low-degree repetitions** (`gf128K282R2…`): `(rate,
   block_enc) = (12, 3955)`, `(N, k) = (3392, 282)`, `t = 63`, `nrep = 2`, the compiler's choice for
-  domain H of `Falcon512.Native.ROMParams`, `MLDSA44.Native.ROMParams` and
-  `MLDSA44.Emulated.ROMParams` (the same export);
+  domain H of `MLDSA44.Native.ROMParams` and `MLDSA44.Emulated.ROMParams` (the same export);
+* **`GF(2^128)` with `k = 300` at two low-degree repetitions** (`gf128K300R2…`): `(rate,
+  block_enc) = (12, 4203)`, `(N, k) = (3604, 300)`, `t = 63`, `nrep = 2`, the compiler's choice for
+  domain H of `Falcon512.Native.ROMParams` and `Falcon512.Emulated.ROMParams` (the same export);
 * **Goldilocks² with `k = 512` at two low-degree repetitions** (`gold2K512R2…`): `(rate,
   block_enc) = (5, 3583)`, `(N, k) = (2560, 512)`, `t = 96`, `nrep = 2`, the compiler's choice for
   domain A of `MLDSA44.Emulated.ROMParams` (the same export) and `Falcon512.Ring.Carrier.ROMParams` (at
@@ -270,6 +272,84 @@ term: `((982 − 1)_63 + (2 · 282 − 1)_63)/(3392)_63 + (282 − 1)_63/(3392)_
 theorem gf128K282R2Column_le : gf128K282R2Bounds.column +
     Ligero.SubfieldTest.jointSubfieldError gf128K282R2K gf128K282R2N gf128K282R2T ≤
       (37038786 : ℝ≥0) / 2 ^ 140 :=
+  column_le_dyadic (by decide +kernel) (by decide +kernel)
+
+/-! ### `GF(2^128)`, `(N, k) = (3604, 300)`, `t = 63`, two low-degree repetitions -/
+
+/-- The rate of the tableau: `12`. -/
+abbrev gf128K300R2Rate : ℕ := 12
+
+/-- `block_enc` of the tableau: `4203`. -/
+abbrev gf128K300R2BlockEnc : ℕ := 4203
+
+/-- The opened columns of the tableau: `t = 63`. -/
+abbrev gf128K300R2T : ℕ := 63
+
+/-- The low-degree repetitions of the tableau: `2`. -/
+abbrev gf128K300R2Reps : ℕ := 2
+
+/-- The message length of the code: `k = 300`. -/
+abbrev gf128K300R2K : ℕ := (gf128K300R2BlockEnc + 1) / (2 + gf128K300R2Rate)
+
+/-- The block length of the code: `N = 3604`. -/
+abbrev gf128K300R2N : ℕ := gf128K300R2BlockEnc - (2 * gf128K300R2K - 1)
+
+/-- The agreement threshold of the line certificate: `A = 1044`. -/
+abbrev gf128K300R2Agree : ℕ := 1044
+
+/-- The exceptional count of the line certificate: `B = 50940304454` (`2^35.56`). -/
+abbrev gf128K300R2Exceptions : ℕ := 50940304454
+
+/-- **The Ligero numbers of the tableau**: `(rate, t, block_enc) = (12, 63, 4203)` at two
+low-degree repetitions. -/
+def gf128K300R2Shape : Ligero.Relative.Shape :=
+  ⟨gf128K300R2Rate, gf128K300R2T, gf128K300R2BlockEnc, gf128K300R2Reps, gf128K300R2T⟩
+
+theorem gf128K300R2K_eq : gf128K300R2K = 300 := rfl
+
+theorem gf128K300R2N_eq : gf128K300R2N = 3604 := rfl
+
+/-- **The line certificate of the code**, at agreement threshold `A = 1044`: the weighted
+Johnson certificate `(m, B, H) = (72, 250, 38530)` for degree `299` on `3604` points
+(`lib/gordiehowe/compiler/ligero_choice.h`, `best_line_exhaustive`). -/
+theorem gf128K300R2Line {F : Type} [Field F] (C : GordieHowe.RSCode F gf128K300R2N)
+    (hk : C.k = gf128K300R2K) :
+    RSCode.LineCertificate C gf128K300R2Agree (gf128K300R2Exceptions : ℕ) :=
+  RSCode.lineCertificate_of_weightedJohnson C (D := 299) (m := 72) (B := 250)
+    (H := 38530) (by unfold ReedSolomon.HiddenDerivative.IsJohnsonWeightedCertificate; decide +kernel)
+    hk (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+    (by norm_num [ReedSolomon.HiddenDerivative.johnsonWeightedRefinedExceptionCount])
+
+/-- **The code parameters of the tableau with the mask test**. -/
+theorem gf128K300R2MaskTest {F : Type} [Field F] (C : GordieHowe.RSCode F gf128K300R2N)
+    (hk : C.k = gf128K300R2K) :
+    Ligero.MaskTest.Pieces.Parameters C gf128K300R2Agree gf128K300R2Exceptions :=
+  ⟨by rw [hk]; decide, gf128K300R2Line C hk⟩
+
+/-- The round bounds of the tableau (`Ligero.MaskTest.Pieces.bounds`). -/
+noncomputable abbrev gf128K300R2Bounds : Ligero.AgreementThreshold.Bounds :=
+  Ligero.MaskTest.Pieces.bounds GF2_128 gf128K300R2N gf128K300R2Agree gf128K300R2Exceptions
+    gf128K300R2Reps gf128K300R2K gf128K300R2T
+
+/-- The commit round of the tableau: `(50940304454/(|K| − 1))^2`, `2^-184.86`. -/
+theorem gf128K300R2Commit_le : gf128K300R2Bounds.commit ≤ (1 : ℝ≥0) / 2 ^ 140 := by
+  show (((50940304454 : ℕ) : ℝ≥0) / (Fintype.card GF2_128 - 1)) ^ 2 ≤ _
+  rw [gf2_128_card]
+  have h := ratio_pred_pow_le_dyadic (num := 50940304454) (q := 2 ^ 128) (c := 1) (e := 140)
+    (nrep := 2) (by decide +kernel)
+  rwa [Nat.cast_one] at h
+
+/-- The test round of the tableau with the mask test: `1/|K|`, `2^-128.000`. -/
+theorem gf128K300R2Test_le : gf128K300R2Bounds.test ≤ (4096 : ℝ≥0) / 2 ^ 140 := by
+  show (1 : ℝ≥0) / (Fintype.card GF2_128 : ℝ≥0) ≤ _
+  rw [gf2_128_card]
+  exact_mod_cast ratio_le_dyadic (num := 1) (c := 4096) (by decide +kernel) (by decide +kernel)
+
+/-- The column round of the tableau with the mask test at `t = 63`, with the joint subfield
+term: `((1044 − 1)_63 + (2 · 300 − 1)_63)/(3604)_63 + (300 − 1)_63/(3604)_63`, `2^-114.668`. -/
+theorem gf128K300R2Column_le : gf128K300R2Bounds.column +
+    Ligero.SubfieldTest.jointSubfieldError gf128K300R2K gf128K300R2N gf128K300R2T ≤
+      (42211206 : ℝ≥0) / 2 ^ 140 :=
   column_le_dyadic (by decide +kernel) (by decide +kernel)
 
 /-! ### Goldilocks², `(N, k) = (2560, 512)`, `t = 96`, two low-degree repetitions -/

@@ -16,10 +16,10 @@ public import GordieHowe.Applications.Falcon512.Native.ROMParams.Frontend.Algebr
 
 The frontend's round-by-round knowledge soundness of `Π_P₀` at the Falcon-512 proof-of-possession
 relation (`GordieHowe.Falcon512.Native.ROMParams.rbr_of_views`: the relation `rel` at the decoded key, the extractor
-`proj`, the error `639/2^128` at `h2p.select.delta`) composed with the proof system
+`proj`, the error `717/2^128` at `h2p.select.delta`) composed with the proof system
 (`GordieHowe.RealizedProgram.ProofSystem.FieldBranches.causal_rbr_knowledge_soundness` at the forked domains of `proofSystem`): the proof system's protocol is round-by-round
 knowledge sound for `rel` at the proof system's extractor reading `proj`, with the phase errors
-(`GordieHowe.RealizedProgram.phaseError`) `639/2^128 + 64/2^128` and `16448/(q^9 − 189)` and the domain proofs' errors.
+(`GordieHowe.RealizedProgram.phaseError`) `717/2^128 + 64/2^128` and `16448/(q^9 − 189)` and the domain proofs' errors.
 The frontend's two obligations are proved: the hash view (`falconHashView`,
 `GordieHowe/Applications/Falcon512/Native/ROMParams/Frontend/Hash.lean`: the Keccak trace's SHAKE256 call over the nonce and the message at
 the length the in-message flags encode) and domain A's algebra (`algebraSound`,
@@ -43,7 +43,7 @@ theorem sourceError_final :
   simp only [RealizedProgram.roundError, hi]
 
 /-- **Round-by-round knowledge soundness of `Π_P₀` for `Falcon512.Native.ROMParams`** at the relation
-`rel`, the extractor `extractor` and the errors `639/2^128` at `h2p.select.delta`, `0` elsewhere
+`rel`, the extractor `extractor` and the errors `717/2^128` at `h2p.select.delta`, `0` elsewhere
 (`rbr_of_views` at the hash view `falconHashView` and domain A's `algebraSound`). -/
 theorem source_rbr_knowledge_soundness :
     rbrKnowledgeSoundness rel (program.sourceVerifier interp) extractor

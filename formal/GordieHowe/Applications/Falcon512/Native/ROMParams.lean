@@ -21,10 +21,10 @@ proof-of-possession relation at the key `keyWitRel` with the witness read at the
 values, the honest prover, the honest strategy `honestStrategy`, and the figures), its facts
 `configurationFacts`, and the instances of the templates of the families `Common`, `GordieHowe.Configuration.ZeroKnowledgeROM` and `GordieHowe.Configuration.AdaptiveCompleteness`.
 
-The figures: at most `2357` rounds, every round's load within `2^-2780`, trees of at most `3392`
+The figures: at most `2357` rounds, every round's load within `2^-2780`, trees of at most `3604`
 leaves, `153` queried leaves, `6711` verifier queries (`2 · 2357 + 8 + 153 · 13`), round errors at
 most `errorMax / 2^140`, `4721` digests per input (`2 · 2357 + 6 + 1`), the query caps `2^40`
-(QROM) and `2^64` (ROM), `5086` positions (`3392 + 1694`) and `32`-byte digests.
+(QROM) and `2^64` (ROM), `5298` positions (`3604 + 1694`) and `32`-byte digests.
 
 The realization step's derivations (`RealizedProgram.Derivable`) include the MAC `mac.equal` with
 its H predicate `mac.H`, its tail `mac` in the grouped form (four groups of sixteen chunks, two
@@ -103,9 +103,9 @@ theorem transcriptMergeBounds : (forkTranscript C).MergeBounds 32 :=
 
 set_option maxRecDepth 8192 in
 /-- **The figures of `forkIop`** (`RealizedProgram.ProofSystem.fieldIop_figures`, decided): at most `2357` rounds,
-trees of at most `3392` leaves, `153` queried leaves, `6711` verifier queries, `4721` digests
-per input and `5086` positions. -/
-theorem forkFigures : (forkIop C).Figures 2357 3392 153 6711 4721 5086 :=
+trees of at most `3604` leaves, `153` queried leaves, `6711` verifier queries, `4721` digests
+per input and `5298` positions. -/
+theorem forkFigures : (forkIop C).Figures 2357 3604 153 6711 4721 5298 :=
   (proofSystem C.src).fieldIop_figures (forkLowering C) stmtOf C.enforce (by decide +kernel)
 
 /-! ## The configuration -/
@@ -142,7 +142,7 @@ noncomputable def configuration : Configuration where
   inh := inferInstance
   rounds := 2357
   chernoff := 2780
-  N := 3392
+  N := 3604
   nq := 153
   kq := 6711
   errorMax := errorMax
@@ -150,7 +150,7 @@ noncomputable def configuration : Configuration where
   D := 4721
   qQ := 2 ^ 40
   qR := 2 ^ 64
-  pos := 5086
+  pos := 5298
   k := 32
 
 /-- **The facts of `configuration`**: the figures' bounds (`transcriptMergeBounds`, `forkFigures`,
@@ -183,7 +183,7 @@ theorem configurationFacts : configuration.Facts where
 
 /-- **The honest inputs of the supported pairs of the paper's relation**
 (`Configuration.HonestOf` at `ROMParams.keySupportedRel`: the pairs of `keyWitRel` whose
-`HashToPoint` succeeds within the H circuit's `639` samples, `Falcon512.PoP.relSupported`): every
+`HashToPoint` succeeds within the H circuit's `717` samples, `Falcon512.PoP.relSupported`): every
 such pair has the honest input `ROMParams.HonestIn.ofRel` at its key. -/
 def honestOfRel : configuration.HonestOf where
   rel := ROMParams.keySupportedRel

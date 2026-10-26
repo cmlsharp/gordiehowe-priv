@@ -639,6 +639,15 @@ def gf128K282R2Cert : LigeroCert where
   line C hk := Tableau.gf128K282R2MaskTest C hk
   masking := .split
 
+/-- **The tableau `(rate, t, block_enc) = (12, 63, 4203)` at two low-degree repetitions**, the
+mask test at `A = 1044` with `50940304454` exceptional challenges (`Tableau.gf128K300R2MaskTest`). -/
+def gf128K300R2Cert : LigeroCert where
+  Sh := Tableau.gf128K300R2Shape
+  agree := Tableau.gf128K300R2Agree
+  exceptions := Tableau.gf128K300R2Exceptions
+  line C hk := Tableau.gf128K300R2MaskTest C hk
+  masking := .split
+
 /-- **The tableau of `Falcon512.Native.ROMParams`'s domain `A`** at two low-degree repetitions:
 `(rate, t, block_enc) = (5, 91, 2369)`, the mask test at `A = 758` with `34023420758` exceptional
 challenges (`Falcon512.Ring.Native.Params.aNativeROMMaskTest`). -/

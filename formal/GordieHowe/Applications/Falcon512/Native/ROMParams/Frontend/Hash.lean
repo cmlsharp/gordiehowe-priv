@@ -16,7 +16,7 @@ The instance of the frontend's hash view (`GordieHowe.Falcon512.Native.ROMParams
 program (`falconHashView`), generic in the program and its fields (`falconInterpOf FH FA`) at the
 program facts `FalconHHash` (decided per program): the program's `h2p.shake` is SHAKE256 of the
 nonce and the message, at the private length `L ≤ 32` its in-message flags encode, over a batch of
-ten Keccak-f permutations (one absorb, nine squeezes; `240` round predicates):
+eleven Keccak-f permutations (one absorb, ten squeezes; `264` round predicates):
 
 * **the rounds** (`permRelation`): permutation `p`'s round `t` is the round relation
   (`GordieHowe.RealizedProgram.roundRelation_of_shapes` at the decided shapes `roundShapes` and index maps
@@ -46,12 +46,12 @@ set_option hygiene false in
 local notation "interp" => RealizedProgram.falconInterpOf FH FA
 
 /-- **The program facts of `h2p.shake`'s inputs, padding and output views** (each program
-instantiates them by `decide`): the hash's predicates `0 … 245` source predicates, the squeezes'
+instantiates them by `decide`): the hash's predicates `0 … 269` source predicates, the squeezes'
 inputs, the in-message flags and the padding predicates, the absorbed block and the padding
-constants, the stream `489` and the output views. -/
+constants, the stream `537` and the output views. -/
 class FalconHHash (program : RealizedProgram) : Prop extends FalconHHashData program where
   /-- The predicates of `h2p.shake` are source predicates, decided. -/
-  shake_source : ∀ q < 246, q < program.predicates.length ∧
+  shake_source : ∀ q < 270, q < program.predicates.length ∧
       program.inSource (program.predicate q) = true
   /-- expr_squeezeIn. -/
   expr_squeezeIn : program.expr 53 = .reindex idx24 (.concat (.leaf 26) (.leaf 0)) ∧
@@ -111,9 +111,9 @@ class FalconHHash (program : RealizedProgram) : Prop extends FalconHHashData pro
       program.expr 51 = .reindex idx21 (.concat (.leaf 26) (.reindex idx17 (.leaf 47))) ∧
       program.expr 52 = .apply (.sum 8) (.mul (.reindex idx6 (.reindex idx6 (.ref 1)))
         (.reindex idx22 (.leaf 28)))
-  /-- expr489. -/
-  expr489 : program.expr 489 =
-      .add (.add (.add (.add (.add (.add (.add (.add (.add
+  /-- The stream's expression. -/
+  expr537 : program.expr 537 =
+      .add (.add (.add (.add (.add (.add (.add (.add (.add (.add
         (.reindex idx30 (.concat (.leaf 97) (.leaf 0)))
         (.reindex idx31 (.concat (.leaf 146) (.leaf 0))))
         (.reindex idx32 (.concat (.leaf 195) (.leaf 0))))
@@ -123,26 +123,27 @@ class FalconHHash (program : RealizedProgram) : Prop extends FalconHHashData pro
         (.reindex idx36 (.concat (.leaf 391) (.leaf 0))))
         (.reindex idx37 (.concat (.leaf 440) (.leaf 0))))
         (.reindex idx38 (.concat (.leaf 489) (.leaf 0))))
-        (.reindex idx39 (.concat (.leaf 538) (.leaf 0)))
+        (.reindex idx39 (.concat (.leaf 538) (.leaf 0))))
+        (.reindex idx40 (.concat (.leaf 587) (.leaf 0)))
   /-- The views' sizes, decided. -/
   view_sizes : (program.value 97).size = 1600 ∧ (program.value 146).size = 1088 ∧
       (program.value 195).size = 1088 ∧ (program.value 244).size = 1088 ∧
       (program.value 293).size = 1088 ∧ (program.value 342).size = 1088 ∧
       (program.value 391).size = 1088 ∧ (program.value 440).size = 1088 ∧
-      (program.value 489).size = 1088 ∧ (program.value 538).size = 432 ∧
-      489 < program.exprs.length
+      (program.value 489).size = 1088 ∧ (program.value 538).size = 1088 ∧
+      (program.value 587).size = 592 ∧ 537 < program.exprs.length
   /-- **The output views and the permutation outputs** are bit views of the same committed words:
   view `k ≥ 1` (`h2p.shake.out.p_k`) with the selection `idx1` (`idx2` for the last), the output
   state of permutation `k` with `idx0`. -/
-  view_kinds : ∀ k : Fin 9,
+  view_kinds : ∀ k : Fin 10,
       (program.value (viewVal (k + 1))).kind =
-          .bits (outVal (k + 1) 23 - 1) (if (k : ℕ) + 1 = 9 then idx2 else idx1) ∧
+          .bits (outVal (k + 1) 23 - 1) (if (k : ℕ) + 1 = 10 then idx2 else idx1) ∧
         (program.value (outVal (k + 1) 23)).kind = .bits (outVal (k + 1) 23 - 1) idx0 ∧
         (program.value (outVal (k + 1) 23 - 1)).kind = .priv
   /-- Facts of the views' selections, decided. -/
-  view_sel : idx0.size = 100 ∧ idx1.size = 68 ∧ idx2.size = 27 ∧
-      (∀ j < 100, idx0.entry j = j) ∧ (∀ j < 68, idx1.entry j = j) ∧ (∀ j < 27, idx2.entry j = j) ∧
-      ∀ k : Fin 9, program.valueField (viewVal (k + 1)) = 0 ∧
+  view_sel : idx0.size = 100 ∧ idx1.size = 68 ∧ idx2.size = 37 ∧
+      (∀ j < 100, idx0.entry j = j) ∧ (∀ j < 68, idx1.entry j = j) ∧ (∀ j < 37, idx2.entry j = j) ∧
+      ∀ k : Fin 10, program.valueField (viewVal (k + 1)) = 0 ∧
         program.valueField (outVal (k + 1) 23) = 0 ∧ (program.value (outVal (k + 1) 23)).size = 1600 ∧
         (program.value (viewVal (k + 1))).size = zslot (k + 1)
   /-- Facts of the nonce and the message part, decided: bit-typed source values. -/
@@ -220,16 +221,16 @@ instance : CharP (interp (program.domainField 0)).K 2 :=
   fieldAt_transfer (fun J => CharP J.K 2) FalconHBase.domainField0 HField.charTwo
 
 /-- **The states of permutation `p`** (`roundSrc`), read in `FH`. -/
-def permStates (e : program.Env interp) (p : Fin 10) (t : Fin 25) :
+def permStates (e : program.Env interp) (p : Fin 11) (t : Fin 25) :
     State (interp 0).K :=
   RealizedProgram.stateOf (program.evalE (program.reader e) 0 (roundSrc p t).expr)
 
-/-- **What the hash's lemmas read of the program**: the predicates of `h2p.shake` (`0 … 245`)
+/-- **What the hash's lemmas read of the program**: the predicates of `h2p.shake` (`0 … 269`)
 hold, and the nonce, the message part and the in-message flags (values `45`, `46`, `47`) read bits.
 The source program gives it (`SourceSatAt.hashSat`); so does the honest prover directly. -/
 structure HashSat (e : program.Env interp) : Prop where
   /-- The predicates of `h2p.shake` hold. -/
-  preds : ∀ q < 246, program.HoldsAt e (program.predicate q).body
+  preds : ∀ q < 270, program.HoldsAt e (program.predicate q).body
   /-- The nonce, the message part and the flags read bits. -/
   bits : ∀ v, (v = 45 ∨ v = 46 ∨ v = 47) → ∀ i < (program.value v).size,
     program.evalE (program.reader e) 0 (.leaf v) i = 0 ∨
@@ -237,7 +238,7 @@ structure HashSat (e : program.Env interp) : Prop where
 
 
 /-- The predicate of round `t` of permutation `p` is one of `h2p.shake`'s. -/
-theorem roundPred_lt (p : Fin 10) (t : Fin 24) : roundPred p t < 246 := by
+theorem roundPred_lt (p : Fin 11) (t : Fin 24) : roundPred p t < 270 := by
   have := p.isLt
   have := t.isLt
   unfold roundPred
@@ -245,7 +246,7 @@ theorem roundPred_lt (p : Fin 10) (t : Fin 24) : roundPred p t < 246 := by
 
 /-- **Every permutation's round relations hold** where the source program holds
 (`RealizedProgram.roundRelation_of_shapes` at `(roundShapes (program := program))`). -/
-theorem permRelation {e : program.Env interp} (hs : HashSat e) (p : Fin 10) :
+theorem permRelation {e : program.Env interp} (hs : HashSat e) (p : Fin 11) :
     PermRelation (permStates e p) := by
   intro t
   obtain ⟨hb, hlin, hcol⟩ := (roundShapes (program := program)) p t
@@ -321,7 +322,7 @@ theorem permStates_one_zero {e : program.Env interp} (hs : HashSat e) :
   exact evalE_state hs hj
 
 /-- **A later squeeze's input is the previous permutation's output.** -/
-theorem permStates_succ_zero (e : program.Env interp) {p : Fin 10} (hp : 2 ≤ (p : ℕ)) :
+theorem permStates_succ_zero (e : program.Env interp) {p : Fin 11} (hp : 2 ≤ (p : ℕ)) :
     permStates e p 0 = permStates e ⟨p - 1, by omega⟩ (Fin.last 24) := by
   unfold permStates roundSrc
   simp only [Fin.val_zero, Fin.val_last, if_true, show (p : ℕ) ≠ 0 by omega,
@@ -846,56 +847,58 @@ theorem entry_mid {zs a c s : ℕ} (hs : s < a + 1088 + c) :
     · rw [if_pos h2, entry_swap_window h2, if_pos (by omega)]
     · rw [if_neg h2, RealizedProgram.IndexMap.entry_step_zero (by omega), if_neg (by omega)]
 
-theorem entry_stream_mid {k s : ℕ} (hk1 : 1 ≤ k) (hk : k ≤ 8) (hs : s < 10224) :
+theorem entry_stream_mid {k s : ℕ} (hk1 : 1 ≤ k) (hk : k ≤ 9) (hs : s < 11472) :
     RealizedProgram.IndexMap.entry (RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * k), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (k + 1))]) s = streamIdx k s := by
+      .run (1088, 0, 11472 - 1088 * (k + 1))]) s = streamIdx k s := by
   rw [entry_mid (by omega), streamIdx]
   by_cases hw : 1088 * k ≤ s ∧ s < 1088 * k + 1088
   · rw [if_pos hw, if_pos (by omega), show (s - 1088 * k) / 16 = s / 16 % 68 by omega,
       show (s - 1088 * k) % 16 = s % 16 by omega]
   · rw [if_neg hw, if_neg (by omega), zslot, if_neg (by omega), if_neg (by omega)]
 
-theorem entry_stream_first {s : ℕ} (hs : s < 10224) :
-    RealizedProgram.IndexMap.entry (RealizedProgram.IndexMap.ofSegs [.rep swapPat 68, .run (1600, 0, 9136)]) s = streamIdx 0 s := by
+theorem entry_stream_first {s : ℕ} (hs : s < 11472) :
+    RealizedProgram.IndexMap.entry (RealizedProgram.IndexMap.ofSegs [.rep swapPat 68, .run (1600, 0, 10384)]) s = streamIdx 0 s := by
   simp only [RealizedProgram.IndexMap.ofSegs_cons, RealizedProgram.IndexMap.ofSegs_nil, List.append_nil]
-  rw [show (RealizedProgram.IdxSeg.run (1600, 0, 9136)).expand = [(1600, 0, 9136)] from rfl,
+  rw [show (RealizedProgram.IdxSeg.run (1600, 0, 10384)).expand = [(1600, 0, 10384)] from rfl,
     RealizedProgram.IndexMap.entry_append, size_expand_swap, streamIdx]
   by_cases hw : s < 16 * 68
   · rw [if_pos hw, entry_swap_window hw, if_pos (by omega), show s / 16 % 68 = s / 16 by omega]
   · rw [if_neg hw, RealizedProgram.IndexMap.entry_step_zero (by omega), if_neg (by omega)]
     rfl
 
-theorem entry_stream_last {s : ℕ} (hs : s < 10224) :
-    RealizedProgram.IndexMap.entry (RealizedProgram.IndexMap.ofSegs [.run (432, 0, 9792), .rep swapPat 27]) s = streamIdx 9 s := by
+theorem entry_stream_last {s : ℕ} (hs : s < 11472) :
+    RealizedProgram.IndexMap.entry (RealizedProgram.IndexMap.ofSegs [.run (592, 0, 10880), .rep swapPat 37]) s = streamIdx 10 s := by
   simp only [RealizedProgram.IndexMap.ofSegs_cons, RealizedProgram.IndexMap.ofSegs_nil, List.append_nil]
-  rw [show (RealizedProgram.IdxSeg.run (432, 0, 9792)).expand = [(432, 0, 9792)] from rfl,
+  rw [show (RealizedProgram.IdxSeg.run (592, 0, 10880)).expand = [(592, 0, 10880)] from rfl,
     RealizedProgram.IndexMap.entry_append, RealizedProgram.IndexMap.size_single, streamIdx]
-  by_cases hw : s < 9792
+  by_cases hw : s < 10880
   · rw [if_pos hw, RealizedProgram.IndexMap.entry_step_zero hw, if_neg (by omega)]
     rfl
   · rw [if_neg hw, entry_swap_window (by omega), if_pos (by omega),
-      show (s - 9792) / 16 = s / 16 % 68 by omega, show (s - 9792) % 16 = s % 16 by omega]
+      show (s - 10880) / 16 = s / 16 % 68 by omega, show (s - 10880) % 16 = s % 16 by omega]
 
 /-- The stream's index maps, as segments. -/
-theorem idx_stream : idx30 = RealizedProgram.IndexMap.ofSegs [.rep swapPat 68, .run (1600, 0, 9136)] ∧
+theorem idx_stream : idx30 = RealizedProgram.IndexMap.ofSegs [.rep swapPat 68, .run (1600, 0, 10384)] ∧
     idx31 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 1), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (1 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (1 + 1))] ∧
     idx32 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 2), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (2 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (2 + 1))] ∧
     idx33 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 3), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (3 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (3 + 1))] ∧
     idx34 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 4), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (4 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (4 + 1))] ∧
     idx35 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 5), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (5 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (5 + 1))] ∧
     idx36 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 6), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (6 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (6 + 1))] ∧
     idx37 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 7), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (7 + 1))] ∧
+      .run (1088, 0, 11472 - 1088 * (7 + 1))] ∧
     idx38 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 8), .rep swapPat 68,
-      .run (1088, 0, 10224 - 1088 * (8 + 1))] ∧
-    idx39 = RealizedProgram.IndexMap.ofSegs [.run (432, 0, 9792), .rep swapPat 27] := by
-  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+      .run (1088, 0, 11472 - 1088 * (8 + 1))] ∧
+    idx39 = RealizedProgram.IndexMap.ofSegs [.run (1088, 0, 1088 * 9), .rep swapPat 68,
+      .run (1088, 0, 11472 - 1088 * (9 + 1))] ∧
+    idx40 = RealizedProgram.IndexMap.ofSegs [.run (592, 0, 10880), .rep swapPat 37] := by
+  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem swapBit_lt {b : ℕ} (hb : b < 16) : swapBit b < 16 := by
   unfold swapBit
@@ -904,8 +907,8 @@ theorem swapBit_lt {b : ℕ} (hb : b < 16) : swapBit b < 16 := by
 /-- **A view's term of the stream**: the view's bit of sample `s / 16` when the sample is in the
 view's block, `0` otherwise. -/
 theorem evalE_streamTerm (e : program.Env interp) {idx : RealizedProgram.IndexMap} {V k : ℕ}
-    (hent : ∀ s < 10224, idx.entry s = streamIdx k s) (hsz : (program.value V).size = zslot k)
-    {s : ℕ} (hs : s < 10224) :
+    (hent : ∀ s < 11472, idx.entry s = streamIdx k s) (hsz : (program.value V).size = zslot k)
+    {s : ℕ} (hs : s < 11472) :
     program.evalE (program.reader e) 0 (.reindex idx (.concat (.leaf V) (.leaf 0))) s =
       if s / 16 / 68 = k then
         program.evalE (program.reader e) 0 (.leaf V) (16 * (s / 16 % 68) + swapBit (s % 16))
@@ -920,16 +923,16 @@ theorem evalE_streamTerm (e : program.Env interp) {idx : RealizedProgram.IndexMa
 
 
 
-/-- **The stream** (`ref 489`): bit `b` of sample `i` is bit `16 (i mod 68) + swapBit b` of block
+/-- **The stream** (`ref 537`): bit `b` of sample `i` is bit `16 (i mod 68) + swapBit b` of block
 `i / 68`'s view. -/
-theorem evalE_stream (e : program.Env interp) {i b : ℕ} (hi : i < 639) (hb : b < 16) :
-    program.evalE (program.reader e) 0 (.ref 489) (16 * i + b) =
+theorem evalE_stream (e : program.Env interp) {i b : ℕ} (hi : i < 717) (hb : b < 16) :
+    program.evalE (program.reader e) 0 (.ref 537) (16 * i + b) =
       program.evalE (program.reader e) 0 (.leaf (viewVal (i / 68)))
         (16 * (i % 68) + swapBit b) := by
-  obtain ⟨h30, h31, h32, h33, h34, h35, h36, h37, h38, h39⟩ := idx_stream
-  obtain ⟨s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, hlen⟩ := (view_sizes (program := program))
-  have hs : 16 * i + b < 10224 := by omega
-  rw [RealizedProgram.evalE_ref (FalconHBase.refsOrdered (program := program)) _ _ hlen, (expr489 (program := program))]
+  obtain ⟨h30, h31, h32, h33, h34, h35, h36, h37, h38, h39, h40⟩ := idx_stream
+  obtain ⟨s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, hlen⟩ := (view_sizes (program := program))
+  have hs : 16 * i + b < 11472 := by omega
+  rw [RealizedProgram.evalE_ref (FalconHBase.refsOrdered (program := program)) _ _ hlen, (expr537 (program := program))]
   simp only [RealizedProgram.evalE_add]
   rw [evalE_streamTerm e (k := 0) (fun s hs => by rw [h30]; exact entry_stream_first hs)
       (by rw [s0]; rfl) hs,
@@ -957,12 +960,15 @@ theorem evalE_stream (e : program.Env interp) {i b : ℕ} (hi : i < 639) (hb : b
     evalE_streamTerm e (k := 8)
       (fun s hs => by rw [h38]; exact entry_stream_mid (by norm_num) (by norm_num) hs)
       (by rw [s8]; rfl) hs,
-    evalE_streamTerm e (k := 9) (fun s hs => by rw [h39]; exact entry_stream_last hs)
-      (by rw [s9]; rfl) hs]
+    evalE_streamTerm e (k := 9)
+      (fun s hs => by rw [h39]; exact entry_stream_mid (by norm_num) (by norm_num) hs)
+      (by rw [s9]; rfl) hs,
+    evalE_streamTerm e (k := 10) (fun s hs => by rw [h40]; exact entry_stream_last hs)
+      (by rw [s10]; rfl) hs]
   have hdiv : (16 * i + b) / 16 = i := by omega
   have hmod : (16 * i + b) % 16 = b := by omega
   rw [hdiv, hmod]
-  have hk : i / 68 < 10 := by omega
+  have hk : i / 68 < 11 := by omega
   generalize hq : i / 68 = q at hk ⊢
   interval_cases q <;> simp [viewVal, outVal]
 
@@ -976,14 +982,14 @@ theorem castElt_ofBool {a b : ℕ} (h : a = b) (c : Bool) :
 
 /-- **A view reads the permutation's output**: bit `j` of view `k` is bit `j` of permutation
 `k`'s output state (`h2p.shake.state` is the absorb permutation's, `evalE_state`). -/
-theorem evalE_view {e : program.Env interp} (hs : HashSat e) {k : ℕ} (hk : k < 10)
+theorem evalE_view {e : program.Env interp} (hs : HashSat e) {k : ℕ} (hk : k < 11)
     {j : ℕ} (hj : j < zslot k) :
     program.evalE (program.reader e) 0 (.leaf (viewVal k)) j =
       program.evalE (program.reader e) 0 (.leaf (outVal k 23)) j := by
   rcases Nat.eq_zero_or_pos k with rfl | hk0
   · exact evalE_state hs (by simpa [zslot] using hj)
   · obtain ⟨k', rfl⟩ : ∃ k' : ℕ, k = k' + 1 := ⟨k - 1, by omega⟩
-    have hk' : k' < 9 := by omega
+    have hk' : k' < 10 := by omega
     obtain ⟨hV, hS, hW⟩ := (view_kinds (program := program)) ⟨k', hk'⟩
     obtain ⟨h0, h1, h2, e0, e1, e2, hf⟩ := (view_sel (program := program))
     obtain ⟨hfV, hfS, hszS, hszV⟩ := hf ⟨k', hk'⟩
@@ -997,33 +1003,33 @@ theorem evalE_view {e : program.Env interp} (hs : HashSat e) {k : ℕ} (hk : k <
     rw [RealizedProgram.evalE_leaf, RealizedProgram.evalE_leaf, RealizedProgram.reader_of_bits_of_priv e hV hW,
       RealizedProgram.reader_of_bits_of_priv e hS hW, castElt_ofBool hfV, castElt_ofBool hfS, hszS, h0,
       show 1600 / 100 = 16 from rfl, hszV, e0 _ (by omega)]
-    by_cases h9 : k' + 1 = 9
-    · rw [if_pos h9, h2, show zslot (k' + 1) = 432 by unfold zslot; simp [h9]] at *
-      rw [show 432 / 27 = 16 from rfl, e2 _ (by omega)]
+    by_cases h9 : k' + 1 = 10
+    · rw [if_pos h9, h2, show zslot (k' + 1) = 592 by unfold zslot; simp [h9]] at *
+      rw [show 592 / 37 = 16 from rfl, e2 _ (by omega)]
     · rw [if_neg h9, h1, show zslot (k' + 1) = 1088 by unfold zslot; simp [h9]] at *
       rw [show 1088 / 68 = 16 from rfl, e1 _ (by omega)]
 
 /-! ## The sponge view -/
 
-/-- **The output state of permutation `j`** (`0` past the tenth). -/
+/-- **The output state of permutation `j`** (`0` past the eleventh). -/
 def finOf (e : program.Env interp) (j : ℕ) : State (interp 0).K :=
-  if h : j < 10 then permStates e ⟨j, h⟩ (Fin.last 24) else fun _ _ _ => 0
+  if h : j < 11 then permStates e ⟨j, h⟩ (Fin.last 24) else fun _ _ _ => 0
 
-/-- **SHAKE256 of `40 + L ≤ 72` bytes, squeezing `1278`, runs ten permutations**: one absorb, nine
-squeezes. -/
+/-- **SHAKE256 of `40 + L ≤ 72` bytes, squeezing `1434`, runs eleven permutations**: one absorb,
+ten squeezes. -/
 theorem numBlocks_eq {L : ℕ} (hL : L ≤ 32) :
-    Shake256.numBlocks Shake256.SpongeSpec.shake256 (40 + L) (2 * falcon512.S) = 10 := by
-  have hsq : Shake256.squeezeBlocks Shake256.SpongeSpec.shake256 (2 * falcon512.S) = 9 := by
+    Shake256.numBlocks Shake256.SpongeSpec.shake256 (40 + L) (2 * falcon512.S) = 11 := by
+  have hsq : Shake256.squeezeBlocks Shake256.SpongeSpec.shake256 (2 * falcon512.S) = 10 := by
     decide
   unfold Shake256.numBlocks Shake256.absorbBlocks
   rw [hsq]
-  change (40 + L) / 136 + 1 + 9 = 10
+  change (40 + L) / 136 + 1 + 10 = 11
   omega
 
 /-- **The input of permutation `j` is the sponge's**: the padded block xored into the zero state
 for the absorb permutation (`absorbed_eq`), the previous permutation's output for a squeeze. -/
 theorem inputOf_eq {e : program.Env interp} (hs : HashSat e) {n j : ℕ}
-    (hn : n = 10) (hj : j < 10) :
+    (hn : n = 11) (hj : j < 11) :
     Shake256.inputOf Shake256.SpongeSpec.shake256 (bufInput e) (fun k : Fin n => finOf e k) j =
       permStates e ⟨j, hj⟩ 0 := by
   have hL := lenOf_le (program.reader e)
@@ -1066,7 +1072,7 @@ theorem squeeze_sound {e : program.Env interp} (hs : HashSat e)
         (2 * falcon512.S) o := by
   have hn := numBlocks_eq (lenOf_le (program.reader e))
   refine Shake256.squeezeOut_sound (bufInput_bool hs) (fun j h => ?_) o
-  have hj : (j : ℕ) < 10 := by have := j.isLt; omega
+  have hj : (j : ℕ) < 11 := by have := j.isLt; omega
   rw [inputOf_eq hs hn hj] at h
   change Shake256.Encodes (finOf e j) _
   unfold finOf
@@ -1074,7 +1080,7 @@ theorem squeeze_sound {e : program.Env interp} (hs : HashSat e)
   exact (permRelation hs ⟨j, hj⟩).encodes h
 
 /-- **The SHAKE256 call of a native Falcon program** (`SpongeView`): the input the buffer's first
-`40 + L` bytes (`bufInput`), the output read off the ten permutations' output states
+`40 + L` bytes (`bufInput`), the output read off the eleven permutations' output states
 (`Shake256.squeezeOut`), sound by `squeeze_sound`. -/
 def falconSponge : RealizedProgram.SpongeView program interp 0 (2 * falcon512.S) where
   len e := 40 + lenOf (program.reader e)
@@ -1096,7 +1102,7 @@ theorem squeezeOut_bit (e : program.Env interp) {o j : ℕ} (ho : o < 2 * falcon
     change (40 + lenOf (program.reader e)) / 136 + 1 = 1
     omega
   have hn := numBlocks_eq hL
-  have ho' : o < 1278 := ho
+  have ho' : o < 1434 := ho
   unfold Shake256.squeezeOut
   simp only [habs, show Shake256.SpongeSpec.shake256.rate = 136 from rfl, Nat.sub_self,
     Nat.zero_add]
@@ -1127,9 +1133,9 @@ theorem castElt_evalE_of_eq {rd : program.Valuation interp} {f : ℕ} (hf : f = 
 theorem selSample_eq {e : program.Env interp} (hs : HashSat e) (i : Fin falcon512.S) :
     selSample0 e i = HashCircuit.sampleAt (falconSponge.out e) i := by
   funext b
-  have hi : (i : ℕ) < 639 := i.isLt
+  have hi : (i : ℕ) < 717 := i.isLt
   have hb : (b : ℕ) < 16 := b.isLt
-  change RealizedProgram.castElt (program.evalE (program.reader e) (program.domainField 0) (.ref 489)
+  change RealizedProgram.castElt (program.evalE (program.reader e) (program.domainField 0) (.ref 537)
     (i * 16 + b)) = _
   rw [castElt_evalE_of_eq FalconHBase.domainField0]
   rw [show (i : ℕ) * 16 + b = 16 * i + b by ring, evalE_stream e hi hb,

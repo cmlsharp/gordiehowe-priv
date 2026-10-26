@@ -12,7 +12,7 @@ public import GordieHowe.Applications.Falcon512.Native.ROMParams.Frontend.Facts
 # GordieHowe frontend: the Keccak trace's facts of `Falcon512.Native.ROMParams`
 
 The program facts of `h2p.shake` (`FalconHHashData`, `FalconHHash`) for
-`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program` (export `c825eb05`), by `decide` over its
+`GordieHowe.Generated.Falcon512.Native.ROMParams.Program.program` (export `3ed06086`), by `decide` over its
 tables (a few minutes) and `rfl` for the generated bodies.
 -/
 
@@ -22,9 +22,9 @@ open Generated.Falcon512.Native.ROMParams.Program
 open GordieHowe.Bits GordieHowe.Keccak GordieHowe.KeccakTrace
 
 set_option maxRecDepth 8192 in
-/-- **The shapes of the `240` rounds** (generated data: reading predicate `245` of the table unfolds `List.getD` that deep). -/
+/-- **The shapes of the `264` rounds** (generated data: reading predicate `269` of the table unfolds `List.getD` that deep). -/
 theorem roundShapes :
-    ∀ p : Fin 10, ∀ t : Fin 24,
+    ∀ p : Fin 11, ∀ t : Fin 24,
     (program.predicate (roundPred p t)).body.roundShape? =
     some ⟨0, outVal p t, linRef p t, rcLeaf t, 2, 4, idx14, idx15⟩ ∧
     (program.expr (linRef p t)).linShape? =
@@ -34,7 +34,7 @@ theorem roundShapes :
 
 /-- The rounds are source predicates below the table's length, their shared expressions below the expressions' length, their outputs of `1600` coordinates. -/
 theorem round_facts :
-    ∀ p : Fin 10, ∀ t : Fin 24,
+    ∀ p : Fin 11, ∀ t : Fin 24,
     roundPred p t < program.predicates.length ∧
     program.inSource (program.predicate (roundPred p t)) = true ∧
     linRef p t < program.exprs.length ∧ linRef p t - 1 < program.exprs.length ∧
@@ -65,7 +65,7 @@ instance : FalconHHashData program where
 
 /-- The predicates of `h2p.shake` are source predicates, decided. -/
 theorem shake_source :
-    ∀ q < 246, q < program.predicates.length ∧
+    ∀ q < 270, q < program.predicates.length ∧
     program.inSource (program.predicate q) = true := by
   decide +kernel
 
@@ -120,15 +120,15 @@ theorem view_sizes :
     (program.value 195).size = 1088 ∧ (program.value 244).size = 1088 ∧
     (program.value 293).size = 1088 ∧ (program.value 342).size = 1088 ∧
     (program.value 391).size = 1088 ∧ (program.value 440).size = 1088 ∧
-    (program.value 489).size = 1088 ∧ (program.value 538).size = 432 ∧
-    489 < program.exprs.length := by
+    (program.value 489).size = 1088 ∧ (program.value 538).size = 1088 ∧
+    (program.value 587).size = 592 ∧ 537 < program.exprs.length := by
   decide +kernel
 
 /-- Facts of the views' selections, decided. -/
 theorem view_sel :
-    idx0.size = 100 ∧ idx1.size = 68 ∧ idx2.size = 27 ∧
-    (∀ j < 100, idx0.entry j = j) ∧ (∀ j < 68, idx1.entry j = j) ∧ (∀ j < 27, idx2.entry j = j) ∧
-    ∀ k : Fin 9, program.valueField (viewVal (k + 1)) = 0 ∧
+    idx0.size = 100 ∧ idx1.size = 68 ∧ idx2.size = 37 ∧
+    (∀ j < 100, idx0.entry j = j) ∧ (∀ j < 68, idx1.entry j = j) ∧ (∀ j < 37, idx2.entry j = j) ∧
+    ∀ k : Fin 10, program.valueField (viewVal (k + 1)) = 0 ∧
     program.valueField (outVal (k + 1) 23) = 0 ∧ (program.value (outVal (k + 1) 23)).size = 1600 ∧
     (program.value (viewVal (k + 1))).size = zslot (k + 1) := by
   decide +kernel
@@ -175,10 +175,10 @@ theorem expr_absorb :
   ⟨rfl, rfl, rfl, rfl, rfl⟩
 
 set_option maxRecDepth 4096 in
-/-- expr489. -/
-theorem expr489 :
-    program.expr 489 =
-    .add (.add (.add (.add (.add (.add (.add (.add (.add
+/-- The stream's expression. -/
+theorem expr537 :
+    program.expr 537 =
+    .add (.add (.add (.add (.add (.add (.add (.add (.add (.add
     (.reindex idx30 (.concat (.leaf 97) (.leaf 0)))
     (.reindex idx31 (.concat (.leaf 146) (.leaf 0))))
     (.reindex idx32 (.concat (.leaf 195) (.leaf 0))))
@@ -188,14 +188,15 @@ theorem expr489 :
     (.reindex idx36 (.concat (.leaf 391) (.leaf 0))))
     (.reindex idx37 (.concat (.leaf 440) (.leaf 0))))
     (.reindex idx38 (.concat (.leaf 489) (.leaf 0))))
-    (.reindex idx39 (.concat (.leaf 538) (.leaf 0))) :=
+    (.reindex idx39 (.concat (.leaf 538) (.leaf 0))))
+    (.reindex idx40 (.concat (.leaf 587) (.leaf 0))) :=
   rfl
 
 set_option maxRecDepth 4096 in
 /-- The view kinds of the output views. -/
-theorem view_kinds : ∀ k : Fin 9,
+theorem view_kinds : ∀ k : Fin 10,
     (program.value (viewVal (k + 1))).kind =
-        .bits (outVal (k + 1) 23 - 1) (if (k : ℕ) + 1 = 9 then idx2 else idx1) ∧
+        .bits (outVal (k + 1) 23 - 1) (if (k : ℕ) + 1 = 10 then idx2 else idx1) ∧
       (program.value (outVal (k + 1) 23)).kind = .bits (outVal (k + 1) 23 - 1) idx0 ∧
       (program.value (outVal (k + 1) 23 - 1)).kind = .priv := by
   intro k
@@ -211,7 +212,7 @@ instance : FalconHHash program where
   flag_facts := flag_facts
   absorb_facts := absorb_facts
   expr_absorb := expr_absorb
-  expr489 := expr489
+  expr537 := expr537
   view_sizes := view_sizes
   view_kinds := view_kinds
   view_sel := view_sel
