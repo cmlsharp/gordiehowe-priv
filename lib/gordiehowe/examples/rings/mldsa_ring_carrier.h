@@ -1,7 +1,8 @@
 // Copyright 2026 Chad Sharp and Paul Grubbs
 // SPDX-License-Identifier: Apache-2.0
 
-// GordieHowe: the ML-DSA-44 private ring, carrier arm. It proves the ring
+// GordieHowe: the ML-DSA private ring, carrier arm, at a parameter set S
+// (mldsa_params.h). It proves the ring
 // statement of mldsa_ring.h: the prover holds a signature on the message
 // under one member's key, without revealing which.
 //
@@ -22,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "gordiehowe/core.h"
@@ -38,8 +40,17 @@
 
 namespace proofs::gordiehowe::examples::mldsa {
 
-// The carrier relation's bias q 2^30 keeps dq nonnegative.
-constexpr uint64_t kCarrierBias = kQ << 30;
+// The carrier relation's bias keeps dq nonnegative: a multiple of q, so
+// that w' = u mod q, at least L N (q - 1)(bound - 1) + tau (q - 1) + q
+// (the certify note relation.bias). The smallest such multiple at every
+// set but ML-DSA-44, whose bias is q 2^30 (its relation is fixed).
+template <class S>
+inline constexpr uint64_t kCarrierBias =
+    kQ * ((S::kL * kN * (kQ - 1) * (S::kBound - 1) + S::kTau * (kQ - 1) +
+           kQ + kQ - 1) /
+          kQ);
+template <>
+inline constexpr uint64_t kCarrierBias<MLDSA44> = kQ << 30;
 
 // --------------------------------------------------------------- gadgets --
 
@@ -58,25 +69,37 @@ Op<AF> carrier_ntt(const AF &af) {
 //   Ntt(w'_i + q dq_i - bias) = sum_j A_hat[i][j] Ntt(z_j) - t1_hat[i] Ntt(c).
 // The generator computes u_i = bias + A z - c t1 in the same spectrum and
 // takes w' = u mod q, dq = u div q. Returns w'.
-template <class D, class AF, class PZ>
+template <class S, class D, class AF, class PZ>
 Ref<AF, Subfield<>, Committed> carrier_relation(
     const Scope &s, D &A, const Member<AF> &m,
     const Ref<AF, Subfield<>, PZ> &z, const Ref<AF, Bit, Committed> &c,
     uint64_t B) {
   using Elt = typename AF::Elt;
+  constexpr size_t kK = S::kK, kL = S::kL;
+  constexpr uint64_t kBias = kCarrierBias<S>, kBound = S::kBound;
   const AF *pa = &A.field();
   const auto ntt = carrier_ntt(A.field());
   const auto staged = ntt.spec->staged;
   // Both operands stay below p: the left below q B^3 + B^2, the right below
   // bias + L N (q - 1)(bound - 1) + tau (q - 1).
   const Bound lhs_max = Bound(kQ) * B * B * B + Bound(B) * B;
-  const Bound rhs_max = Bound(kCarrierBias) +
+  const Bound rhs_max = Bound(kBias) +
                         Bound(kL) * kN * (kQ - 1) * (kBound - 1) +
-                        Bound(kTau) * (kQ - 1);
+                        Bound(S::kTau) * (kQ - 1);
   s.note("certify", "relation.nowrap", term("q B^3 + B^2 + bias + L N (q-1)(bound-1) + tau (q-1)",
                  lhs_max + rhs_max) < term("p", field_characteristic(*pa)), A);
   s.note("certify", "relation.bias", term("L N (q-1)(bound-1) + tau (q-1) + q",
-                 rhs_max - kCarrierBias + kQ) <= term("bias", kCarrierBias), A);
+                 rhs_max - kBias + kQ) <= term("bias", kBias), A);
+  // w' = u mod q needs a bias that is a multiple of q; the honest w' (below
+  // q) and dq (u / q, u below rhs_max) fit their range requests below B^2
+  // and B^3.
+  s.note("certify", "relation.biasMultiple",
+         term("bias mod q", kBias % kQ) == term("0", 0), A);
+  s.note("certify", "relation.wRange",
+         term("q", kQ) <= term("B^2", Bound(B) * B), A);
+  s.note("certify", "relation.dqRange",
+         term("rhs_max / q", rhs_max / Bound(kQ)) < term("B^3", Bound(B) * B * B),
+         A);
   auto [w, dq] = s.advice_record(
       depends_on(m.a_hat, m.t1, z, c),
       [pa, staged](const Tensor<Elt> &a_hat, const Tensor<Elt> &t1,
@@ -105,7 +128,7 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
           nt.inverse(u);
           for (size_t k = 0; k < kN; ++k) {
             const NatInt v =
-                nat_of_ct(f, f.addf(u[k], f.of_scalar(kCarrierBias)), ok);
+                nat_of_ct(f, f.addf(u[k], f.of_scalar(kBias)), ok);
             wo[i * kN + k] = v % kQ;
             qo[i * kN + k] = v / kQ;
           }
@@ -121,7 +144,7 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
   std::vector<ops::SpectralRow<AF>> rows;
   for (size_t i = 0; i < kK; ++i)
     rows.push_back(ops::spectral_row(
-        w[i] + kQ * dq[i] - kCarrierBias,
+        w[i] + kQ * dq[i] - kBias,
         ops::SpectralMatVec(m.a_hat[i], z, ntt) -
             ops::SpectralProduct(m.t1[i], cpoly, ntt)));
   ops::assert_spectral(s, "relation", rows);
@@ -132,31 +155,32 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
 
 // The relation over the ring statement ST and witness W (mldsa_ring.h),
 // declared into CS.
-template <class P>
-void mldsa_ring_carrier_relation(typename CarrierEnv<P>::Sys &cs,
-                                 const CarrierEnv<P> &env,
-                                 MLDSARingStatement<In> st,
-                                 MLDSARingWitness<In> w) {
+template <class P, class S>
+void mldsa_ring_carrier_relation(
+    typename CarrierEnv<P>::Sys &cs, const CarrierEnv<P> &env,
+    typename MLDSARingInputs<S>::template Statement<In> st,
+    typename MLDSARingInputs<S>::template Witness<In> w) {
   using AF = typename CarrierEnv<P>::AF;
   constexpr uint64_t B = P::kMLDSAEmu.B1;
   auto &A = cs.domain(domain_profile<P>(env.af, env.rsa.factory()), "A");
   auto &H = cs.domain(domain_profile<P>(env.hf, env.rsh), "H");
   const auto rows =
-      ring_rows(cs.scope("ring"), H, A, st,
-                computes("mldsa44_carrier_key_row", {kKeyCells}),
-                ring_host::carrier_key_row);
+      ring_rows<S>(cs.scope("ring"), H, A, st,
+                   computes(std::string(S::kId) + "_carrier_key_row",
+                            {kKeyCells<S>}),
+                   ring_host::carrier_key_row<S>);
   const auto psi = ops::FieldNtt<AF>::root(env.af, 2 * kN).value();
-  const auto member = select_member(
+  const auto member = select_member<S>(
       cs.scope("member"), A, w, rows,
-      member_map(lib::table::RowMap<AF>::negacyclic(env.af, kN, psi)));
+      member_map<S>(lib::table::RowMap<AF>::negacyclic(env.af, kN, psi)));
   const auto z = A.priv(Subfield{}, w.z);
   const auto h = A.priv(Bit{}, w.h);
-  const auto c = challenge(cs.scope("challenge"), A, w.c_tilde);
+  const auto c = challenge<S>(cs.scope("challenge"), A, w.c_tilde);
   const auto w_prime =
-      carrier_relation(cs.scope("signature"), A, member, z, c, B);
+      carrier_relation<S>(cs.scope("signature"), A, member, z, c, B);
   const auto w1 =
-      signature_checks(cs, A, z, h, w_prime, UseHintArm{/*wrap=*/true});
-  const auto hash = mldsa_hash_domain_on_mu(cs, H, member.mu, w1);
+      signature_checks<S>(cs, A, z, h, w_prime, UseHintArm{/*wrap=*/true});
+  const auto hash = mldsa_hash_domain_on_mu<S>(cs, H, member.mu, w1);
   ring_crossing(cs.scope("crossing"), hash, c);
 }
 

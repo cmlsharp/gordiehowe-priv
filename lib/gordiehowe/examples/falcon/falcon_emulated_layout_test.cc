@@ -1,8 +1,8 @@
 // Copyright 2026 Chad Sharp and Paul Grubbs
 // SPDX-License-Identifier: Apache-2.0
 
-// Falcon emulated tests (falcon_emulated_test binary): the bounds, A's
-// inventory and compile report against the spec, the Ligero target,
+// Falcon-512 emulated tests (falcon_emulated_test binary): the
+// realizations, the bounds, A's inventory and compile report against the spec, the Ligero target,
 // the branch-free host helpers against their references, and the
 // fingerprint.
 
@@ -15,11 +15,50 @@ namespace {
 
 // The Goldilocks prime, the characteristic of the emulated arm's domain A.
 constexpr uint64_t kGoldilocksP = 0xFFFFFFFF00000001ull;
+// Every test here is at Falcon-512.
+constexpr size_t kN = Falcon512::kN;
+constexpr size_t kSamples = Falcon512::kSamples;
+constexpr uint64_t kBias = Falcon512::kBias;
+
+template <class P>
+class FalconEmulated512 : public ::testing::Test {};
+TYPED_TEST_SUITE(FalconEmulated512, param_sets::Profiles,
+                 param_sets::ProfileName);
+
+// Each request's realization and proven bound (the range planner's choice
+// at Falcon-512's counts).
+TYPED_TEST(FalconEmulated512, Realizations) {
+  using P = TypeParam;
+  using S = Falcon512;
+  const Env<P> env;
+  FalconEmulatedSystem<P, S> t(env, 32);
+  auto c = t.compile();
+  const Bound q = kQ;
+  auto expect = [&](const char *name, RealizationKind k, unsigned digits,
+                    Bound bound, bool bound_view) {
+    const auto &r = c->realization(name);
+    EXPECT_EQ(r.kind, k) << name << ": " << realization_name(r.kind);
+    EXPECT_EQ(r.k, digits) << name;
+    EXPECT_EQ(r.established, bound) << name;
+    EXPECT_EQ(r.bound, bound_view) << name;
+  };
+  EXPECT_THROW(c->realization("signature.s1"), std::runtime_error);
+  expect("signature.equation.q", RealizationKind::kDigits, 3, Bound(1) << 33,
+         true);
+  expect("magnitudes.mag1", RealizationKind::kTwoSided, 2, q / 2 + 1, true);
+  expect("magnitudes.mag2", RealizationKind::kDirect, 0, 2048, false);
+  expect("encoding.high2.q", RealizationKind::kDirect, 0, 128, false);
+  expect("encoding.low2", RealizationKind::kDirect, 0, 128, false);
+  EXPECT_THROW(c->realization("encoding.nope"), std::runtime_error);
+  expect("encoding.budget", RealizationKind::kTwoSided, 2,
+         128 * S::kHighBudget + 1, false);
+  expect("norm.bound", RealizationKind::kTwoSided, 3, S::kBetaSq + 1, true);
+}
 
 // FalconBounds::derive reproduces the companion document's table (the
 // committed-key relation of the rings).
 TEST(FalconEmulated, BoundsMatchSpec) {
-  const FalconBounds r = FalconBounds::derive(kGoldilocksP);
+  const FalconBounds r = FalconBounds::derive(kGoldilocksP, kBias);
   EXPECT_EQ(uint64_t(r.bias), kBias);
   EXPECT_EQ(uint64_t(r.quot.honest), 12582926u);
   // The selected bound of the default profile lies in [n, m].
@@ -129,10 +168,10 @@ TEST(FalconEmulated, Report) {
            "domain A (Goldilocks^4)",
        })
     EXPECT_NE(r.find(want), std::string::npos) << want;
-  // The budget's completeness probability, Pr[Bin(639, 61445/2^16) < 512].
+  // The budget's completeness probability, Pr[Bin(717, 61445/2^16) < 512].
   EXPECT_NEAR(lib::select::host::log2_binomial_tail(
                   kSamples, kCutoff / 65536.0, kN),
-              -102.3, 0.05);
+              -256.19, 0.05);
   // The inferred tests of the library's challenges: the sets they declared
   // before inference.
   const auto &N = t.cs.graph().nodes;
@@ -275,12 +314,12 @@ TEST(FalconEmulated, HostHelpersMatchTheirReferences) {
     ASSERT_EQ(s1, old_host::s1_of(hhat, craw, s2, z));
     // The quotient at the decoded key: a valid s1, then a wrong one.
     h = emulated_ntt::decode(hhat, z, kQ);
-    ASSERT_EQ(host::quot_of(h, craw, s2, s1),
+    ASSERT_EQ(host::quot_of(h, craw, s2, s1, kBias),
               old_host::quot_of(h, craw, s2, s1));
     auto bad = s1;
     const size_t at = g() % kN;
     bad[at] = (bad[at] + 1) % kQ;
-    EXPECT_THROW(host::quot_of(h, craw, s2, bad), std::runtime_error);
+    EXPECT_THROW(host::quot_of(h, craw, s2, bad, kBias), std::runtime_error);
     EXPECT_THROW(old_host::quot_of(h, craw, s2, bad), std::runtime_error);
     // Bits to words and bytes, and the MAC chunks.
     std::vector<uint64_t> bits(kN * 16);
