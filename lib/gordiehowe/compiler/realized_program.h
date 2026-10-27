@@ -112,7 +112,8 @@ struct NamedOp {
   // A transform's root psi, or fromDigits' base.
   Nat elt;
   // A convolution's form: the coefficients, or the transform at PSI
-  // (elt); ntt's order.
+  // (elt), in scheme order or, NATURAL_ORDER, in natural order (Lean
+  // `ConvForm.nttNatural`, the product form's spectra); ntt's order.
   bool ntt_form = false;
   bool natural_order = false;
   // macConv's taps.
@@ -270,6 +271,14 @@ struct InRealization {
   LookupRealization lookup;
 };
 
+// A mod predicate's realization form (Lean `ModForm`). The product forms
+// (compiler/mod.h's product_sides) are a source mod_m lhs R whose target
+// checks lhs - R - m (qlo + Q) = 0 coordinate by coordinate in F_p
+// (kProduct), or, for kSpectralProduct, the transform of each row of that
+// equation: Ntt(lhs_i - m qlo - m Q_i) = sum_t s_t spec_t * Ntt(x_t) for R_i
+// = sum_t s_t (h_t * x_t), each term of R a convolution by a spectrum
+// (NamedOp kNegacyclicConv or kPolyBroadcast in NTT form) read at one
+// block; Q is the quotient (none for m = p).
 enum class ModForm : uint8_t {
   kField,
   kConstant,
@@ -278,7 +287,9 @@ enum class ModForm : uint8_t {
   kDigits,
   kCommittedDigits,
   kGrouped,
-  kInteger
+  kInteger,
+  kProduct,
+  kSpectralProduct
 };
 
 struct GroupedMod {
@@ -564,10 +575,26 @@ struct DStep {
     kLinop,
     kConclude,
     kHyp,
-    kIvlDisjoint
+    kIvlDisjoint,
+    kProductMod
   };
-  // An interval source (Lean `IvlSrc`).
-  enum Src : uint8_t { kConst, kDeclared, kNat, kPrime, kOpaqueBit, kQuadRoot, kRootSet, kShift };
+  // An interval source (Lean `IvlSrc`). kTableHull: the hull of the public
+  // entries the selections or lookups TAILS place the value among (INTS lo
+  // hi); kTableKernel: the coefficient hull (INTS lo hi) of block INTS[2]
+  // of the kernel of operator SRC_ARG (a convolution by a spectrum, whose
+  // value is the step's), from the selections TAILS.
+  enum Src : uint8_t {
+    kConst,
+    kDeclared,
+    kNat,
+    kPrime,
+    kOpaqueBit,
+    kQuadRoot,
+    kRootSet,
+    kShift,
+    kTableHull,
+    kTableKernel
+  };
   Rule rule = kConclude;
   // The domain the step reads in when not its predicate's (Lean inDom).
   Id in_dom = kNone;

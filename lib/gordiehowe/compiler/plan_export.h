@@ -779,8 +779,6 @@ class Exporter : Lowering {
            }));
     if (!cs_.records().filtered_permutations.empty())
       plan.f("filteredPermutations", filtered_permutations());
-    if (!cs_.records().product_mod_equalities.empty())
-      plan.f("productModEqualities", product_mod_equalities());
     plan.f("challenges", challenges())
         .f("messages", list_of(cs_.messages(), [&](size_t x) {
              Term m = Term::obj();
@@ -1227,38 +1225,6 @@ class Exporter : Lowering {
     for (const auto &m : cs_.records().mods)
       if (m.name == qn && m.form != PlanRecords::Mod::kGrouped) return &m;
     return nullptr;
-  }
-
-  // The assert_mod equalities of modulus m >= 2 over sides that are not
-  // affine (PlanRecords::ProductModEq, mod.h's product form): the
-  // equation lhs - rhs - m (qlo + q) = 0 is the domain's predicate NAME
-  // (form .expression), or for .spectral the ROWS spectral equations
-  // concatenated into the predicate NAME; the record gives the sides' intervals, the
-  // quotient's lower end, its node, honest bound qmax + 1 and sound bound
-  // dmax (its range request is NAME.q); the predicate subtracts m qlo as a
-  // constant. A field equation (m = p) has no quotient.
-  Term product_mod_equalities() const {
-    const auto &N = cs_.nodes();
-    return list_of(cs_.records().product_mod_equalities,
-                   [&](const PlanRecords::ProductModEq &e) {
-      Term t = Term::obj();
-      t.f("name", str(e.name))
-          .f("domain", str(e.domain))
-          .f("modulus", nat(e.m))
-          .f("form", e.spectral ? ".spectral" : ".expression")
-          .f("rows", std::to_string(e.rows))
-          .f("lhsLo", integer(e.lhs_lo))
-          .f("lhsHi", integer(e.lhs_hi))
-          .f("rhsLo", integer(e.rhs_lo))
-          .f("rhsHi", integer(e.rhs_hi))
-          .f("quotientLo", integer(e.qlo))
-          .f("qmax", nat(e.qmax))
-          .f("dmax", nat(e.dmax))
-          .f("quotient", e.quotient == SIZE_MAX
-                             ? std::string("none")
-                             : "some " + str(N.at(e.quotient).name));
-      return t;
-    });
   }
 
   // The assert_mod equalities: the expression, its interval and the

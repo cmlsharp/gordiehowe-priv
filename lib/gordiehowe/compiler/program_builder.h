@@ -48,6 +48,7 @@
 #include "gordiehowe/compiler/plan_export.h"
 #include "gordiehowe/compiler/realized_program.h"
 #include "gordiehowe/expr.h"
+#include "gordiehowe/ops/integer_congruence.h"
 #include "gordiehowe/ops/operators.h"
 #include "gordiehowe/system.h"
 
@@ -1916,6 +1917,11 @@ class ProgramBuilder : Lowering {
     std::map<std::string, const PlanRecords::ModEq *> integer;
     for (const auto &eq : cs_.records().mod_equalities)
       if (eq.integer && eq.domain == d.name) integer[eq.name] = &eq;
+    // The product forms of D (assert_mod over an integer side): their
+    // predicates are mod_m lhs R (product_predicate).
+    std::map<std::string, const PlanRecords::ProductModEq *> product;
+    for (const auto &eq : cs_.records().product_mod_equalities)
+      if (eq.domain == d.name) product[eq.name] = &eq;
     // The predicates (assert_zero, assert_true), each with its target.
     const auto &preds = d.predicates();
     if (plan.pred_targets.size() != preds.size())
@@ -1939,6 +1945,10 @@ class ProgramBuilder : Lowering {
       if (conv_products(pd.name)) p.role = "realization";
       p.p.domain = Id(di);
       p.p.origin = {ir::Origin::kDecl, Id(di), k};
+      if (auto it = product.find(pd.name); it != product.end()) {
+        product_predicate(d, std::move(p), *it->second);
+        continue;
+      }
       if (auto it = integer.find(pd.name); it != integer.end()) {
         const PlanRecords::ModEq &eq = *it->second;
         mod_names_.insert(eq.name);
@@ -2352,6 +2362,148 @@ class ProgramBuilder : Lowering {
       circuit_id_[di] = circuits_.size();
       circuits_.push_back({di, plan});
     }
+  }
+
+  // The product form EQ (mod.h's product_sides) as the source predicate P:
+  // mod_m P N for its congruence D = P - N, its realization
+  // ModForm::kProduct (kSpectralProduct when the equation is stated in a
+  // transform's spectrum), its target the predicate's own placement (the
+  // equation the domain states), P's and N's intervals, the quotient (its
+  // leaf, qlo, qmax and its range request NAME.q). P and N are the
+  // congruence's terms of each sign (product_parts).
+  template <class F>
+  void product_predicate(const Domain<F> &d, PredRec p,
+                         const PlanRecords::ProductModEq &eq) {
+    mod_names_.insert(eq.name);
+    p.p.body = ir::Predicate::kMod;
+    p.p.q = bound_str(eq.m);
+    ir::ModRealization &m = p.p.mod;
+    m.form = eq.spectral ? ir::ModForm::kSpectralProduct : ir::ModForm::kProduct;
+    m.has_interval = eq.quotient != SIZE_MAX;
+    if (m.has_interval) {
+      m.lhs_lo = int_str(eq.lhs_lo);
+      m.lhs_hi = int_str(eq.lhs_hi);
+      m.rhs_lo = int_str(eq.rhs_lo);
+      m.rhs_hi = int_str(eq.rhs_hi);
+    }
+    m.quotient_lo = int_str(eq.qlo);
+    m.qmax = bound_str(eq.qmax);
+    m.radix = "0";
+    m.target = ir::Target{};
+    p.mod_target = true;
+    if (eq.quotient != SIZE_MAX) {
+      p.mod_ranges = eq.name;
+      mod_ranges_[eq.name] = {eq.name + ".q"};
+    }
+    describe(std::move(p), [&](PredRec &q) {
+      if (eq.quotient != SIZE_MAX) q.p.mod.quotient = leaf(d, eq.quotient).e;
+      const auto &cong = *static_cast<const ops::Congruence<F> *>(eq.cong.get());
+      return product_parts(d, cong, eq.name);
+    });
+  }
+  // The parts P (sign +1) and N (sign -1) of congruence CONG of the product
+  // form NAME as expressions: each row the sum of its terms of that sign
+  // (a zero constant for none), the rows concatenated. A term is the sum of
+  // its integer parts: an expression part is the expression; a kernel part
+  // s (h * x) is the convolution by the spectrum, NamedOp negacyclicConv
+  // (or polyBroadcast over the blocks of its value, read at the part's
+  // block) in NTT form at the transform's root and order (ConvForm .ntt or
+  // .nttNatural), applied to x's coordinates [x_at, x_at + n), scaled by s.
+  // Each part's operand (an expression part's expression; a kernel part's
+  // x before its slice), in order over the rows, terms and parts, and the
+  // kernels' operators are recorded for the derivation (term_operands_,
+  // kernels_).
+  template <class F>
+  std::pair<Ex, Ex> product_parts(const Domain<F> &d,
+                                  const ops::Congruence<F> &cong,
+                                  const std::string &name) {
+    using T = ops::IntPart<F>;
+    auto &operands = term_operands_[name];
+    operands.clear();
+    std::vector<Ex> sides[2];
+    for (size_t i = 0; i < cong.rows(); ++i) {
+      std::optional<Ex> row[2];
+      for (const auto &st : cong.row(i)) {
+        std::optional<Ex> term;
+        for (const T &t : st.term->parts()) {
+          Ex e;
+          if (t.kind == T::kExpr) {
+            e = convert(d, t.e);
+            operands.push_back(e.e);
+          } else {
+            const size_t n = t.ntt->n;
+            const Ex x = convert(d, t.e);
+            operands.push_back(x.e);
+            Ex xs = x;
+            if (t.x_at != 0 || x.n != n) {
+              if (t.x_at + n > x.n) export_fail("a kernel part's operand is short");
+              std::vector<size_t> idx(n);
+              for (size_t j = 0; j < n; ++j) idx[j] = t.x_at + j;
+              xs = reindex(index_map(std::move(idx)), n, x);
+            }
+            const auto kb = kernel_block(d, t.spec.id, t.spec_at, n);
+            if (!kb)
+              export_fail("the spectrum '" + t.spec.name() + "' at " +
+                          std::to_string(t.spec_at) +
+                          " is no aligned block of one value");
+            const auto [v, off] = *kb;
+            const size_t size = cs_.nodes().at(v).n, K = size / n, b = off / n;
+            ir::NamedOp o;
+            o.kind = K == 1 ? ir::NamedOp::kNegacyclicConv
+                            : ir::NamedOp::kPolyBroadcast;
+            o.value = Id(v);
+            if (K > 1) o.nats = {K};
+            o.ntt_form = true;
+            o.natural_order = t.ntt->order == ops::NttOrder::kNatural;
+            o.elt = enc(d.field(), t.ntt->psi);
+            const Id op = op_of(std::move(o));
+            kernels_[{name, t.spec.id, t.spec_at}] = {op, v, b};
+            e = apply(op, K * n, {v}, xs);
+            if (K > 1) {
+              std::vector<size_t> idx(n);
+              for (size_t j = 0; j < n; ++j) idx[j] = b * n + j;
+              e = reindex(index_map(std::move(idx)), n, e);
+            }
+            e = scale(d, t.scale, e);
+          }
+          term = term ? add(*term, e) : e;
+        }
+        if (!term) export_fail("a term of the congruence has no parts");
+        auto &r = row[st.sign > 0 ? 0 : 1];
+        r = r ? add(*r, *term) : *term;
+      }
+      for (int a = 0; a < 2; ++a)
+        sides[a].push_back(row[a] ? *row[a]
+                                  : const_leaf(d, repeat_const(d, d.field().zero(),
+                                                               cong.n()),
+                                               cong.n()));
+    }
+    auto join = [&](std::vector<Ex> &v) { return v.size() == 1 ? v[0] : concat(v); };
+    return {join(sides[0]), join(sides[1])};
+  }
+  // The value and offset of coordinates [AT, AT + N) of node ID when they
+  // are, in order, the coordinates [OFF, OFF + N) of one exported value
+  // with OFF and the value's length multiples of N (ID itself, or the
+  // sources of a view); none otherwise.
+  template <class F>
+  std::optional<std::pair<size_t, size_t>> kernel_block(const Domain<F> &d,
+                                                        size_t id, size_t at,
+                                                        size_t n) const {
+    size_t v = id, off = at;
+    if (cls_[id] != kValue) {
+      const auto *src = d.view_sources(id);
+      if (src == nullptr || at + n > src->size()) return std::nullopt;
+      v = (*src)[at].first;
+      off = (*src)[at].second;
+      if (v == kZeroCoordinate) return std::nullopt;
+      for (size_t j = 0; j < n; ++j)
+        if ((*src)[at + j].first != v || (*src)[at + j].second != off + j)
+          return std::nullopt;
+    }
+    if (v >= cls_.size() || cls_[v] != kValue || n == 0 || off % n != 0 ||
+        cs_.nodes().at(v).n % n != 0)
+      return std::nullopt;
+    return std::make_pair(v, off);
   }
 
   // The assert_mod predicates of domain D (the application's and the MAC
@@ -4274,6 +4426,25 @@ class ProgramBuilder : Lowering {
           break;
         }
         case R::kSrc: {
+          using K0 = PlanRecords::DerivIvlSrc;
+          if (s.src.kind == K0::kTableKernel) {
+            // The kernel of the product form's term reading the spectrum
+            // (node, offset): its operator, value and block.
+            auto k = kernels_.find({d.pred, s.node, s.a});
+            if (k == kernels_.end())
+              dfail("no kernel reads the spectrum '" +
+                    cs_.nodes().at(s.node).name + "'");
+            const auto &[op, val, blk] = k->second;
+            x.src = ir::DStep::kTableKernel;
+            x.id = Id(id_of_.at(val));
+            x.src_arg = op;
+            x.ints.push_back(std::to_string(blk));
+            for (const auto &q : s.names) {
+              x.tails.push_back(dpid(q, false));
+              if (x.tails.back() == kNone) dfail("no selection '" + q + "'");
+            }
+            break;
+          }
           auto v = id_of_.find(s.node);
           if (v == id_of_.end())
             dfail("a source on '" + cs_.nodes().at(s.node).name +
@@ -4291,6 +4462,15 @@ class ProgramBuilder : Lowering {
             }
             case K::kNat: x.src = ir::DStep::kNat; break;
             case K::kShift: x.src = ir::DStep::kShift; break;
+            case K::kTableHull:
+              x.src = ir::DStep::kTableHull;
+              for (const auto &q : s.names) {
+                x.tails.push_back(dpid(q, false));
+                if (x.tails.back() == kNone) dfail("no selection '" + q + "'");
+              }
+              break;
+            case K::kTableKernel:
+              break;
             case K::kQuadRoot:
             case K::kRootSet:
               x.src = s.src.kind == K::kQuadRoot ? ir::DStep::kQuadRoot
@@ -4390,6 +4570,7 @@ class ProgramBuilder : Lowering {
       case R::kMac: return D::kMac;
       case R::kLinop: return D::kLinop;
       case R::kConclude: return D::kConclude;
+      case R::kProductMod: return D::kProductMod;
       case R::kInline:
       case R::kViewIvl:
         break;
@@ -4445,6 +4626,16 @@ class ProgramBuilder : Lowering {
         x.a = dexpr(e.args.at(0), pid);
         x.b = dexpr(e.args.at(1), pid);
         break;
+      case K::kTermOperand: {
+        auto t = term_operands_.find(e.item);
+        if (t == term_operands_.end() || e.a >= t->second.size() ||
+            t->second[e.a] == kNone)
+          dfail("no operand of term " + std::to_string(e.a) + " of '" +
+                e.item + "'");
+        x.kind = ir::DExpr::kProgram;
+        x.id = t->second[e.a];
+        break;
+      }
       case K::kApplyIn: {
         const Id q = dpid(e.item, e.row);
         if (q == kNone) dfail("no predicate '" + e.item + "'");
@@ -4719,6 +4910,13 @@ class ProgramBuilder : Lowering {
   // requests by name.
   std::map<std::string, std::tuple<Bound, Bound, Bound>> req_bounds_;
   std::map<std::string, std::vector<std::string>> mod_ranges_;
+  // The product forms' term operands (expression ids, kNone for an
+  // expression term), by predicate name, and their kernels: (name, spectrum
+  // node, offset) -> (operator, value key, block) (product_side).
+  std::map<std::string, std::vector<Id>> term_operands_;
+  std::map<std::tuple<std::string, size_t, size_t>,
+           std::tuple<Id, size_t, size_t>>
+      kernels_;
   std::map<size_t, std::vector<std::pair<size_t, size_t>>> public_wiring_;
   std::vector<TableRec> tables_;
   std::vector<std::tuple<DomainPlan::Batch, size_t, bool>> batches_;

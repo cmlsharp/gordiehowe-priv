@@ -393,7 +393,7 @@ inline void get(R &r, Predicate &x) {
   l.max = r.s();
   x.q = r.s();
   ModRealization &m = x.mod;
-  m.form = r.e<ModForm>(uint64_t(ModForm::kInteger));
+  m.form = r.e<ModForm>(uint64_t(ModForm::kSpectralProduct));
   m.has_interval = r.flag();
   m.lhs_lo = r.s();
   m.lhs_hi = r.s();

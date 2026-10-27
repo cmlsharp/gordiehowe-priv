@@ -2,14 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // GordieHowe: the spectral sums of spectral.h as values, without its
-// builders, so that an assert_mod declaration (system_core.h's ModDecl)
-// can hold a spectral right-hand side.
+// builders, and the two sides of spectral rows as expressions
+// (spectral_sides), so that an integer congruence's spectral product term
+// (ops/integer_congruence.h) can hold and state one.
 
 #ifndef PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_OPS_SPECTRAL_SUM_H_
 #define PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_OPS_SPECTRAL_SUM_H_
 
 #include <cstddef>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -48,6 +52,43 @@ struct SpectralRow {
   ExprPtr<F> lhs;
   SpectralSum<F> rhs;
 };
+
+// The two sides of each row, Ntt(rows[i].lhs) and rows[i].rhs, as
+// expressions. Every row shares one transform, applied through its staged
+// butterflies (the Ntt operator's circuit expansion): each distinct operand
+// x is transformed once (one expression, emitted once), each row's lhs
+// once, and a row's right side is the sum of scale_t spec_t[k] Ntt(x_t)[k].
+// WHAT names the caller in errors.
+template <class F>
+std::vector<std::pair<Expr<F>, Expr<F>>> spectral_sides(
+    const std::vector<SpectralRow<F>> &rows, const std::string &what) {
+  if (rows.empty()) fail(what + ": no rows");
+  const auto t = rows[0].rhs.ntt;
+  const Op<F> ntt = rows[0].rhs.op;
+  const size_t n = t->n;
+  std::map<std::pair<size_t, const void *>, Expr<F>> hat;
+  std::vector<std::pair<Expr<F>, Expr<F>>> out;
+  for (const auto &r : rows) {
+    if (r.rhs.ntt != t) fail(what + ": rows under different transforms");
+    if (r.lhs->n != n)
+      fail(what + ": a left side of " + std::to_string(r.lhs->n) +
+           " elements, not " + std::to_string(n));
+    if (r.rhs.terms.empty()) fail(what + ": a row without terms");
+    std::optional<Expr<F>> rhs;
+    for (const auto &tm : r.rhs.terms) {
+      auto it = hat.find(tm.key);
+      if (it == hat.end())
+        it = hat.emplace(tm.key, ntt(Expr<F>(tm.x))).first;
+      const Expr<F> p =
+          Expr<F>(tm.spec).flat().slice(tm.spec_at, tm.spec_at + n) *
+          it->second.flat().slice(tm.x_at, tm.x_at + n);
+      const Expr<F> sp = tm.scale == tm.spec.f->one() ? p : tm.scale * p;
+      rhs = rhs.has_value() ? *rhs + sp : sp;
+    }
+    out.push_back({ntt(Expr<F>(r.lhs)), *rhs});
+  }
+  return out;
+}
 
 }  // namespace proofs::gordiehowe::ops
 

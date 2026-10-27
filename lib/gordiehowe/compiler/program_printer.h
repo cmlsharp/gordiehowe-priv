@@ -240,7 +240,8 @@ class Printer {
     using NO = ir::NamedOp;
     auto v = [&]() { return num(op.value); };
     auto form = [&]() {
-      return op.ntt_form ? "(.ntt " + op.elt + ")" : std::string(".coefficients");
+      if (!op.ntt_form) return std::string(".coefficients");
+      return (op.natural_order ? "(.nttNatural " : "(.ntt ") + op.elt + ")";
     };
     switch (op.kind) {
       case NO::kNegacyclicConv:
@@ -414,9 +415,10 @@ class Printer {
   }
 
   std::string mod_real(const ir::ModRealization &m) {
-    static const char *forms[] = {".field",   ".constant",        ".bit",
+    static const char *forms[] = {".field",    ".constant",        ".bit",
                                   ".oneDigit", ".digits", ".committedDigits",
-                                  ".grouped", ".integer"};
+                                  ".grouped",  ".integer",         ".product",
+                                  ".spectralProduct"};
     std::string out = "{ form := " + std::string(forms[int(m.form)]);
     if (m.has_interval)
       out += ", lhsLo := " + int_text(m.lhs_lo) + ", lhsHi := " +
@@ -1109,9 +1111,18 @@ inline std::string print_derivations(
       case D::kHoldsIn:
         return ".holdsIn " + pr0();
       case D::kSrc: {
-        static const char *src[] = {".const", "(.declared ", "(.nat ", ".prime",
-                                    ".opaqueBit", "(.quadRoot ", "(.rootSet ", "(.shift "};
+        static const char *src[] = {".const",      "(.declared ", "(.nat ",
+                                    ".prime",      ".opaqueBit",  "(.quadRoot ",
+                                    "(.rootSet ",  "(.shift ",    "(.tableHull ",
+                                    "(.tableKernel "};
         std::string a = src[s.src];
+        if (s.src == D::kTableHull)
+          a += nums(std::vector<size_t>(s.tails.begin(), s.tails.end())) + " " +
+               ii(0) + " " + ii(1) + ")";
+        if (s.src == D::kTableKernel)
+          a += num(s.src_arg) + " " + ii(2) + " " +
+               nums(std::vector<size_t>(s.tails.begin(), s.tails.end())) + " " +
+               ii(0) + " " + ii(1) + ")";
         if (s.src == D::kDeclared) a += num(s.src_arg) + ")";
         if (s.src == D::kNat || s.src == D::kShift) a += pr0() + ")";
         if (s.src == D::kQuadRoot) a += num(s.tails.at(0)) + " " + pr0() + ")";
@@ -1182,6 +1193,8 @@ inline std::string print_derivations(
         return ".fact " + num(s.id);
       case D::kIvlDisjoint:
         return ".ivlDisjoint " + pr0() + " " + num(s.premises.at(1));
+      case D::kProductMod:
+        return ".productMod " + nums(s.premises);
     }
     return "";
   };

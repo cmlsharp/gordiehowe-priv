@@ -409,6 +409,27 @@ Op<F> poly_mat_vec(std::string name, Ref<F> a, size_t K, size_t L, Form form,
       return std::make_shared<PolyMatVecOperator<F>>(
           f, K, L, n, v, form, negacyclic_ntt(f, n, psi));
     };
+  } else if (form == Form::kCoefficients) {
+    // The operator's interval from its operand's, the operand's
+    // coefficients in the interval of its node (DEPS(0)): output
+    // coordinate j of block i sums the L n products of the negacyclic
+    // products a_il * x_l, each of magnitude at most |a| |x|, so it lies in
+    // [-J, J] for J = L n max|a| max|x| (the derivations' ivlApply rule,
+    // derivation_check.h). An NTT-form operand's entries are spectra,
+    // which bound no coefficient.
+    d.interval = [L, n](const IntInterval &in, const DepIntervals &deps,
+                        unsigned cap_bits) -> std::optional<IntInterval> {
+      const auto a = deps(0);
+      if (!a) return std::nullopt;
+      const SignedInt am = std::max<SignedInt>(-a->first, a->second);
+      const SignedInt xm = std::max<SignedInt>(-in.first, in.second);
+      const auto w =
+          int_interval::times(SignedInt(uint64_t(L * n)), am, cap_bits);
+      if (!w) return std::nullopt;
+      const auto j = int_interval::times(*w, xm, cap_bits);
+      if (!j) return std::nullopt;
+      return IntInterval{-*j, *j};
+    };
   }
   return linear_operator<F>(std::move(d));
 }
@@ -1150,6 +1171,27 @@ Op<F> AcyclicConv(Ref<F, T, P> h, size_t lx,
     d.bound_terms = {{"entryBound", B},
                      {"terms", Bound(std::min(lx, lh))},
                      {"rowSum", d.row_sum}};
+  } else {
+    // The operator's interval from h's (DEPS(0)) when h is nonnegative:
+    // the matrix is nonnegative with rows summing to at most
+    // min(lx, lh) max h, the row-sum rule (the derivations' ivlApply rule,
+    // derivation_check.h). None for a kernel of either sign.
+    d.interval = [t = std::min(lx, lh)](const IntInterval &in,
+                                        const DepIntervals &deps,
+                                        unsigned cap_bits)
+        -> std::optional<IntInterval> {
+      const auto a = deps(0);
+      if (!a || a->first < 0) return std::nullopt;
+      const auto r = int_interval::times(SignedInt(uint64_t(t)), a->second,
+                                         cap_bits);
+      if (!r) return std::nullopt;
+      const auto l =
+          int_interval::times(std::min<SignedInt>(in.first, 0), *r, cap_bits);
+      const auto h =
+          int_interval::times(std::max<SignedInt>(in.second, 0), *r, cap_bits);
+      if (!l || !h) return std::nullopt;
+      return IntInterval{*l, *h};
+    };
   }
   return linear_operator<F>(std::move(d));
 }

@@ -1283,9 +1283,11 @@ class Domain : public virtual DomainCore {
   // of a record of WIDTH coordinates, records repeating every WIDTH
   // coordinates of NODE (a lookup's m records); LEAVES are the map's leaves
   // and BLOCKS the rows' column blocks (a public node and its width), in
-  // column order. Interval propagation reads it (compiler/range.h,
-  // table_hull and table_preimage_hull): a recorded coordinate lies in the
-  // hull of its column's public entries.
+  // column order; PRED is the predicate that proves it (the selection's
+  // digest equation, the lookup's in). Interval propagation reads it
+  // (compiler/range.h, table_hull and table_preimage_hull): a recorded
+  // coordinate lies in the hull of its column's public entries, which PRED
+  // establishes (the derivations' interval source, IvlWhy::kTable).
   struct TableLeaf {
     size_t offset = 0, n = 0;
     bool ntt = false, natural = false;
@@ -1295,6 +1297,7 @@ class Domain : public virtual DomainCore {
     size_t node = SIZE_MAX, at = 0, width = 0;
     std::vector<TableLeaf> leaves;
     std::vector<std::pair<size_t, size_t>> blocks;
+    std::string pred;
   };
   void note_table_record(TableRecord r) { table_records_.push_back(std::move(r)); }
   const std::vector<TableRecord> &table_records() const {
