@@ -307,8 +307,9 @@ int main(int argc, char** argv) {
       }
     };
     // The GordieHowe constructions (lib/gordiehowe/examples, bench_hook.h):
-    // the four proofs of possession, and both rings' native and carrier arms
-    // at each ring size.
+    // the proofs of possession of ML-DSA-44, -65 and -87 and Falcon-512 and
+    // -1024, native and emulated, and both rings' native and carrier arms
+    // at each set and ring size.
     add("mldsa_native_bench", "gh-ml-native");
     // Its packing ablations (ROM parameters only; mldsa_native.h's
     // PackingAblation), interleaved with it round by round: no bit packing,
@@ -330,6 +331,29 @@ int main(int argc, char** argv) {
           {"--packing", "subfieldrows"});
     add("falcon_native_bench", "gh-fn-native");
     add("falcon_emulated_bench", "gh-fn-emulated");
+    // The other parameter sets' proofs of possession: ML-DSA-65 and
+    // ML-DSA-87 (--param-set, mldsa_bench_flags.h; cases gh-ml65-* and
+    // gh-ml87-*) and Falcon-1024 (--falcon-set; cases gh-fn1024-*), both
+    // arms each. ML-DSA-44 and Falcon-512 are the cases above (gh-ml-*,
+    // gh-fn-*).
+    struct OtherSet {
+      const char *tag, *flag, *value;
+      bool mldsa;
+    };
+    static const OtherSet kOtherSets[] = {
+        {"ml65", "--param-set", "ml-dsa-65", true},
+        {"ml87", "--param-set", "ml-dsa-87", true},
+        {"fn1024", "--falcon-set", "1024", false},
+    };
+    for (const OtherSet& o : kOtherSets) {
+      const std::string tag = std::string("gh-") + o.tag;
+      add(o.mldsa ? "mldsa_native_bench" : "falcon_native_bench",
+          tag + "-native", {o.flag, o.value});
+      add(o.mldsa ? "mldsa_emulated_bench" : "falcon_emulated_bench",
+          tag + "-emulated", {o.flag, o.value});
+    }
+    // The rings of every set, both arms, at each ring size: gh-<set>-ring-
+    // <arm>-<R>, <set> as above (ml, ml65, ml87, fn, fn1024).
     for (size_t ring : {size_t{64}, size_t{256}, size_t{1024}}) {
       const std::string r = std::to_string(ring);
       for (const char* arm : {"native", "carrier"}) {
@@ -337,6 +361,10 @@ int main(int argc, char** argv) {
             {"--ring-arm", arm, "--ring-size", r});
         add("falcon_ring_bench", std::string("gh-fn-ring-") + arm + "-" + r,
             {"--ring-arm", arm, "--ring-size", r});
+        for (const OtherSet& o : kOtherSets)
+          add(o.mldsa ? "mldsa_ring_bench" : "falcon_ring_bench",
+              std::string("gh-") + o.tag + "-ring-" + arm + "-" + r,
+              {"--ring-arm", arm, "--ring-size", r, o.flag, o.value});
       }
     }
     // The ECDSA mDL (examples/mdoc/mdoc.h, ROM parameters only): doc 3 at 1

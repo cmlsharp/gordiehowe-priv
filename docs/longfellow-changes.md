@@ -11,7 +11,7 @@ git submodule update --init comparisons/longfellow/upstream
 python3 scripts/longfellow_changes.py --diff lib/zk/zk_prover.h
 ```
 
-61 modified and 22 derived files.
+61 modified and 24 derived files.
 
 ## `lib`
 
@@ -191,11 +191,18 @@ python3 scripts/longfellow_changes.py --diff lib/zk/zk_prover.h
 |---|---|---|---|
 | `include/circuits/mac/mac_circuit.h` | derived | `lib/circuits/mac/mac_circuit.h` | mac_circuit_ablated flag that omits the MAC products and equality checks in assert_mac and verify_mac |
 
+## `comparisons/longfellow/baselines/ml-dsa-44-monolith`
+
+| File | Kind | Upstream source | Change |
+|---|---|---|---|
+| `ml_dsa_monolith_verify.h` | derived | `lib/circuits/tests/pq/ml_dsa/ml_dsa_circuit.h` | adapted from ml_dsa_circuit.h: MLDSAVerify's signature check with SampleInBall over the 272-byte stream and the exact Decompose |
+
 ## `comparisons/longfellow/baselines/ml-dsa-44-split`
 
 | File | Kind | Upstream source | Change |
 |---|---|---|---|
 | `fp24q.h` | derived | `lib/algebra/fp24.h` | adapted from lib/algebra/fp24.h: the prime field specialized to q = 8380417 with 3-byte serialization and compile-time modulus |
+| `ml_dsa_host.h` | derived | `lib/circuits/tests/pq/ml_dsa/ml_dsa_witness.h` | adapted from ml_dsa_witness.h: the host witness at the 272-byte SampleInBall stream and a private-length message, and the verifier statement from the key bytes |
 | `ml_dsa_split_circuit.h` | derived | `lib/circuits/tests/pq/ml_dsa/ml_dsa_circuit.h` | adapted from ml_dsa_circuit.h to the algebra half of the split ML-DSA circuit, taking committed crossings in place of SampleInBall |
 | `ml_dsa_split_hash_circuit.h` | derived | `lib/circuits/tests/pq/ml_dsa/ml_dsa_circuit.h` | adapted from ml_dsa_circuit.h to the hash half of the split ML-DSA circuit with a packed MAC-word SampleInBall output |
 | `reed_solomon_extension_crt.h` | derived | `lib/algebra/reed_solomon_extension.h` | adapted from lib/algebra/reed_solomon_extension.h: degree and base field as template parameters, per-component CRT convolution |
