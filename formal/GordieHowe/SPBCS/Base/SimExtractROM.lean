@@ -3,8 +3,8 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.SimExtractGame
-public import GordieHowe.SPBCS.FullPast.Verifier
+public import GordieHowe.SPBCS.Base.SimExtractGame
+public import GordieHowe.SPBCS.Base.Extractor
 public import GordieHowe.SPBCS.Extraction.KnowledgeError
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.Model.QROM.QueryCount
@@ -18,7 +18,7 @@ public import GordieHowe.SPBCS.Merkle.TreeProg
 
 Weak simulation-sound extractability with straight-line extraction (Unruh 2017, ePrint 2017/398,
 Definition 14, p. 21, eq. (6), weak variant: the adversary's statement is none of its simulation
-proof queries), against classical adversaries: the game at the series–parallel base model (`GordieHowe.SPBCS.FullPast`).
+proof queries), against classical adversaries: the game for the compiler data (`GordieHowe.SPBCS.Base`).
 
 **The adversary** (`SEProg`): a classical interactive algorithm as a tree; at each node it queries
 the oracle in force at a point, sends a statement to the simulation oracle, or outputs a claim (a
@@ -35,8 +35,8 @@ answers (`GordieHowe.SPBCS.gameLog`): the adversary's, the simulator's and the v
 each recorded with the base answer; simulator-programmed values do not enter it.
 
 The objects: `SEProg`, `SEProg.QueryBound`, `SEProg.Result`, `SEProg.inForce` (with
-`run_inForce`, `trace_inForce`), `SEProg.compose` (with `length_trace_compose`); at the model,
-`ROMAdversary` and `baseAlg`. The game, its result, its win event and its query table at the spBCS
+`run_inForce`, `trace_inForce`), `SEProg.compose` (with `length_trace_compose`); for the compiler
+data, `ROMAdversary` and `baseAlg`. The game, its result, its win event and its query table at the spBCS
 compiler are `GordieHowe.SPBCS.romGame`, `romResult`, `WinsROM` and `gameLog`
 (`GordieHowe/SPBCS/SimExtractROM.lean`).
 
@@ -168,14 +168,12 @@ def baseAlg : ROM.Alg (Query k kN kS L) (Out k e) Unit 0 :=
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
   [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  (M : FullPast P t X k kN kS L e) (B : ℕ) [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  (M : Base P t X k kN kS L e) (B : ℕ) [∀ j i, Fintype ((M.comp j).MessageWrite i)]
 
 /-! ### The game -/
 
@@ -188,6 +186,6 @@ claim. -/
 abbrev ROMAdversary (X' : Type) : Type :=
   SEProg (Query k kN kS L) (Out k e) X' (M.Response B) (Claim X M.NIProof)
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

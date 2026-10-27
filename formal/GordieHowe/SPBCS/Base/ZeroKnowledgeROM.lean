@@ -3,14 +3,14 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
 public import GordieHowe.Model.ROM.SaltedZKLastProofQuery
 public import GordieHowe.Model.ROM.InteractiveNIZKLastProofQuery
 
 @[expose] public section
 
 /-!
-# The zero-knowledge error of the series–parallel base model in the ROM
+# The zero-knowledge error of the compiler data in the ROM
 
 `zkErrorROM`: the error of adaptive multi-theorem statistical zero knowledge of the compiled
 composite against classical adversaries with a budget of `t` queries before each proof query

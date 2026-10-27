@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.Extract
+public import GordieHowe.SPBCS.Base.Extract
 public import GordieHowe.Model.QROM.Select
 
 @[expose] public section

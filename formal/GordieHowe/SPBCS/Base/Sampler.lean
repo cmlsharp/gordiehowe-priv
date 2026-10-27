@@ -3,8 +3,8 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
-public import GordieHowe.SPBCS.FullPast.Completeness
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.Completeness
 public import GordieHowe.Model.ROM.AdaptiveCompleteness
 
 @[expose] public section
@@ -26,8 +26,8 @@ proof query).
   theorem (`GordieHowe.QROM.SliceClose`) for a prover that draws its witness, from the one at the
   drawn witnesses, with `η` added: the real slice law is the average over the sampler's coins of
   the slice laws at the drawn witnesses (`realSlice_eq_bind_of_draw`).
-- `GordieHowe.SPBCS.FullPast.drawCoinsEquiv`: the draw's coins and the honest prover's coins are the coins of
-  `drawProver` in the series–parallel base model. The spBCS compiler's zero knowledge for a prover that
+- `GordieHowe.SPBCS.Base.drawCoinsEquiv`: the draw's coins and the honest prover's coins are the coins of
+  `drawProver`. The spBCS compiler's zero knowledge for a prover that
   draws its witness is `GordieHowe.SPBCS.everlastingZeroKnowledge_of_sampler`, at the error of
   `GordieHowe.SPBCS.everlastingZeroKnowledge` plus `Q · η`.
 -/
@@ -235,18 +235,16 @@ end Drawn
 
 end QROM
 
-/-! ### The coins of the series–parallel base model -/
+/-! ### The coins of a prover that draws its witness -/
 
-namespace SPBCS.FullPast
-
-open Base
+namespace SPBCS.Base
 
 open SPTerm Quantum GordieHowe.QROM
 
 variable {k kN kS L e : ℕ} {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
   [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : FullPast P t X k kN kS L e}
+  {M : Base P t X k kN kS L e}
 
 variable (M) in
 /-- **The coins of the prover drawing its witness, rearranged**: the draw's coins and the
@@ -257,6 +255,6 @@ def drawCoinsEquiv (RD R : Type) : RD × M.ProverCoins R ≃ M.ProverCoins (Draw
   left_inv _ := rfl
   right_inv _ := rfl
 
-end SPBCS.FullPast
+end SPBCS.Base
 
 end GordieHowe

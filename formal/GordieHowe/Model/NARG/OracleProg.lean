@@ -15,7 +15,7 @@ public import Mathlib.Algebra.BigOperators.Fin
 with their result `run h` and their query list `trace h`, and the padded query sequence
 `paddedTrace` with its next-query form `paddedTrace_eq_next`. The challengers of the interactive
 model answer requests with such programs (`GordieHowe/Model/Quantum/Interactive/Basic.lean`); the verifier's
-queries are given as one (`GordieHowe.SPBCS.FullPast.roundsProgFullPast`, `GordieHowe/SPBCS/FullPast/Verifier.lean`), and
+queries are given as one (`GordieHowe.SPBCS.roundsProg`, `GordieHowe/SPBCS/Verifier.lean`), and
 `OracleProg.toExpansion` (`GordieHowe/Model/QROM/Expansion.lean`) turns a program family into a query expansion.
 -/
 

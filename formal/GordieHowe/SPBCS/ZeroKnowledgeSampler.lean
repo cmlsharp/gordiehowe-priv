@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.ProverProg
-public import GordieHowe.SPBCS.FullPast.Sampler
+public import GordieHowe.SPBCS.Base.Sampler
 
 @[expose] public section
 
@@ -13,7 +13,7 @@ public import GordieHowe.SPBCS.FullPast.Sampler
 
 Zero knowledge of the spBCS compiler when the prover draws its witness with a witness sampler
 (`WitnessSampler`), at the error of `everlastingZeroKnowledge` plus `Q · η`
-(`GordieHowe/SPBCS/FullPast/Sampler.lean`).
+(`GordieHowe/SPBCS/Base/Sampler.lean`).
 -/
 
 namespace GordieHowe.SPBCS
@@ -53,8 +53,8 @@ theorem everlastingZeroKnowledge_of_sampler {E : (j : ι) → (M.comp j).Encoder
       (fun tq Q => M.zkError δ tq Q + Q * η) := by
   have hcl : SliceClose M.saltOfBits (fun x u => (x, u) ∈ relU)
       (M.niProverZKM B (drawProver honest D.draw) E Qs)
-      (M.niJointSimulator VE.toViewRead B pub Sim T) fun H => M.toFullPast.oneProofBound δ H + η :=
-    SliceClose.of_draw (e := M.toFullPast.drawCoinsEquiv D.Coins R) (fun _ _ _ _ _ _ => rfl)
+      (M.niJointSimulator VE.toViewRead B pub Sim T) fun H => M.toBase.oneProofBound δ H + η :=
+    SliceClose.of_draw (e := M.toBase.drawCoinsEquiv D.Coins R) (fun _ _ _ _ _ _ => rfl)
       (sliceClose B VE honest pub Sim T hvzk) hD
   have hzk := everlastingZeroKnowledgePure_of_sliceClose _ _ _ _
     ((saltedLocal B VE (drawProver honest D.draw) pub Sim T).comap fx fw) (hcl.comap fx fw)
@@ -66,7 +66,7 @@ theorem everlastingZeroKnowledge_of_sampler {E : (j : ι) → (M.comp j).Encoder
     ring
   have hsqrt : √(Fintype.card (FiatShamirSalt kS) : ℝ) = 2 ^ (4 * kS) := by
     rw [hsalt, show 8 * kS = 4 * kS * 2 by ring, pow_mul, Real.sqrt_sq (by positivity)]
-  have hE := M.toFullPast.expect_oneProofBound_le δ
+  have hE := M.toBase.expect_oneProofBound_le δ
   rw [hsqrt, hsalt, Finset.expect_add_distrib, Finset.expect_const Finset.univ_nonempty]
   have hQ : (0 : ℝ) ≤ Q := Nat.cast_nonneg _
   nlinarith [mul_le_mul_of_nonneg_left hE hQ]

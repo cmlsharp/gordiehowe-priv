@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.ZeroKnowledge
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledgeROM
+public import GordieHowe.SPBCS.Base.ZeroKnowledgeROM
 public import GordieHowe.Model.ROM.SaltedZKLastProofQuery
 public import GordieHowe.Model.ROM.InteractiveNIZKLastProofQuery
 
@@ -46,7 +46,7 @@ open Classical in
 /-- **One merge proof is simulated on a fresh slice at every salt.** -/
 theorem sliceCloseAt (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     ROM.NIZK.SliceCloseAt M.saltOfBits (fun x w => (x, w) ∈ rel) (M.niProverZKM B honest E Qs)
-      (M.niJointSimulator VE.toViewRead B pub Sim T) (M.toFullPast.oneProofBound δ) where
+      (M.niJointSimulator VE.toViewRead B pub Sim T) (M.toBase.oneProofBound δ) where
   close σ H x w hw := by
     change PMF.tvDist (innerR (E := E) (Qs := Qs) B H x (honest w) σ)
       (innerSJ B VE pub Sim T H x σ) ≤ _
@@ -59,7 +59,7 @@ open Classical in
 against adversaries with a budget of `tq` queries before each proof query, the prover
 `niProverZKM` and the simulator `niJointSimulator` at the joint simulator `Sim` of the composite
 view (`CausalHVZK`, CY24 Definition 23.1.8) are indistinguishable with error `zkErrorROM δ`, the
-error of the compiler over the term. -/
+error of the compiler data. -/
 theorem zeroKnowledgeROM (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     ROM.NIZK.EverlastingZeroKnowledge (fun x w => (x, w) ∈ rel) (M.niProverZKM B honest E Qs)
       (M.niJointSimulator VE.toViewRead B pub Sim T) (M.zkErrorROM δ) := by
@@ -71,7 +71,7 @@ theorem zeroKnowledgeROM (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     ring
   rw [hsalt, Base.zkErrorROM]
   gcongr
-  exact M.toFullPast.expect_oneProofBound_le δ
+  exact M.toBase.expect_oneProofBound_le δ
 
 open Classical in
 /-- **Zero knowledge of the spBCS compiler in the classical random-oracle model against

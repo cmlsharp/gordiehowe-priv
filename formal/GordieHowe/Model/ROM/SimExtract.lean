@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.Model.ROM.Interactive
-public import GordieHowe.SPBCS.FullPast.SimExtractROM
+public import GordieHowe.SPBCS.Base.SimExtractROM
 public import GordieHowe.Headline
 
 @[expose] public section
@@ -18,7 +18,7 @@ responses `Option Resp` (a simulated proof, or `none` once the proof queries are
 independent of the oracle, and at each step a run-time choice of a query or a proof query.
 
 - `IAlg.tree`, `IAlg.toSEProg`: a deterministic algorithm unfolded into the tree `SEProg` of the
-  full-past compiler's game (`GordieHowe/SPBCS/FullPast/SimExtractROM.lean`), with the queries along a branch cut at `t`
+  simulation-extraction game (`GordieHowe/SPBCS/Base/SimExtractROM.lean`), with the queries along a branch cut at `t`
   (`queryBound_toSEProg`: every branch makes at most `t` queries). On a run that some oracle and
   the simulation oracle produce, a budget of `t` means the cut never applies.
 - `IAlg.simResponder`: the simulation oracle as a responder on the oracle in force: proof query number
@@ -27,10 +27,10 @@ independent of the oracle, and at each step a run-time choice of a query or a pr
 - `IAlg.out_compose_toSEProg`, `IAlg.reprogram_compose_toSEProg`: the composed run of the tree
   against a base oracle `h` (`SEProg.compose`) has the output of the interactive run against
   `simResponder` from `h`, and its final assignments give that run's final oracle in force. So the
-  full-past compiler's game run on `toSEProg` is the interactive game.
+  game run on `toSEProg` is the interactive game.
 - `QueryBoundedAdversary.tsum_le` averages the deterministic bound over the coins.
-- `GordieHowe.SPBCS.FullPast.SimExtractionAdversaryROM`: these adversaries in the game of the series–parallel base
-  structure `GordieHowe.SPBCS.Base`, with their trees (`prog`) and the probability that one
+- `GordieHowe.SPBCS.Base.SimExtractionAdversaryROM`: these adversaries in the game of the compiler data
+  `GordieHowe.SPBCS.Base`, with their trees (`prog`) and the probability that one
   wins while the straight-line extractor fails (`winsNotExtracts`,
   `GordieHowe/SPBCS/SimExtractROM.lean`). `GordieHowe.SPBCS.weak_online_simulation_extractability_rom_basic`
   (`GordieHowe/SPBCS/SimExtractROM.lean`) bounds them for the spBCS compiler, and
@@ -209,12 +209,12 @@ open scoped NNReal ENNReal
 
 variable {k kN kS L e : ℕ}
 
-namespace FullPast
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
   [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : FullPast P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {V : X → FullTr P t → Bool} {Qs : ∀ x, M.IOPQueries V x}
   {E₀ : (j : ι) → (M.comp j).Encoder} {VE : M.ViewEncoder E₀ Qs} {Pub : Type} {pub : X → Pub}
   {S : CausalJointSimulator VE.MV Pub} {T : M.Preimages} {X' : Type} {fx : X' → X}
@@ -232,13 +232,13 @@ namespace SimExtractionAdversaryROM
 
 variable {tq Q : ℕ} (𝒜 : M.SimExtractionAdversaryROM B X' tq) (c : Fin Q → M.SimCoinsOf Qs VE S T)
 
-/-- **The algorithm at the coins `r` as a tree of the full-past compiler's game** (`ROM.IAlg.toSEProg`): its run
+/-- **The algorithm at the coins `r` as a tree of the simulation-extraction game** (`ROM.IAlg.toSEProg`): its run
 in the game is the interactive run against the simulation oracle (`ROM.IAlg.out_compose_toSEProg`,
 `ROM.IAlg.reprogram_compose_toSEProg`). -/
 abbrev prog (r : 𝒜.Coins) : M.ROMAdversary B X' := (𝒜.alg r).toSEProg tq
 
 end SimExtractionAdversaryROM
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

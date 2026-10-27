@@ -3,17 +3,17 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.Model
+public import GordieHowe.SPBCS.Base
 
 @[expose] public section
 
 /-!
 # Extraction of causal pasts from an oracle database
 
-CMS19 `BCSExtract` (p. 41) for the series–parallel base model
-(`GordieHowe.SPBCS.FullPast`, `GordieHowe/SPBCS/FullPast/Model.lean`). The chains of all leaves are given as one function `chs`; leaf `q`'s
-chain is read with keys at the chain inputs whose causal context is `chs` restricted to the leaves
-before `q` (`ctxOfChains`).
+CMS19 `BCSExtract` (p. 41) for the compiler data of a composition (`GordieHowe.SPBCS.Base`,
+`GordieHowe/SPBCS/Base.lean`). The chains of all leaves are given as one function `chs`; leaf
+`q`'s chain is read with keys at the chain inputs whose causal context is `chs` restricted to the
+leaves before `q` (`ctxOfChains`), each encoded as a causal past (`Base.enc`).
 
 * `extLeaf D x σ chs q l r`: the first `r` rounds of leaf `q`'s transcript read from its chain
   `l`: a prover round's message from the write and the Merkle views of `D` at its roots, a
@@ -410,13 +410,11 @@ end Stability
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X : Type} (M : FullPast P t X k kN kS L e)
+  {X : Type} (M : Base P t X k kN kS L e)
 
 variable (D : ODB k kN kS L e) (x : X) (σ : FiatShamirSalt kS) (chs : (r : t.Leaf) → M.Items r)
 
@@ -494,6 +492,6 @@ theorem digest_mem_of_extPast_extend_ne (hq : q₀ ∉ D) (hcol : D.extend q₀ 
 
 end Stability
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

@@ -6,7 +6,7 @@ module
 public import GordieHowe.SPBCS.ZeroKnowledge
 public import GordieHowe.SPBCS.Bytes
 public import GordieHowe.SPBCS.SimAssign
-public import GordieHowe.SPBCS.FullPast.SimProg
+public import GordieHowe.SPBCS.Base.SimProg
 
 @[expose] public section
 
@@ -14,15 +14,15 @@ public import GordieHowe.SPBCS.FullPast.SimProg
 # The simulator of the spBCS compiler as a counted oracle program
 
 The simulator of the spBCS compiler `niSimulator` (paper `prot:bcs-simulator`), a classical oracle
-program (`GordieHowe.NARG.Simulator`) against the compiler's oracle, as
-`GordieHowe/SPBCS/FullPast/SimProg.lean` for the compiler over the term: the `leaf` queries of the opened positions, the default leaf if
+program (`GordieHowe.NARG.Simulator`) against the compiler's oracle, with the
+pieces of `GordieHowe/SPBCS/Base/SimProg.lean`: the `leaf` queries of the opened positions, the default leaf if
 some tree is empty, the `node` queries of each tree's heap, one `transcript` query per branch (its
 final input, `finalsProg`) and one `transcript` query per challenge (its chain input); at most
 `2 |Pos| + t.size n + |sites|` queries (`length_trace_jointProg_le`), the paper's
 `q_S = 2 n_pos + n_msg + n_B` (`prot:bcs-simulator`). It returns a proof in the format `B` or fails
 where the simulated view does not decode. The hybrid argument of
 `GordieHowe/SPBCS/ZeroKnowledge.lean` is stated for `niJointSimulator`, whose replies use the proof
-device `FullPast.Internal.encodeTotal`; run through `queryEncoding`, `niSimulator` is that simulator
+device `Base.Internal.encodeTotal`; run through `queryEncoding`, `niSimulator` is that simulator
 within the format bounds of the views (`niSimulator_eq`, `encode_niSimulator`,
 `toFn_niJointSimulatorProg`).
 
@@ -213,14 +213,14 @@ def jointProgOpt (hsim : VR.FormatBounds B) (x : X) (σ : FiatShamirSalt kS) (ch
           (by rw [List.length_map]; exact hsim.posC_le x ch o wr hw) hsim.nLeaves_le⟩
 
 /-- **The program of the reply with the total encoding** (`jointRun`): `jointBody` with the proof
-at the heaps encoded by `FullPast.Internal.encodeTotal`, a proof device of the hybrid argument. It
+at the heaps encoded by `Base.Internal.encodeTotal`, a proof device of the hybrid argument. It
 is `jointProgOpt` within the format bounds (`jointProgOpt_eq`). -/
 def jointProg (x : X) (σ : FiatShamirSalt kS) (ch : Chs P t) (ρ : ChIdx P t → Out k e)
     (ν : M.Pos → MerkleSalt kN) (d : M.Pos → Digest k) (o : CausalView VR.MV) :
     OracleProg (Query k kN kS L) (Out k e) (NARG.SimOutput (Query k kN kS L) (Out k e) (M.Response B)) :=
   (VR.writesOf x ch o).elim (.pure ⟨none, []⟩) fun wr =>
     M.jointBody Λ VR B x σ ch ρ ν d o wr fun hp =>
-      FullPast.Internal.encodeTotal M.toFullPast B (M.proofOfHeaps σ wr hp
+      Base.Internal.encodeTotal M.toBase B (M.proofOfHeaps σ wr hp
         ((VR.posC x ch).map fun q => ⟨ν q, VR.colOf x ch o q⟩) (VR.posC x ch))
 
 /-- **Within the format bounds of the views the total encoding is not used**: the program of the
@@ -235,16 +235,16 @@ theorem jointProgOpt_eq (hsim : VR.FormatBounds B) (x : X) (σ : FiatShamirSalt 
   · next wr hw =>
     have hr : (VR.writesOf x ch o).elim (OracleProg.pure ⟨none, []⟩) (fun wr =>
         M.jointBody Λ VR B x σ ch ρ ν d o wr fun hp =>
-          FullPast.Internal.encodeTotal M.toFullPast B (M.proofOfHeaps σ wr hp
+          Base.Internal.encodeTotal M.toBase B (M.proofOfHeaps σ wr hp
             ((VR.posC x ch).map fun q => ⟨ν q, VR.colOf x ch o q⟩) (VR.posC x ch))) =
         M.jointBody Λ VR B x σ ch ρ ν d o wr fun hp =>
-          FullPast.Internal.encodeTotal M.toFullPast B (M.proofOfHeaps σ wr hp
+          Base.Internal.encodeTotal M.toBase B (M.proofOfHeaps σ wr hp
             ((VR.posC x ch).map fun q => ⟨ν q, VR.colOf x ch o q⟩) (VR.posC x ch)) := by
       rw [hw]
       rfl
     rw [hr]
     refine congrArg (M.jointBody Λ VR B x σ ch ρ ν d o wr) (funext fun hp => ?_)
-    exact (FullPast.Internal.encodeTotal_of_bounded _ _).symm
+    exact (Base.Internal.encodeTotal_of_bounded _ _).symm
 
 variable [∀ j i, Nonempty ((P j).Challenge i)] [∀ j i, Fintype ((M.comp j).MessageWrite i)]
 
@@ -254,9 +254,9 @@ theorem run_jointProg (x : X) (σ : FiatShamirSalt kS) (ch : Chs P t)
     (o : CausalView VR.MV) :
     (M.jointProg Λ VR B x σ ch ρ ν d o).run h =
       (VR.writesOf x ch o).elim ⟨none, []⟩ fun wr =>
-      ⟨FullPast.Internal.encodeTotal M.toFullPast B (M.toFullPast.buildProof h σ wr (M.toFullPast.jointLeaf VR h x ch ν d o)
+      ⟨Base.Internal.encodeTotal M.toBase B (M.toBase.buildProof h σ wr (M.toBase.jointLeaf VR h x ch ν d o)
           ((VR.posC x ch).map fun q => ⟨ν q, VR.colOf x ch o q⟩) (VR.posC x ch)),
-        M.buildAssign h ⟨σ, x⟩ ρ wr (M.toFullPast.jointLeaf VR h x ch ν d o)⟩ := by
+        M.buildAssign h ⟨σ, x⟩ ρ wr (M.toBase.jointLeaf VR h x ch ν d o)⟩ := by
   unfold jointProg jointBody
   cases hw : VR.writesOf x ch o with
   | none => rfl
@@ -265,21 +265,21 @@ theorem run_jointProg (x : X) (σ : FiatShamirSalt kS) (ch : Chs P t)
       M.mem_treeList, ite_true, Base.mem_chList, MerkleTree.run_heapProg, run_keyProg,
       MerkleTree.run_leafProg, run_finalsProg]
     have hld : (fun q => if q ∈ (VR.posC x ch).dedup then
-        MerkleTree.leafDigest h ⟨ν q, VR.colOf x ch o q⟩ else d q) = M.toFullPast.jointLeaf VR h x ch ν d o := by
+        MerkleTree.leafDigest h ⟨ν q, VR.colOf x ch o q⟩ else d q) = M.toBase.jointLeaf VR h x ch ν d o := by
       funext q
-      simp only [List.mem_dedup, FullPast.jointLeaf]
+      simp only [List.mem_dedup, Base.jointLeaf]
     rw [hld]
-    have hh : M.toFullPast.HeapsOf h (M.toFullPast.jointLeaf VR h x ch ν d o) fun τ =>
+    have hh : M.toBase.HeapsOf h (M.toBase.jointLeaf VR h x ch ν d o) fun τ =>
         MerkleTree.nodeDigest h ((M.comp τ.leaf.label).nLeaves τ.tree.msg τ.tree.tree)
-          (M.extD (M.toFullPast.jointLeaf VR h x ch ν d o) ((M.defaultProg).run h) τ) :=
-      FullPast.heapsOf_nodeDigest (fun τ j hj => by rw [Base.extD, dite_eq_left hj])
-        (fun τ h0 => by rw [Base.extD, dite_eq_right (by simp only [SPBCS.toFullPast] at h0; omega), M.toFullPast.run_defaultProg h0])
+          (M.extD (M.toBase.jointLeaf VR h x ch ν d o) ((M.defaultProg).run h) τ) :=
+      Base.heapsOf_nodeDigest (fun τ j hj => by rw [Base.extD, dite_eq_left hj])
+        (fun τ h0 => by rw [Base.extD, dite_eq_right (by omega), M.toBase.run_defaultProg h0])
     have hch : (fun q => M.writeLeaf ρ (fun p i => wr p i fun τ => MerkleTree.nodeDigest h
-        ((M.comp p.label).nLeaves i τ) (M.extD (M.toFullPast.jointLeaf VR h x ch ν d o) ((M.defaultProg).run h)
-          ⟨p, ⟨i, τ⟩⟩) 1) q (n q.label)) = M.buildChains h ρ wr (M.toFullPast.jointLeaf VR h x ch ν d o) :=
+        ((M.comp p.label).nLeaves i τ) (M.extD (M.toBase.jointLeaf VR h x ch ν d o) ((M.defaultProg).run h)
+          ⟨p, ⟨i, τ⟩⟩) 1) q (n q.label)) = M.buildChains h ρ wr (M.toBase.jointLeaf VR h x ch ν d o) :=
       funext fun q => (hh.buildLeaf_eq ρ wr q _).symm
     rw [hch, hh.buildProof_eq, M.assignOfKeys_eq_buildAssign (h := h) ⟨σ, x⟩ ρ wr
-      (M.toFullPast.jointLeaf VR h x ch ν d o) fun c => by
+      (M.toBase.jointLeaf VR h x ch ν d o) fun c => by
         rw [buildKey, buildFinals, hh.buildLeaf_eq ρ wr c.leaf]]
 
 omit [∀ j i, Nonempty ((P j).Challenge i)] [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
@@ -332,10 +332,10 @@ theorem assignsAtKeys_jointProg (hk : 0 < k) (x : X) (σ : FiatShamirSalt kS) (c
   rw [hw] at hqa
   simp only [Option.elim, buildAssign, List.mem_map] at hqa
   obtain ⟨cc, hcc, rfl⟩ := hqa
-  set ld := M.toFullPast.jointLeaf VR O x ch ν d o
+  set ld := M.toBase.jointLeaf VR O x ch ν d o
   set ss : SaltedStatement kS X := ⟨σ, x⟩
   set cont : M.MContent := roundContent ss (M.buildChains O ρ wr ld) (M.buildFinals O ss ρ wr ld)
-    cc.leaf (M.toFullPast.buildLeaf O ρ wr ld cc.leaf cc.idx.1) with hcont
+    cc.leaf (M.toBase.buildLeaf O ρ wr ld cc.leaf cc.idx.1) with hcont
   have hwf : cont.WF n (fun j => chainWF (P j)) := M.wf_buildRound _ _ _ _ _ _ cc
   refine ⟨M.senc.encode cont, cont, ?_, M.senc.decode_encode _ hwf, rfl, rfl⟩
   set Tq : Query k kN kS L := .transcript (M.senc.encode cont) with hTdef
@@ -357,7 +357,7 @@ theorem assignsAtKeys_jointProg (hk : 0 < k) (x : X) (σ : FiatShamirSalt kS) (c
   have hkey := (List.map_inj_left.1 h2) cc hcc
   simp only [Assignment.mk.injEq, Query.xof.injEq] at hkey
   have hk1 := hkey.1.1
-  rw [M.toFullPast.jointLeaf_congr VR hleaf] at hk1
+  rw [M.toBase.jointLeaf_congr VR hleaf] at hk1
   have hch := M.buildChains_congr ρ wr ld hleaf hnode
   have hfin : M.buildFinals O'' ss ρ wr ld = M.buildFinals O ss ρ wr ld := by
     unfold buildFinals
@@ -368,7 +368,7 @@ theorem assignsAtKeys_jointProg (hk : 0 < k) (x : X) (σ : FiatShamirSalt kS) (c
     have := M.senc.encode_injective (M.wf_buildFinal _ _ _ _ _ fs s) hwf (Query.transcript.inj he)
     simp [hcont, roundContent, finalContent] at this
   unfold buildKey key at hk1
-  rw [hch, M.toFullPast.buildLeaf_congr hleaf hnode, hfin] at hk1
+  rw [hch, M.toBase.buildLeaf_congr hleaf hnode, hfin] at hk1
   have e2 : (O'' Tq).digest = d' := by
     rw [hO'', Function.update_self]
   exact hd' (e2.symm.trans hk1.symm)

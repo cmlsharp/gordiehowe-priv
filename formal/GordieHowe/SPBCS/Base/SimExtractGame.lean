@@ -3,8 +3,8 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.SimProg
-public import GordieHowe.SPBCS.FullPast.Verifier
+public import GordieHowe.SPBCS.Base.SimProg
+public import GordieHowe.SPBCS.Base.Extractor
 public import GordieHowe.SPBCS.Extraction.KnowledgeError
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.Model.QROM.QueryCount
@@ -16,11 +16,11 @@ public import GordieHowe.Model.Quantum.Interactive.QueryBounded
 @[expose] public section
 
 /-!
-# The simulation-sound extractability game of the series–parallel base model
+# The simulation-sound extractability game of the compiler data
 
 The objects of the weak simulation-sound extractability game (Unruh 2017, ePrint 2017/398,
-Definition 14, p. 21, eq. (6), for residual-state tests that make no oracle queries) at the
-series–parallel base model (`GordieHowe.SPBCS.FullPast`, `GordieHowe/SPBCS/FullPast/Model.lean`), and the classical
+Definition 14, p. 21, eq. (6), for residual-state tests that make no oracle queries) for the
+compiler data (`GordieHowe.SPBCS.Base`, `GordieHowe/SPBCS/Base.lean`), and the classical
 facts about one run. The spBCS compiler's game (`GordieHowe/SPBCS/SimExtractGame.lean`) uses them with the
 spBCS verifier.
 

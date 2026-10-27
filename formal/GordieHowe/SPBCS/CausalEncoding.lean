@@ -10,13 +10,15 @@ public import Mathlib.Data.List.Sigma
 @[expose] public section
 
 /-!
-# Chain inputs of a series–parallel composition
+# Causal pasts of a series–parallel composition and their encoding
 
-The Fiat–Shamir compiler on a series–parallel term `t` (`GordieHowe.SPBCS.FullPast`, `GordieHowe/Model/IOP/Causal.lean`) derives the
-challenge of round `r` of leaf `p` from a hash of that challenge's causal past: the Fiat–Shamir
-salt, the statement, the leaf's label, the chains of every leaf sequenced before `p`, and the
-first `r` items of `p`'s own chain (its writes and absorbed digests). This file fixes what a chain
-input holds and how it is encoded.
+The causal past of the challenge of round `r` of leaf `p` of a series–parallel term `t`
+(`GordieHowe/Model/IOP/Causal.lean`): the Fiat–Shamir salt, the statement, the leaf's label, the
+chains of every leaf sequenced before `p`, and the first `r` items of `p`'s own chain (its writes
+and absorbed digests). This file fixes what a causal past holds and how it is encoded. The
+database extractor of the compiler data reads causal pasts in this encoding
+(`GordieHowe.SPBCS.Base.enc`), and the encoding of chain inputs with merges reuses its context
+bytes (`GordieHowe/SPBCS/Bytes.lean`).
 
 * `CausalChain t k W`: the content of a chain input at the term `t`: the leaf `leaf`, a chain for
   every leaf (`chains`; only those of the leaves before `leaf` are read) and the leaf's own items

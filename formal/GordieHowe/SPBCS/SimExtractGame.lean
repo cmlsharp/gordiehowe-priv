@@ -5,7 +5,7 @@ module
 
 public import GordieHowe.SPBCS.Knowledge
 public import GordieHowe.SPBCS.SimAssign
-public import GordieHowe.SPBCS.FullPast.SimExtractGame
+public import GordieHowe.SPBCS.Base.SimExtractGame
 
 @[expose] public section
 
@@ -16,7 +16,7 @@ The objects of the weak simulation-sound extractability game (Unruh 2017, ePrint
 Definition 14, p. 21, eq. (6), for residual-state tests that make no oracle queries) for the
 spBCS compiler (`GordieHowe/SPBCS/Basic.lean`), and the classical facts about one run. The registers, the adversary's
 output, the assignments in force, the queried statements, the simulator's query inputs and the
-final answers are those of the compiler over the term (`GordieHowe.SPBCS.Base.Register`, `advOut`,
+final answers are those of the compiler data (`GordieHowe.SPBCS.Base.Register`, `advOut`,
 `finalAss`, `queried`, `simQueryInputs`, `finalAnswer`); what changes is the verifier.
 
 - `SimAssignsAtKeys`: the property of a counted simulator program that the argument uses (paper
@@ -25,8 +25,8 @@ final answers are those of the compiler over the term (`GordieHowe.SPBCS.Base.Re
   salt and the queried statement. The bits form of `GordieHowe.SPBCS.AssignsAtKeys`
   (`GordieHowe/SPBCS/SimAssign.lean`); `simAssignsAtKeys_of_mapQuery` derives it for a program that maps
   a plain one.
-- `Wins`, `extractionProg`, `simExtractionExpansion`, `simExtGame`: as for the compiler over
-  the term, with the spBCS verifier `Accepts` and its queries `queries`.
+- `Wins`, `extractionProg`, `simExtractionExpansion`, `simExtGame`: with the spBCS verifier
+  `Accepts` and its queries `queries`.
 - `exists_input_of_xof_mem_queries`: an `xof` query of the verifier is the point at the key of
   one of its chain inputs, at the proof's salt; the chain input encodes the proof's salted
   statement.
@@ -297,11 +297,10 @@ theorem cover_simExtGame [DecidableEq X] (hrbr : CausalRBRKnowledgeSound rel V E
   · exact Or.inr (Or.inr hcol)
   obtain ⟨h, hv, hcov⟩ := ho.2.1
   have hQ := lookup_of_mem_queries_of_no_collision A Psim Q fx ho hD hcol hcov
-  rcases mem_of_verify rel E St hrbr hv (D := D.restrict Query.toBits) hQ with hc | hE | hb | hc
+  rcases mem_of_verify rel E St hrbr hv (D := D.restrict Query.toBits) hQ with hc | hE | hb
   · exact Or.inr (Or.inr hc)
   · exact Or.inl hE
   · exact Or.inr (Or.inl hb)
-  · exact absurd hc (trans_notMem_digestCollision hcol)
 
 end Run
 

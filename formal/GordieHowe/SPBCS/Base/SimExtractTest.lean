@@ -3,17 +3,17 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.SimExtract
+public import GordieHowe.SPBCS.Base.SimExtract
 public import GordieHowe.Model.Quantum.Interactive.AdaptiveTest
 public import GordieHowe.Model.Quantum.Interactive.QueryFreeTest
 
 @[expose] public section
 
 /-!
-# Tests of the residual state in the series–parallel base model
+# Tests of the residual state
 
 The tests of the test forms of simulation-sound extractability (Unruh 2017, ePrint 2017/398,
-Definition 14, p. 21, eq. (6)) at the series–parallel base model (`GordieHowe.SPBCS.FullPast`). The namespace
+Definition 14, p. 21, eq. (6)) for the compiler data (`GordieHowe.SPBCS.Base`). The namespace
 `GordieHowe.SPBCS` states the test forms for the spBCS compiler with them (`GordieHowe/SPBCS/SimExtractTest.lean`:
 `GordieHowe.SPBCS.simulation_sound_extractability_folded`,
 `GordieHowe.SPBCS.simulation_sound_extractability_query_free`, with Unruh's Prove with a query-free test

@@ -5,7 +5,7 @@ module
 
 public import GordieHowe.SPBCS.Salt
 public import GordieHowe.SPBCS.Complete
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
 public import GordieHowe.Model.QROM.SaltedZKProofQuery
 
 @[expose] public section
@@ -16,9 +16,8 @@ public import GordieHowe.Model.QROM.SaltedZKProofQuery
 Everlasting zero knowledge of the compiler on a series–parallel term with merges
 (`GordieHowe/SPBCS/Basic.lean`, paper `thm:bcs-zk`) in the quantum random-oracle model, from
 honest-verifier zero knowledge of the composite's observation (`GordieHowe.IOP.CausalHVZK`, CY24
-Definition 23.1.8). The argument is the one for the compiler over the term
-(`GordieHowe/SPBCS/FullPast/ZeroKnowledge.lean`), whose built chains, proofs and leaf hiding it reuses; what
-changes is the chain inputs:
+Definition 23.1.8). The argument uses the built chains, proofs and leaf hiding of the compiler data
+(`GordieHowe/SPBCS/Base/ZeroKnowledge.lean`), with the chain inputs with merges:
 
 * the slice of the salt `σ` (`saltOfBits`): the `transcript` inputs whose content carries `σ`,
   and the `xof` inputs of `σ`. Every query of the honest prover and every point the simulator
@@ -136,8 +135,8 @@ section Build
 variable (h : Query k kN kS L → Out k e) (ss : SaltedStatement kS X)
   (ρ : ChIdx P t → Out k e) (wr : M.RootWriteFn) (ld : M.Pos → Digest k)
 
-/-- **The built chains** of all leaves (`FullPast.buildLeaf`, full length). -/
-def buildChains : M.Chains := fun q => M.toFullPast.buildLeaf h ρ wr ld q (n q.label)
+/-- **The built chains** of all leaves (`Base.buildLeaf`, full length). -/
+def buildChains : M.Chains := fun q => M.toBase.buildLeaf h ρ wr ld q (n q.label)
 
 /-- **The final digests of the built chains**: the solution of their equation. -/
 def buildFinals : Mg.Site → Digest k := M.finalsWith h ss (M.buildChains h ρ wr ld)
@@ -146,7 +145,7 @@ def buildFinals : Mg.Site → Digest k := M.finalsWith h ss (M.buildChains h ρ 
 built chains and the built final digests. -/
 def buildKey (c : ChIdx P t) : Digest k :=
   M.key h ss (M.buildChains h ρ wr ld) (M.buildFinals h ss ρ wr ld) c.leaf
-    (M.toFullPast.buildLeaf h ρ wr ld c.leaf c.idx.1)
+    (M.toBase.buildLeaf h ρ wr ld c.leaf c.idx.1)
 
 /-- **The built assignment list**: each challenge's stream at the `xof` input of its key on the
 built chains and the salt, in global round order. -/
@@ -154,25 +153,25 @@ def buildAssign : List (Assignment (Query k kN kS L) (Out k e)) :=
   (Base.chList P t).map fun c => ⟨.xof (M.buildKey h ss ρ wr ld c) ss.salt, ρ c⟩
 
 theorem chainWF_buildChains (q : t.Leaf) : chainWF (P q.label) (M.buildChains h ρ wr ld q) :=
-  M.toFullPast.chainWF_buildLeaf h ρ wr ld q le_rfl
+  M.toBase.chainWF_buildLeaf h ρ wr ld q le_rfl
 
 theorem length_buildChains (q : t.Leaf) : (M.buildChains h ρ wr ld q).length = n q.label :=
-  M.toFullPast.length_buildLeaf h ρ wr ld q _
+  M.toBase.length_buildLeaf h ρ wr ld q _
 
 /-- **The built chains have a write at every prover round.** -/
 theorem writesAll_buildChains : M.WritesAll (M.buildChains h ρ wr ld) := by
   intro p i
-  rw [buildChains, M.toFullPast.buildLeaf_getElem? h ρ wr ld p _ i.1.1 i.1.2]
-  unfold FullPast.buildItem
+  rw [buildChains, M.toBase.buildLeaf_getElem? h ρ wr ld p _ i.1.1 i.1.2]
+  unfold Base.buildItem
   rw [dite_eq_left i.1.2, dite_eq_left i.2]
   exact ⟨_, rfl⟩
 
 /-- **The chain input of a challenge on the built chains is well formed.** -/
 theorem wf_buildRound (fs : Mg.Site → Digest k) (c : ChIdx P t) :
-    (roundContent ss (M.buildChains h ρ wr ld) fs c.leaf (M.toFullPast.buildLeaf h ρ wr ld c.leaf c.idx.1)).WF n
+    (roundContent ss (M.buildChains h ρ wr ld) fs c.leaf (M.toBase.buildLeaf h ρ wr ld c.leaf c.idx.1)).WF n
       fun j => chainWF (P j) :=
   wf_roundContent_of fs (M.chainWF_buildChains h ρ wr ld) (M.length_buildChains h ρ wr ld)
-    (M.toFullPast.chainWF_buildLeaf h ρ wr ld _ c.idx.1.2.le) (by rw [FullPast.length_buildLeaf]; exact c.idx.1.2)
+    (M.toBase.chainWF_buildLeaf h ρ wr ld _ c.idx.1.2.le) (by rw [Base.length_buildLeaf]; exact c.idx.1.2)
 
 /-- **A final input on the built chains is well formed.** -/
 theorem wf_buildFinal (fs : Mg.Site → Digest k) (s : Mg.Site) :
@@ -185,7 +184,7 @@ variable {h₁ h₂ : Query k kN kS L → Out k e}
 theorem buildChains_congr (hleaf : ∀ a b, h₁ (.leaf a b) = h₂ (.leaf a b))
     (hnode : ∀ l r, h₁ (.node l r) = h₂ (.node l r)) :
     M.buildChains h₁ ρ wr ld = M.buildChains h₂ ρ wr ld :=
-  funext fun q => M.toFullPast.buildLeaf_congr hleaf hnode ρ wr ld q _
+  funext fun q => M.toBase.buildLeaf_congr hleaf hnode ρ wr ld q _
 
 /-- **A built key reads the oracle only at `leaf` and `node` queries and at `transcript` queries
 of its salt.** -/
@@ -202,7 +201,7 @@ theorem buildKey_congr (hleaf : ∀ a b, h₁ (.leaf a b) = h₂ (.leaf a b))
       rw [M.querySalt_transcript_encode (M.wf_buildFinal h₂ ss ρ wr ld fs s)]
       rfl)
   unfold buildKey key
-  rw [hch, hfin, M.toFullPast.buildLeaf_congr hleaf hnode, htr _ (by
+  rw [hch, hfin, M.toBase.buildLeaf_congr hleaf hnode, htr _ (by
     rw [M.querySalt_transcript_encode (M.wf_buildRound h₂ ss ρ wr ld _ c)]
     rfl)]
 
@@ -219,22 +218,22 @@ variable {M} (E : (j : ι) → (M.comp j).Encoder) (prv : CausalProver P t X) (x
 /-- **A built key of the honest prover is causal in the streams**: the key of challenge `c` reads
 only the streams of the challenges before it in global round order. -/
 theorem buildKey_honest_congr (ss : SaltedStatement kS X) {ρ ρ' : ChIdx P t → Out k e}
-    (c : ChIdx P t) (hρ : ∀ j : ChIdx P t, FullPast.gIdx j < FullPast.gIdx c → ρ j = ρ' j) :
+    (c : ChIdx P t) (hρ : ∀ j : ChIdx P t, Base.gIdx j < Base.gIdx c → ρ j = ρ' j) :
     M.buildKey h ss ρ (Base.honestWrite' E prv x ρ)
-        (FullPast.honestDigest E prv x ν h ρ) c =
+        (Base.honestDigest E prv x ν h ρ) c =
       M.buildKey h ss ρ' (Base.honestWrite' E prv x ρ')
-        (FullPast.honestDigest E prv x ν h ρ') c := by
+        (Base.honestDigest E prv x ν h ρ') c := by
   have hbefore : ∀ q : t.Leaf, q.Before c.leaf →
       M.buildChains h ρ (Base.honestWrite' E prv x ρ)
-          (FullPast.honestDigest E prv x ν h ρ) q =
+          (Base.honestDigest E prv x ν h ρ) q =
         M.buildChains h ρ' (Base.honestWrite' E prv x ρ')
-          (FullPast.honestDigest E prv x ν h ρ') q := fun q hq =>
-    FullPast.buildLeaf_honest_congr E prv x ν h q _ fun j hj => hρ j (by
+          (Base.honestDigest E prv x ν h ρ') q := fun q hq =>
+    Base.buildLeaf_honest_congr E prv x ν h q _ fun j hj => hρ j (by
       have := Leaf.Before.off_add_le n hq
-      unfold FullPast.gIdx at hj ⊢
+      unfold Base.gIdx at hj ⊢
       omega)
   unfold buildKey
-  rw [FullPast.buildLeaf_honest_congr E prv x ν h c.leaf c.idx.1 fun j hj => hρ j hj]
+  rw [Base.buildLeaf_honest_congr E prv x ν h c.leaf c.idx.1 fun j hj => hρ j hj]
   refine congrFun (key_congr (fun q hq => hbefore q hq.1) fun s hs => ?_) _
   exact finalsWith_congr_of_hides hbefore hs
 
@@ -242,9 +241,9 @@ theorem buildKey_honest_congr (ss : SaltedStatement kS X) {ρ ρ' : ChIdx P t �
 `xof` input of its built key at the streams `ρ` and the salt. -/
 noncomputable def keyStep (ρ : ChIdx P t → Out k e) : ChIdx P t → Out k e := fun c =>
   h (.xof (M.buildKey h ⟨σ, x⟩ ρ (Base.honestWrite' E prv x ρ)
-    (FullPast.honestDigest E prv x ν h ρ) c) σ)
+    (Base.honestDigest E prv x ν h ρ) c) σ)
 
-theorem rankCausal_keyStep : RankCausal (keyStep E prv x ν σ h) FullPast.gIdx :=
+theorem rankCausal_keyStep : RankCausal (keyStep E prv x ν σ h) Base.gIdx :=
   fun ρ ρ' c hρ => by
     unfold keyStep
     rw [buildKey_honest_congr E prv x ν h _ c hρ]
@@ -257,18 +256,18 @@ noncomputable def honestStreams : ChIdx P t → Out k e :=
 /-- **The honest stream of challenge `c` is the oracle at the `xof` input of its built key.** -/
 theorem honestStreams_eq (c : ChIdx P t) :
     honestStreams E prv x ν σ h c = keyStep E prv x ν σ h (honestStreams E prv x ν σ h) c :=
-  congrFun ((rankCausal_keyStep E prv x ν σ h).iterate_fixed _ FullPast.gIdx_lt_size) c
+  congrFun ((rankCausal_keyStep E prv x ν σ h).iterate_fixed _ Base.gIdx_lt_size) c
 
 /-- **The honest streams are the only solution of the key equation.** -/
 theorem eq_honestStreams {ρ : ChIdx P t → Out k e} (hρ : ∀ c, ρ c = keyStep E prv x ν σ h ρ c) :
     ρ = honestStreams E prv x ν σ h :=
-  (rankCausal_keyStep E prv x ν σ h).eq_iterate _ FullPast.gIdx_lt_size hρ
+  (rankCausal_keyStep E prv x ν σ h).eq_iterate _ Base.gIdx_lt_size hρ
 
 /-- **The honest chains**: the built chains at the honest streams, writes and leaf digests. -/
 noncomputable def honestBuiltChains : M.Chains :=
   M.buildChains h (honestStreams E prv x ν σ h)
     (Base.honestWrite' E prv x (honestStreams E prv x ν σ h))
-    (FullPast.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
+    (Base.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
 
 /-- The honest queried positions: the query phase's positions on the honest chains at the
 challenges read from the honest streams. -/
@@ -279,8 +278,8 @@ noncomputable def honestBuiltPos {V : X → FullTr P t → Bool} (Q : M.IOPQueri
 proof at the honest streams, writes and leaf digests, with the honest leaves opened at the queried
 positions. -/
 noncomputable def honestProof {V : X → FullTr P t → Bool} (Q : M.IOPQueries V x) : M.NIProof :=
-  M.toFullPast.buildProof h σ (Base.honestWrite' E prv x (honestStreams E prv x ν σ h))
-    (FullPast.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
+  M.toBase.buildProof h σ (Base.honestWrite' E prv x (honestStreams E prv x ν σ h))
+    (Base.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
     (Base.honestOpened E prv x ν (honestStreams E prv x ν σ h) (honestBuiltPos E prv x ν σ h Q))
     (honestBuiltPos E prv x ν σ h Q)
 
@@ -289,8 +288,8 @@ variable {V : X → FullTr P t → Bool} {Qs : ∀ x, M.IOPQueries V x}
 /-- **The honest proof at the positions of the view law.** -/
 theorem honestProof_eq_buildProof (VE : M.ViewEncoder E Qs) :
     honestProof E prv x ν σ h (Qs x) =
-      M.toFullPast.buildProof h σ (Base.honestWrite' E prv x (honestStreams E prv x ν σ h))
-        (FullPast.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
+      M.toBase.buildProof h σ (Base.honestWrite' E prv x (honestStreams E prv x ν σ h))
+        (Base.honestDigest E prv x ν h (honestStreams E prv x ν σ h))
         (Base.honestOpened E prv x ν (honestStreams E prv x ν σ h)
           (VE.posC x (M.chOfStreams (honestStreams E prv x ν σ h))))
         (VE.posC x (M.chOfStreams (honestStreams E prv x ν σ h))) := by
@@ -304,10 +303,10 @@ theorem keyStep_congr_slice {h' : Query k kN kS L → Out k e}
     (hh : AgreeOnSlice M.querySalt σ h h') : keyStep E prv x ν σ h = keyStep E prv x ν σ h' := by
   have hleaf : ∀ a b, h (.leaf a b) = h' (.leaf a b) := fun a b => hh _ (Or.inl rfl)
   have hnode : ∀ l r, h (.node l r) = h' (.node l r) := fun l r => hh _ (Or.inl rfl)
-  have hd : ∀ ρ, FullPast.honestDigest E prv x ν h ρ = FullPast.honestDigest E prv x ν h' ρ :=
+  have hd : ∀ ρ, Base.honestDigest E prv x ν h ρ = Base.honestDigest E prv x ν h' ρ :=
     fun ρ => by
       funext q
-      simp only [FullPast.honestDigest, MerkleTree.leafDigest, hleaf]
+      simp only [Base.honestDigest, MerkleTree.leafDigest, hleaf]
   funext ρ c
   simp only [keyStep, hd]
   rw [M.buildKey_congr _ _ _ _ hleaf hnode (fun b hb => hh _ (Or.inr hb)) c]
@@ -320,16 +319,16 @@ theorem honestProof_congr_salt {h' : Query k kN kS L → Out k e} (Q : M.IOPQuer
     honestProof E prv x ν σ h Q = honestProof E prv x ν σ h' Q := by
   have hleaf : ∀ a b, h (.leaf a b) = h' (.leaf a b) := fun a b => hh _ (Or.inl rfl)
   have hnode : ∀ l r, h (.node l r) = h' (.node l r) := fun l r => hh _ (Or.inl rfl)
-  have hd : ∀ ρ, FullPast.honestDigest E prv x ν h ρ = FullPast.honestDigest E prv x ν h' ρ :=
+  have hd : ∀ ρ, Base.honestDigest E prv x ν h ρ = Base.honestDigest E prv x ν h' ρ :=
     fun ρ => by
       funext q
-      simp only [FullPast.honestDigest, MerkleTree.leafDigest, hleaf]
+      simp only [Base.honestDigest, MerkleTree.leafDigest, hleaf]
   have hs : honestStreams E prv x ν σ h = honestStreams E prv x ν σ h' := by
     unfold honestStreams
     rw [keyStep_congr_slice E prv x ν σ hh]
   have hch : ∀ ρ wr ld, M.buildChains h ρ wr ld = M.buildChains h' ρ wr ld := fun ρ wr ld =>
     M.buildChains_congr ρ wr ld hleaf hnode
-  simp only [honestProof, honestBuiltPos, honestBuiltChains, hs, hd, hch, M.toFullPast.buildProof_congr hleaf hnode]
+  simp only [honestProof, honestBuiltPos, honestBuiltChains, hs, hd, hch, M.toBase.buildProof_congr hleaf hnode]
 
 end Honest
 
@@ -357,18 +356,18 @@ theorem chOfW_answers :
 /-- **The honest prover's chains are the built chains** at the streams of its run. -/
 theorem chainW_honest_eq (p : t.Leaf) : ∀ r,
     chainW prv x (Base.honestWrite E ν h) (answers prv x σ E ν h) p r =
-      M.toFullPast.buildLeaf h (runStreams E prv x ν σ h)
+      M.toBase.buildLeaf h (runStreams E prv x ν σ h)
         (Base.honestWrite' E prv x (runStreams E prv x ν σ h))
-        (FullPast.honestDigest E prv x ν h (runStreams E prv x ν σ h)) p r
+        (Base.honestDigest E prv x ν h (runStreams E prv x ν σ h)) p r
   | 0 => rfl
   | r + 1 => by
-    rw [chainW, FullPast.buildLeaf, chainW_honest_eq p r]
+    rw [chainW, Base.buildLeaf, chainW_honest_eq p r]
     congr 2
-    unfold itemW FullPast.buildItem
+    unfold itemW Base.buildItem
     split_ifs with hr hd
     · rw [chOfW_answers]
       exact congrArg (fun w => (Item.write ⟨⟨⟨r, hr⟩, hd⟩, w⟩ : Item k (M.comp p.label).W))
-        (FullPast.honestWrite_eq E prv x ν h _ p ⟨⟨r, hr⟩, hd⟩)
+        (Base.honestWrite_eq E prv x ν h _ p ⟨⟨r, hr⟩, hd⟩)
     · rfl
     · rfl
 
@@ -376,7 +375,7 @@ theorem chsW_honest_eq :
     chsW prv x (Base.honestWrite E ν h) (answers prv x σ E ν h) =
       M.buildChains h (runStreams E prv x ν σ h)
         (Base.honestWrite' E prv x (runStreams E prv x ν σ h))
-        (FullPast.honestDigest E prv x ν h (runStreams E prv x ν σ h)) :=
+        (Base.honestDigest E prv x ν h (runStreams E prv x ν σ h)) :=
   funext fun p => chainW_honest_eq E prv x ν σ h p _
 
 /-- **The streams of the honest prover's run solve the key equation.** -/
@@ -414,13 +413,13 @@ theorem prove_eq_honestProof {V : X → FullTr P t → Bool} (Q : M.IOPQueries V
         (honestBuiltPos E prv x ν σ h Q) := by
     rw [honestLeaves, hpos, Base.honestOpened, hch]
     exact List.map_congr_left fun q _ => Base.leafFn_val E ν _ _ _ _ _
-  simp only [prove, honestProof, FullPast.buildProof, hleaves, hpos]
+  simp only [prove, honestProof, Base.buildProof, hleaves, hpos]
   congr 1
   · funext p i
-    rw [hch, FullPast.honestWrite_eq E prv x ν h]
+    rw [hch, Base.honestWrite_eq E prv x ν h]
   · funext τ
     simp only [MerkleFormat.path, MerkleTree.treeDigest, hch]
-    rw [FullPast.root_leafFn E prv x ν h]
+    rw [Base.root_leafFn E prv x ν h]
 
 end Bridge
 
@@ -436,9 +435,9 @@ most `B` leaves. -/
 theorem bounded_buildProof (h : Query k kN kS L → Out k e) (σ : FiatShamirSalt kS) (wr : M.RootWriteFn)
     (ld : M.Pos → Digest k) (ops : List (MerkleLeaf kN L)) (ps : List M.Pos) {B : ℕ}
     (hops : ops.length ≤ B) (hleaves : ∀ (p : t.Leaf) i τ, (M.comp p.label).nLeaves i τ ≤ B) :
-    M.Bounded B (M.toFullPast.buildProof h σ wr ld ops ps) := by
+    M.Bounded B (M.toBase.buildProof h σ wr ld ops ps) := by
   refine ⟨hops, fun τ => ?_⟩
-  simp only [FullPast.buildProof, List.length_map]
+  simp only [Base.buildProof, List.length_map]
   refine M.opening.length_sibs_le (fun j hj => ?_) ?_ (hleaves _ _ _)
   · obtain ⟨⟨j', a⟩, hm, rfl⟩ := List.mem_map.1 hj
     exact M.lt_of_mem_openedIn hm
@@ -468,7 +467,7 @@ noncomputable def niProverZKM (E : (j : ι) → (M.comp j).Encoder) {V : X → F
     GordieHowe.NARG.ProverFn (Bits (queryBits k kN kS L)) (XOut k e) X Wit (M.Response B)
       (SaltedCoins (FiatShamirSalt kS) (M.ProverCoins R)) where
   prove H x w a :=
-    FullPast.Internal.encodeTotal M.toFullPast B (prove (honest w a.coins.iop) x a.salt E a.coins.merkleSalts (chainOracle H) (Qs x))
+    Base.Internal.encodeTotal M.toBase B (prove (honest w a.coins.iop) x a.salt E a.coins.merkleSalts (chainOracle H) (Qs x))
   coins := PMF.uniformOfFintype _
 
 end Prover
@@ -490,7 +489,7 @@ noncomputable def outB (σ : FiatShamirSalt kS) (F : Bits (queryBits k kN kS L) 
     (ops : List (MerkleLeaf kN L)) (ps : List M.Pos) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
   let H' := replaceSlice M.saltOfBits σ H F
-  ⟨some (FullPast.Internal.encodeTotal M.toFullPast B (M.toFullPast.buildProof (chainOracle H') σ wr ld ops ps)),
+  ⟨some (Base.Internal.encodeTotal M.toBase B (M.toBase.buildProof (chainOracle H') σ wr ld ops ps)),
     H'.reprogram ((M.buildAssign (chainOracle H') ⟨σ, x⟩ ρ wr ld).map fun qa =>
       ⟨Query.toBits qa.input, (outEquiv k e).symm qa.output⟩)⟩
 
@@ -499,15 +498,15 @@ noncomputable def realOut (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
     (ν : M.Pos → MerkleSalt kN) (F : Bits (queryBits k kN kS L) → XOut k e) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
   let H' := replaceSlice M.saltOfBits σ H F
-  ⟨some (FullPast.Internal.encodeTotal M.toFullPast B (prove prv₀ x σ E ν (chainOracle H') (Qs x))), H'⟩
+  ⟨some (Base.Internal.encodeTotal M.toBase B (prove prv₀ x σ E ν (chainOracle H') (Qs x))), H'⟩
 
 /-- The lazily sampled reply: the honest proof built from the streams of the draw `d`, and the
 slice of `d` reprogrammed at the keys with those streams. -/
 noncomputable def lazyOut (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
-    (ν : M.Pos → MerkleSalt kN) (d : FullPast.StreamDraw k kN kS L e P t) :
+    (ν : M.Pos → MerkleSalt kN) (d : Base.StreamDraw k kN kS L e P t) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
   outB B H x σ d.slice d.streams (Base.honestWrite' E prv₀ x d.streams)
-    (FullPast.honestDigest E prv₀ x ν (chainOracle H) d.streams)
+    (Base.honestDigest E prv₀ x ν (chainOracle H) d.streams)
     (Base.honestOpened E prv₀ x ν d.streams (VE.posC x (M.chOfStreams d.streams)))
     (VE.posC x (M.chOfStreams d.streams))
 
@@ -522,15 +521,15 @@ noncomputable def innerR (σ : FiatShamirSalt kS) :
 /-- `innerL`: the honest proof built from fresh uniform streams. -/
 noncomputable def innerL (σ : FiatShamirSalt kS) :
     PMF (EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e)) :=
-  (PMF.uniformOfFintype (M.ProverCoins R × FullPast.StreamDraw k kN kS L e P t)).map
+  (PMF.uniformOfFintype (M.ProverCoins R × Base.StreamDraw k kN kS L e P t)).map
     fun a => lazyOut VE B H x σ (prv a.1.iop) a.1.merkleSalts a.2
 
 /-- The reply of `innerD` at a draw. -/
 noncomputable def mixOut (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
-    (d : FullPast.StreamDraw k kN kS L e P t) (z : M.Pos → MerkleSalt kN × Digest k) :
+    (d : Base.StreamDraw k kN kS L e P t) (z : M.Pos → MerkleSalt kN × Digest k) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
   outB B H x σ d.slice d.streams (Base.honestWrite' E prv₀ x d.streams)
-    (FullPast.mixDigest VE H x prv₀ (fun q => (z q).1) (fun q => (z q).2) d.streams)
+    (Base.mixDigest VE H x prv₀ (fun q => (z q).1) (fun q => (z q).2) d.streams)
     (Base.honestOpened E prv₀ x (fun q => (z q).1) d.streams
       (VE.posC x (M.chOfStreams d.streams)))
     (VE.posC x (M.chOfStreams d.streams))
@@ -538,7 +537,7 @@ noncomputable def mixOut (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
 /-- `innerD`: as `innerL`, with the digests of the unopened leaves uniform. -/
 noncomputable def innerD (σ : FiatShamirSalt kS) :
     PMF (EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e)) :=
-  (PMF.uniformOfFintype (M.toFullPast.LeafDraw R)).map fun a => mixOut VE B H x σ (prv a.iop) a.draw a.leaves
+  (PMF.uniformOfFintype (M.toBase.LeafDraw R)).map fun a => mixOut VE B H x σ (prv a.iop) a.draw a.leaves
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 open Classical in
@@ -577,7 +576,7 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 theorem innerD_out_eq (prv₀ : CausalProver P t X) (σ : FiatShamirSalt kS)
     (F : Bits (queryBits k kN kS L) → XOut k e) (ρ : ChIdx P t → Out k e)
     (ν : M.Pos → MerkleSalt kN) (d : M.Pos → Digest k) :
-    outB B H x σ F ρ (Base.honestWrite' E prv₀ x ρ) (FullPast.mixDigest VE H x prv₀ ν d ρ)
+    outB B H x σ F ρ (Base.honestWrite' E prv₀ x ρ) (Base.mixDigest VE H x prv₀ ν d ρ)
       (Base.honestOpened E prv₀ x ν ρ (VE.posC x (M.chOfStreams ρ)))
       (VE.posC x (M.chOfStreams ρ)) =
       outViewAt VE B H x σ F (M.chOfStreams ρ) ρ ν d
@@ -586,14 +585,14 @@ theorem innerD_out_eq (prv₀ : CausalProver P t X) (σ : FiatShamirSalt kS)
   set tr := prv₀.run x ch
   obtain ⟨chs, hl⟩ : ∃ chs : (p : t.Leaf) → M.Items p, (Qs x).pos chs ch = VE.posC x ch :=
     ⟨_, VE.pos_eq x _ ch
-      (FullPast.writesAll_honestChainsFullPast E prv₀ x ν (fun _ => 0) (chainOracle H))⟩
+      (M.writesAll_buildChains (chainOracle H) ρ (Base.honestWrite' E prv₀ x ρ) d)⟩
   have hcol : ∀ q ∈ VE.posC x ch, VE.colOf x ch (VE.MV.view tr) q =
       (E q.leaf.label).cols q.pos.msg (tr q.leaf q.pos.msg.1) q.pos.tree q.pos.leaf := fun q hq =>
     VE.colOf_obs x chs ch tr (CausalProver.challenges_run prv₀ x ch) q (hl ▸ hq)
-  have hld : FullPast.mixDigest VE H x prv₀ ν d ρ = fun q => if q ∈ VE.posC x ch then
+  have hld : Base.mixDigest VE H x prv₀ ν d ρ = fun q => if q ∈ VE.posC x ch then
       MerkleTree.leafDigest (chainOracle H) ⟨ν q, VE.colOf x ch (VE.MV.view tr) q⟩ else d q := by
     funext q
-    simp only [FullPast.mixDigest, FullPast.honestDigest]
+    simp only [Base.mixDigest, Base.honestDigest]
     split_ifs with hq
     · rw [hcol q hq]
     · rfl
@@ -685,22 +684,22 @@ variable (prv₀ : CausalProver P t X) (ν : M.Pos → MerkleSalt kN)
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 theorem honestDigest_sliceGlue (FX : Digest k → XOut k e) (ρ : ChIdx P t → Out k e) :
-    FullPast.honestDigest E prv₀ x ν (chainOracle (sliceGlue (M := M) H σ Fo FX)) ρ =
-      FullPast.honestDigest E prv₀ x ν (chainOracle H) ρ := by
+    Base.honestDigest E prv₀ x ν (chainOracle (sliceGlue (M := M) H σ Fo FX)) ρ =
+      Base.honestDigest E prv₀ x ν (chainOracle H) ρ := by
   funext q
-  simp only [FullPast.honestDigest, MerkleTree.leafDigest, sliceGlue_leaf]
+  simp only [Base.honestDigest, MerkleTree.leafDigest, sliceGlue_leaf]
 
 /-- The built chains at the streams `ρX` (quantum-oracle answers). -/
 noncomputable def lazyChains (ρX : ChIdx P t → XOut k e) : M.Chains :=
-  M.buildChains (chainOracle H) (FullPast.outs ρX)
-    (Base.honestWrite' E prv₀ x (FullPast.outs ρX))
-    (FullPast.honestDigest E prv₀ x ν (chainOracle H) (FullPast.outs ρX))
+  M.buildChains (chainOracle H) (Base.outs ρX)
+    (Base.honestWrite' E prv₀ x (Base.outs ρX))
+    (Base.honestDigest E prv₀ x ν (chainOracle H) (Base.outs ρX))
 
 /-- The built chain of leaf `p` at the streams `ρX`. -/
 noncomputable def lazyLeaf (ρX : ChIdx P t → XOut k e) (p : t.Leaf) (r : ℕ) : M.Items p :=
-  M.toFullPast.buildLeaf (chainOracle H) (FullPast.outs ρX)
-    (Base.honestWrite' E prv₀ x (FullPast.outs ρX))
-    (FullPast.honestDigest E prv₀ x ν (chainOracle H) (FullPast.outs ρX)) p r
+  M.toBase.buildLeaf (chainOracle H) (Base.outs ρX)
+    (Base.honestWrite' E prv₀ x (Base.outs ρX))
+    (Base.honestDigest E prv₀ x ν (chainOracle H) (Base.outs ρX)) p r
 
 /-- **The final digests** at the streams `ρX`: those of the built chains, with the final inputs
 answered by the slice part `Fo`. -/
@@ -738,14 +737,14 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 /-- **The built key on the glued slice is the lazy key.** -/
 theorem buildKey_sliceGlue (FX : Digest k → XOut k e) (ρX : ChIdx P t → XOut k e)
     (c : ChIdx P t) :
-    M.buildKey (chainOracle (sliceGlue (M := M) H σ Fo FX)) ⟨σ, x⟩ (FullPast.outs ρX)
-        (Base.honestWrite' E prv₀ x (FullPast.outs ρX))
-        (FullPast.honestDigest E prv₀ x ν (chainOracle H) (FullPast.outs ρX)) c =
+    M.buildKey (chainOracle (sliceGlue (M := M) H σ Fo FX)) ⟨σ, x⟩ (Base.outs ρX)
+        (Base.honestWrite' E prv₀ x (Base.outs ρX))
+        (Base.honestDigest E prv₀ x ν (chainOracle H) (Base.outs ρX)) c =
       lazyKey (E := E) H x σ Fo prv₀ ν c ρX := by
   have hleaf := sliceGlue_leaf (M := M) H σ Fo FX
   have hnode := sliceGlue_node (M := M) H σ Fo FX
   unfold buildKey buildFinals lazyKey lazyInput lazyFinals lazyChains lazyLeaf key
-  rw [M.buildChains_congr _ _ _ hleaf hnode, M.toFullPast.buildLeaf_congr hleaf hnode,
+  rw [M.buildChains_congr _ _ _ hleaf hnode, M.toBase.buildLeaf_congr hleaf hnode,
     finalsWith_congr_oracle (h₂ := chainOracle (sliceGlue (M := M) H σ Fo 0))
       fun fs s => sliceGlue_transcript H σ Fo FX 0 _,
     sliceGlue_transcript_eq H σ Fo FX (by
@@ -756,21 +755,21 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 theorem lazySol_eq (FX : Digest k → XOut k e) (c : ChIdx P t) :
     lazySol (E := E) H x σ Fo prv₀ ν FX c =
       FX (lazyKey (E := E) H x σ Fo prv₀ ν c (lazySol (E := E) H x σ Fo prv₀ ν FX)) := by
-  have hρ : FullPast.outs (lazySol (E := E) H x σ Fo prv₀ ν FX) =
+  have hρ : Base.outs (lazySol (E := E) H x σ Fo prv₀ ν FX) =
       honestStreams E prv₀ x ν σ (chainOracle (sliceGlue (M := M) H σ Fo FX)) := by
     funext j
-    simp [lazySol, FullPast.outs]
+    simp [lazySol, Base.outs]
   rw [lazySol, honestStreams_eq E prv₀ x ν σ _ c, keyStep, honestDigest_sliceGlue, ← hρ,
     buildKey_sliceGlue, sliceGlue_xof, Equiv.symm_apply_apply]
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 theorem lazyKey_causal (c : ChIdx P t) (ρX ρX' : ChIdx P t → XOut k e)
-    (h : ∀ j, (FullPast.chOrder P t).lt j c → ρX j = ρX' j) :
+    (h : ∀ j, (Base.chOrder P t).lt j c → ρX j = ρX' j) :
     lazyKey (E := E) H x σ Fo prv₀ ν c ρX = lazyKey (E := E) H x σ Fo prv₀ ν c ρX' := by
   rw [← buildKey_sliceGlue H x σ Fo prv₀ ν 0, ← buildKey_sliceGlue H x σ Fo prv₀ ν 0,
     ← honestDigest_sliceGlue H x σ Fo prv₀ ν 0, ← honestDigest_sliceGlue H x σ Fo prv₀ ν 0]
   exact buildKey_honest_congr E prv₀ x ν _ _ c fun j hj => by
-    simp only [FullPast.outs, h j hj]
+    simp only [Base.outs, h j hj]
 
 omit [∀ j i, Nonempty ((P j).Challenge i)] [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 variable (M) in
@@ -802,7 +801,7 @@ theorem lazyInput_injective (ρX : ChIdx P t → XOut k e) :
   have hl := congrArg Content.obs hc
   have ho := congrArg Content.ownLength hc
   simp only [roundContent, Content.obs_round, Merges.Obs.leaf.injEq] at hl
-  simp only [roundContent, Content.ownLength, FullPast.length_buildLeaf] at ho
+  simp only [roundContent, Content.ownLength, Base.length_buildLeaf] at ho
   obtain ⟨p, i⟩ := c
   obtain ⟨p', i'⟩ := c'
   dsimp only at hl ho
@@ -860,30 +859,30 @@ theorem prob_lazyKey_not_injective_le (ρX : ChIdx P t → XOut k e) :
   have hset : {Fo : NX → XOut k e | ¬ Function.Injective fun c =>
       lazyKey (E := E) H x σ Fo prv₀ ν c ρX} ⊆
       ⋃ c' : ChIdx P t, ⋃ c : ChIdx P t,
-        {Fo | FullPast.gIdx c < FullPast.gIdx c' ∧ g (Fo (a Fo c)) = g (Fo (a Fo c'))} := by
+        {Fo | Base.gIdx c < Base.gIdx c' ∧ g (Fo (a Fo c)) = g (Fo (a Fo c'))} := by
     intro Fo hFo
     simp only [Set.mem_ofPred_eq, Function.Injective, not_forall] at hFo
     obtain ⟨c, c', heq, hne⟩ := hFo
     simp only [Set.mem_iUnion, Set.mem_ofPred_eq]
-    rcases lt_or_gt_of_ne (fun he : FullPast.gIdx c = FullPast.gIdx c' =>
-      hne (FullPast.gIdx_injective he)) with h | h
+    rcases lt_or_gt_of_ne (fun he : Base.gIdx c = Base.gIdx c' =>
+      hne (Base.gIdx_injective he)) with h | h
     · exact ⟨c', c, h, heq⟩
     · exact ⟨c, c', h, heq.symm⟩
   calc ((PMF.uniformOfFintype (NX → XOut k e)).toOuterMeasure
         {Fo | ¬ Function.Injective fun c => lazyKey (E := E) H x σ Fo prv₀ ν c ρX}).toReal
       ≤ ((PMF.uniformOfFintype (NX → XOut k e)).toOuterMeasure (⋃ c' : ChIdx P t,
-          ⋃ c : ChIdx P t, {Fo | FullPast.gIdx c < FullPast.gIdx c' ∧
+          ⋃ c : ChIdx P t, {Fo | Base.gIdx c < Base.gIdx c' ∧
             g (Fo (a Fo c)) = g (Fo (a Fo c'))})).toReal :=
         ENNReal.toReal_mono (by rw [PMF.toOuterMeasure_apply]; exact PMF.tsum_coe_indicator_ne_top _ _)
           (MeasureTheory.measure_mono hset)
     _ ≤ ∑ c' : ChIdx P t, ∑ c : ChIdx P t,
           ((PMF.uniformOfFintype (NX → XOut k e)).toOuterMeasure
-            {Fo | FullPast.gIdx c < FullPast.gIdx c' ∧
+            {Fo | Base.gIdx c < Base.gIdx c' ∧
               g (Fo (a Fo c)) = g (Fo (a Fo c'))}).toReal :=
         (PMF.toReal_toOuterMeasure_iUnion_le _ _).trans
           (Finset.sum_le_sum fun c' _ => PMF.toReal_toOuterMeasure_iUnion_le _ _)
     _ ≤ ∑ c' : ChIdx P t, ∑ c : ChIdx P t,
-          (if FullPast.gIdx c < FullPast.gIdx c' then ((2 : ℝ) ^ (8 * k))⁻¹ else 0) :=
+          (if Base.gIdx c < Base.gIdx c' then ((2 : ℝ) ^ (8 * k))⁻¹ else 0) :=
         Finset.sum_le_sum fun c' _ => Finset.sum_le_sum fun c _ => by
           split_ifs with h
           · rw [← hpair c c' (fun he => by subst he; omega)]
@@ -892,11 +891,11 @@ theorem prob_lazyKey_not_injective_le (ρX : ChIdx P t → XOut k e) :
               (MeasureTheory.measure_mono fun Fo hFo => hFo.2)
           · simp [h]
     _ = (∑ c' : ChIdx P t, ((Finset.univ.filter fun c : ChIdx P t =>
-          FullPast.gIdx c < FullPast.gIdx c').card : ℝ)) * ((2 : ℝ) ^ (8 * k))⁻¹ := by
+          Base.gIdx c < Base.gIdx c').card : ℝ)) * ((2 : ℝ) ^ (8 * k))⁻¹ := by
         simp only [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const, nsmul_eq_mul,
           Finset.sum_mul]
     _ ≤ ((t.size n).choose 2 : ℝ) * ((2 : ℝ) ^ (8 * k))⁻¹ :=
-        mul_le_mul_of_nonneg_right (FullPast.sum_card_earlier_le P t) (by positivity)
+        mul_le_mul_of_nonneg_right (Base.sum_card_earlier_le P t) (by positivity)
     _ = (SPBCS.keyCollision (t.size n) k).toReal := by
         rw [SPBCS.keyCollision, ENNReal.toReal_div, ← div_eq_mul_inv]
         simp
@@ -910,12 +909,12 @@ noncomputable def glueOut (σ : FiatShamirSalt kS)
     (prv₀ : CausalProver P t X) (ν : M.Pos → MerkleSalt kN)
     (q : (Digest k → XOut k e) × (ChIdx P t → XOut k e)) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
-  ⟨some (FullPast.Internal.encodeTotal M.toFullPast B (M.toFullPast.buildProof (chainOracle H) σ
-      (Base.honestWrite' E prv₀ x (FullPast.outs q.2))
-      (FullPast.honestDigest E prv₀ x ν (chainOracle H) (FullPast.outs q.2))
-      (Base.honestOpened E prv₀ x ν (FullPast.outs q.2)
-        (VE.posC x (M.chOfStreams (FullPast.outs q.2))))
-      (VE.posC x (M.chOfStreams (FullPast.outs q.2))))),
+  ⟨some (Base.Internal.encodeTotal M.toBase B (M.toBase.buildProof (chainOracle H) σ
+      (Base.honestWrite' E prv₀ x (Base.outs q.2))
+      (Base.honestDigest E prv₀ x ν (chainOracle H) (Base.outs q.2))
+      (Base.honestOpened E prv₀ x ν (Base.outs q.2)
+        (VE.posC x (M.chOfStreams (Base.outs q.2))))
+      (VE.posC x (M.chOfStreams (Base.outs q.2))))),
     sliceGlue (M := M) H σ Fo q.1⟩
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
@@ -940,12 +939,12 @@ theorem map_realOut_eq_glue (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t 
   have hH : replaceSlice M.saltOfBits σ H ((splitAlong (SPBCS.xofEmb σ)).symm (Fo, FX)) =
       sliceGlue (M := M) H σ Fo FX := rfl
   rw [hH, prove_eq_honestProof, honestProof_eq_buildProof E prv₀ x ν σ _ VE,
-    M.toFullPast.buildProof_congr (sliceGlue_leaf H σ Fo FX) (sliceGlue_node H σ Fo FX),
+    M.toBase.buildProof_congr (sliceGlue_leaf H σ Fo FX) (sliceGlue_node H σ Fo FX),
     honestDigest_sliceGlue (E := E) H x σ Fo prv₀ ν FX]
   have hρ : honestStreams E prv₀ x ν σ (chainOracle (sliceGlue (M := M) H σ Fo FX)) =
-      FullPast.outs (lazySol (E := E) H x σ Fo prv₀ ν FX) := by
+      Base.outs (lazySol (E := E) H x σ Fo prv₀ ν FX) := by
     funext j
-    simp [lazySol, FullPast.outs]
+    simp [lazySol, Base.outs]
   rw [hρ]
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
@@ -953,7 +952,7 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 reprogrammed at the lazy keys. -/
 theorem map_lazyOut_eq_glue (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
     (ν : M.Pos → MerkleSalt kN) :
-    (PMF.uniformOfFintype (FullPast.StreamDraw k kN kS L e P t)).map
+    (PMF.uniformOfFintype (Base.StreamDraw k kN kS L e P t)).map
         (lazyOut VE B H x σ prv₀ ν) =
       (PMF.uniformOfFintype ({b // b ∉ Set.range (SPBCS.xofEmb (k := k) (kN := kN) (L := L) σ)} →
         XOut k e)).bind fun Fo =>
@@ -964,7 +963,7 @@ theorem map_lazyOut_eq_glue (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t 
   set es := splitAlong (Y' := XOut k e) (SPBCS.xofEmb (k := k) (kN := kN) (L := L) σ)
   let eI : ({b // b ∉ Set.range (SPBCS.xofEmb (k := k) (kN := kN) (L := L) σ)} → XOut k e) ×
       ((Digest k → XOut k e) × (ChIdx P t → XOut k e)) ≃
-        FullPast.StreamDraw k kN kS L e P t :=
+        Base.StreamDraw k kN kS L e P t :=
     { toFun := fun a => ⟨es.symm (a.1, a.2.1), fun j => outEquiv k e (a.2.2 j)⟩
       invFun := fun b => ((es b.slice).1, ((es b.slice).2,
         fun j => (outEquiv k e).symm (b.streams j)))
@@ -980,12 +979,12 @@ theorem map_lazyOut_eq_glue (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t 
   obtain ⟨FX, ρX⟩ := q
   simp only [Function.comp_apply, glueOut, eI, Equiv.coe_fn_mk, lazyOut, outB]
   have hH : replaceSlice M.saltOfBits σ H (es.symm (Fo, FX)) = sliceGlue (M := M) H σ Fo FX := rfl
-  rw [hH, M.toFullPast.buildProof_congr (sliceGlue_leaf H σ Fo FX) (sliceGlue_node H σ Fo FX)]
+  rw [hH, M.toBase.buildProof_congr (sliceGlue_leaf H σ Fo FX) (sliceGlue_node H σ Fo FX)]
   congr 2
   rw [buildAssign, List.map_map, ← reprogram_sliceGlue H σ Fo FX, List.map_map]
   refine congrArg (Function.reprogram _) (List.map_congr_left fun c _ => ?_)
   simp only [Function.comp_apply, Equiv.symm_apply_apply]
-  rw [show (fun j => outEquiv k e (ρX j)) = FullPast.outs ρX from rfl, buildKey_sliceGlue]
+  rw [show (fun j => outEquiv k e (ρX j)) = Base.outs ρX from rfl, buildKey_sliceGlue]
   rfl
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
@@ -1021,13 +1020,13 @@ theorem tvDist_realOut_lazyOut_le (σ : FiatShamirSalt kS) (prv₀ : CausalProve
     (PMF.uniformOfFintype (Bits (queryBits k kN kS L) → XOut k e)).map
         (realOut (E := E) (Qs := Qs) B H x σ prv₀ ν)
       ≈[(SPBCS.keyCollision (t.size n) k).toReal]
-      (PMF.uniformOfFintype (FullPast.StreamDraw k kN kS L e P t)).map
+      (PMF.uniformOfFintype (Base.StreamDraw k kN kS L e P t)).map
         (lazyOut VE B H x σ prv₀ ν) := by
   rw [map_realOut_eq_glue VE B H x σ prv₀ ν, map_lazyOut_eq_glue VE B H x σ prv₀ ν]
   refine (PMF.tvDist_uniformOfFintype_bind_le _ _).trans ?_
   refine (Finset.expect_le_expect fun Fo _ => (PMF.tvDist_map_le _ _ _).trans
     (@tvDist_lazy_le (Digest k) (XOut k e) _ _ _ _ (ChIdx P t) _ _
-      (FullPast.chOrder P t) _ (Base.chList P t) Base.nodup_chList
+      (Base.chOrder P t) _ (Base.chList P t) Base.nodup_chList
       Base.mem_chList
       (fun c ρX => lazyKey (E := E) H x σ Fo prv₀ ν c ρX)
       (fun c ρX ρX' h => lazyKey_causal (E := E) H x σ Fo prv₀ ν c ρX ρX' h)
@@ -1051,7 +1050,7 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 /-- `innerL` averages over the prover's coins. -/
 theorem innerL_eq_bind (σ : FiatShamirSalt kS) :
     innerL VE B H x prv σ = (PMF.uniformOfFintype (M.ProverCoins R)).bind fun c =>
-      (PMF.uniformOfFintype (FullPast.StreamDraw k kN kS L e P t)).map
+      (PMF.uniformOfFintype (Base.StreamDraw k kN kS L e P t)).map
         (lazyOut VE B H x σ (prv c.iop) c.merkleSalts) := by
   rw [innerL, PMF.uniformOfFintype_prod_eq_bind, PMF.map_bind]
   congr 1
@@ -1071,22 +1070,22 @@ theorem tvDist_innerR_innerL_le (σ : FiatShamirSalt kS) :
 /-- The reply with the leaf digests and the Merkle salts of the opened positions given per
 position by `z`. -/
 noncomputable def leafOut (σ : FiatShamirSalt kS) (prv₀ : CausalProver P t X)
-    (d : FullPast.StreamDraw k kN kS L e P t) (z : M.Pos → MerkleSalt kN × Digest k) :
+    (d : Base.StreamDraw k kN kS L e P t) (z : M.Pos → MerkleSalt kN × Digest k) :
     EnvReply (M.Response B) (Bits (queryBits k kN kS L) → XOut k e) :=
   outB B H x σ d.slice d.streams (Base.honestWrite' E prv₀ x d.streams) (fun q => (z q).2)
     ((VE.posC x (M.chOfStreams d.streams)).map fun q =>
-      MerkleLeaf.mk (z q).1 (FullPast.honestCol (E := E) x prv₀ d q))
+      MerkleLeaf.mk (z q).1 (Base.honestCol (E := E) x prv₀ d q))
     (VE.posC x (M.chOfStreams d.streams))
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 /-- `innerL` as independent per-position laws given the prover's coins and the draw. -/
 theorem innerL_eq_pi (σ : FiatShamirSalt kS) :
     innerL VE B H x prv σ =
-      (PMF.uniformOfFintype (R × FullPast.StreamDraw k kN kS L e P t)).bind fun o =>
+      (PMF.uniformOfFintype (R × Base.StreamDraw k kN kS L e P t)).bind fun o =>
         (PMF.pi fun q => (PMF.uniformOfFintype (MerkleSalt kN)).map
-          (FullPast.lazyLeafLaw VE H x (prv o.1) o.2 q)).map (leafOut VE B H x σ (prv o.1) o.2) := by
-  let eq : M.ProverCoins R × FullPast.StreamDraw k kN kS L e P t ≃
-      (R × FullPast.StreamDraw k kN kS L e P t) × (M.Pos → MerkleSalt kN) :=
+          (Base.lazyLeafLaw VE H x (prv o.1) o.2 q)).map (leafOut VE B H x σ (prv o.1) o.2) := by
+  let eq : M.ProverCoins R × Base.StreamDraw k kN kS L e P t ≃
+      (R × Base.StreamDraw k kN kS L e P t) × (M.Pos → MerkleSalt kN) :=
     { toFun := fun a => ((a.1.iop, a.2), a.1.merkleSalts)
       invFun := fun b => (⟨b.1.1, b.2⟩, b.1.2)
       left_inv := fun _ => rfl
@@ -1102,18 +1101,18 @@ theorem innerL_eq_pi (σ : FiatShamirSalt kS) :
   congr 1
   · funext q
     by_cases hq : q ∈ VE.posC x (M.chOfStreams o.2.streams) <;>
-      simp [FullPast.lazyLeafLaw, hq, FullPast.honestDigest, FullPast.honestCol]
+      simp [Base.lazyLeafLaw, hq, Base.honestDigest, Base.honestCol]
   · exact List.map_congr_left fun q hq => by
-      simp [FullPast.lazyLeafLaw, hq, FullPast.honestCol]
+      simp [Base.lazyLeafLaw, hq, Base.honestCol]
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 /-- `innerD` as independent per-position laws given the prover's coins and the draw. -/
 theorem innerD_eq_pi (σ : FiatShamirSalt kS) :
     innerD VE B H x prv σ =
-      (PMF.uniformOfFintype (R × FullPast.StreamDraw k kN kS L e P t)).bind fun o =>
+      (PMF.uniformOfFintype (R × Base.StreamDraw k kN kS L e P t)).bind fun o =>
         (PMF.pi fun q => (PMF.uniformOfFintype (MerkleSalt kN × Digest k)).map
-          (FullPast.mixLeaf VE H x (prv o.1) o.2 q)).map (leafOut VE B H x σ (prv o.1) o.2) := by
-  let eq : M.toFullPast.LeafDraw R ≃ (R × FullPast.StreamDraw k kN kS L e P t) ×
+          (Base.mixLeaf VE H x (prv o.1) o.2 q)).map (leafOut VE B H x σ (prv o.1) o.2) := by
+  let eq : M.toBase.LeafDraw R ≃ (R × Base.StreamDraw k kN kS L e P t) ×
       (M.Pos → MerkleSalt kN × Digest k) :=
     { toFun := fun a => ((a.iop, a.draw), a.leaves)
       invFun := fun b => ⟨b.1.1, b.1.2, b.2⟩
@@ -1130,9 +1129,9 @@ theorem innerD_eq_pi (σ : FiatShamirSalt kS) :
   congr 1
   · funext q
     by_cases hq : q ∈ VE.posC x (M.chOfStreams o.2.streams) <;>
-      simp [FullPast.mixLeaf, hq, FullPast.mixDigest, FullPast.honestDigest,
-        FullPast.honestCol]
-  · exact List.map_congr_left fun q hq => by simp [FullPast.mixLeaf, hq, FullPast.honestCol]
+      simp [Base.mixLeaf, hq, Base.mixDigest, Base.honestDigest,
+        Base.honestCol]
+  · exact List.map_congr_left fun q hq => by simp [Base.mixLeaf, hq, Base.honestCol]
 
 /-- **The unopened leaves**: one leaf distance per position. -/
 theorem tvDist_innerL_innerD_le (σ : FiatShamirSalt kS) :
@@ -1141,24 +1140,24 @@ theorem tvDist_innerL_innerD_le (σ : FiatShamirSalt kS) :
   classical
   rw [innerL_eq_pi VE B H x prv σ, innerD_eq_pi VE B H x prv σ]
   refine (PMF.tvDist_uniformOfFintype_bind_le _ _).trans ?_
-  have hpos : ∀ o : R × FullPast.StreamDraw k kN kS L e P t, PMF.tvDist
+  have hpos : ∀ o : R × Base.StreamDraw k kN kS L e P t, PMF.tvDist
       (PMF.pi fun q => (PMF.uniformOfFintype (MerkleSalt kN)).map
-        (FullPast.lazyLeafLaw VE H x (prv o.1) o.2 q))
+        (Base.lazyLeafLaw VE H x (prv o.1) o.2 q))
       (PMF.pi fun q => (PMF.uniformOfFintype (MerkleSalt kN × Digest k)).map
-        (FullPast.mixLeaf VE H x (prv o.1) o.2 q)) ≤
+        (Base.mixLeaf VE H x (prv o.1) o.2 q)) ≤
         Fintype.card M.Pos * SPBCS.leafMax (fun b => outEquiv k e (H b)) := fun o => by
     refine (PMF.tvDist_pi_le _ _).trans ?_
     calc ∑ q, PMF.tvDist ((PMF.uniformOfFintype (MerkleSalt kN)).map
-            (FullPast.lazyLeafLaw VE H x (prv o.1) o.2 q))
+            (Base.lazyLeafLaw VE H x (prv o.1) o.2 q))
           ((PMF.uniformOfFintype (MerkleSalt kN × Digest k)).map
-            (FullPast.mixLeaf VE H x (prv o.1) o.2 q))
+            (Base.mixLeaf VE H x (prv o.1) o.2 q))
         ≤ ∑ _q : M.Pos, SPBCS.leafMax (fun b => outEquiv k e (H b)) :=
           Finset.sum_le_sum fun q _ =>
-            FullPast.tvDist_lazyLeafLaw_mixLeaf_le VE H x (prv o.1) o.2 q
+            Base.tvDist_lazyLeafLaw_mixLeaf_le VE H x (prv o.1) o.2 q
       _ = Fintype.card M.Pos * SPBCS.leafMax (fun b => outEquiv k e (H b)) := by
           rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
-  calc 𝔼 o : R × FullPast.StreamDraw k kN kS L e P t, PMF.tvDist _ _ ≤
-        𝔼 _o : R × FullPast.StreamDraw k kN kS L e P t,
+  calc 𝔼 o : R × Base.StreamDraw k kN kS L e P t, PMF.tvDist _ _ ≤
+        𝔼 _o : R × Base.StreamDraw k kN kS L e P t,
           (Fintype.card M.Pos * SPBCS.leafMax (fun b => outEquiv k e (H b))) :=
         Finset.expect_le_expect fun o _ => (PMF.tvDist_map_le _ _ _).trans (hpos o)
     _ = _ := Finset.expect_const Finset.univ_nonempty _
@@ -1168,19 +1167,19 @@ omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 coins. -/
 theorem innerD_eq_bind_streams (σ : FiatShamirSalt kS) :
     innerD VE B H x prv σ =
-      (PMF.uniformOfFintype M.toFullPast.LeafSlice).bind fun q =>
+      (PMF.uniformOfFintype M.toBase.LeafSlice).bind fun q =>
         (PMF.uniformOfFintype (ChIdx P t → Out k e)).bind fun ρ =>
           (PMF.uniformOfFintype R).map fun r => outViewAt VE B H x σ q.2 (M.chOfStreams ρ) ρ
             (fun p => (q.1 p).1) (fun p => (q.1 p).2)
             (VE.MV.view ((prv r).run x (M.chOfStreams ρ))) := by
-  let eq : M.toFullPast.LeafDraw R ≃ (M.toFullPast.LeafSlice × (ChIdx P t → Out k e)) × R :=
+  let eq : M.toBase.LeafDraw R ≃ (M.toBase.LeafSlice × (ChIdx P t → Out k e)) × R :=
     { toFun := fun a => (((a.leaves, a.draw.slice), a.draw.streams), a.iop)
       invFun := fun b => ⟨b.2, ⟨b.1.1.2, b.1.2⟩, b.1.1.1⟩
       left_inv := fun _ => rfl
       right_inv := fun _ => rfl }
   rw [innerD, ← PMF.map_uniformOfFintype_equiv eq.symm, PMF.map_comp,
     PMF.uniformOfFintype_prod_eq_bind, PMF.map_bind,
-    PMF.uniformOfFintype_prod_eq_bind (β := M.toFullPast.LeafSlice), PMF.bind_bind]
+    PMF.uniformOfFintype_prod_eq_bind (β := M.toBase.LeafSlice), PMF.bind_bind]
   congr 1
   funext q
   rw [PMF.bind_map]
@@ -1210,9 +1209,9 @@ def jointRun (H : Bits (queryBits k kN kS L) → XOut k e) (x : X) (σ : FiatSha
     (d : M.Pos → Digest k) (o : CausalView VR.MV) :
     NARG.SimOutput (Bits (queryBits k kN kS L)) (XOut k e) (M.Response B) :=
   (VR.writesOf x ch o).elim ⟨none, []⟩ fun wr =>
-    ⟨FullPast.Internal.encodeTotal M.toFullPast B (M.toFullPast.buildProof (chainOracle H) σ wr (M.toFullPast.jointLeaf VR (chainOracle H) x ch ν d o)
+    ⟨Base.Internal.encodeTotal M.toBase B (M.toBase.buildProof (chainOracle H) σ wr (M.toBase.jointLeaf VR (chainOracle H) x ch ν d o)
         ((VR.posC x ch).map fun q => ⟨ν q, VR.colOf x ch o q⟩) (VR.posC x ch)),
-      (M.buildAssign (chainOracle H) ⟨σ, x⟩ ρ wr (M.toFullPast.jointLeaf VR (chainOracle H) x ch ν d o)).map
+      (M.buildAssign (chainOracle H) ⟨σ, x⟩ ρ wr (M.toBase.jointLeaf VR (chainOracle H) x ch ν d o)).map
         fun qa => ⟨Query.toBits qa.input, (outEquiv k e).symm qa.output⟩⟩
 
 /-- **The simulator of the spBCS compiler at a joint simulator of the composite view**: from
@@ -1275,8 +1274,8 @@ theorem saltedLocal :
     rcases VE.writesOf x (Sim.sim (pub x) s.coins.sim).challenges (Sim.sim (pub x) s.coins.sim) with
       _ | wr
     · simp only [Option.elim_none]
-    simp only [Option.elim_some, buildAssign, M.toFullPast.jointLeaf_congr _ hleaf,
-      M.toFullPast.buildProof_congr hleaf hnode]
+    simp only [Option.elim_some, buildAssign, M.toBase.jointLeaf_congr _ hleaf,
+      M.toBase.buildProof_congr hleaf hnode]
     congr 3
     funext c
     rw [M.buildKey_congr _ _ _ _ hleaf hnode (fun b hb => hh _ (Or.inr hb))]
@@ -1335,7 +1334,7 @@ theorem simOutJ_eq (σ : FiatShamirSalt kS) (c : M.JointSimCoins VE.toViewRead S
   simp only [simOutJ, niJointSimulator, jointRun, outViewAt]
   rcases VE.writesOf x (Sim.sim (pub x) c.sim).challenges (Sim.sim (pub x) c.sim) with _ | wr
   · rfl
-  simp only [Option.elim_some, FullPast.jointLeaf_eq, leafDigest_replaceSlice]
+  simp only [Option.elim_some, Base.jointLeaf_eq, leafDigest_replaceSlice]
   rfl
 
 omit [∀ j i, Nonempty ((P j).Challenge i)] [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
@@ -1344,10 +1343,10 @@ variable (B) in
 the streams by preimage. -/
 theorem innerSJ_eq_bind (σ : FiatShamirSalt kS) :
     innerSJ B VE pub Sim T H x σ =
-      (PMF.uniformOfFintype M.toFullPast.LeafSlice).bind fun q =>
+      (PMF.uniformOfFintype M.toBase.LeafSlice).bind fun q =>
         (Sim.law (pub x)).bind fun v => (Sampler.preLaw T v.challenges).map fun ρ =>
           outViewAt VE B H x σ q.2 v.challenges ρ (fun p => (q.1 p).1) (fun p => (q.1 p).2) v := by
-  let eq : M.toFullPast.LeafSlice × (Sim.Coins × ∀ c, (T c).Coins) ≃
+  let eq : M.toBase.LeafSlice × (Sim.Coins × ∀ c, (T c).Coins) ≃
       FreshSlice (Bits (queryBits k kN kS L)) (XOut k e) (M.JointSimCoins VE.toViewRead Sim T) :=
     { toFun := fun a => ⟨⟨a.2.1, a.2.2, fun p => (a.1.1 p).1, fun p => (a.1.1 p).2⟩, a.1.2⟩
       invFun := fun b => ((fun p => (b.coins.merkleSalts p, b.coins.digests p), b.slice),
@@ -1390,7 +1389,7 @@ variable (B) in
 reply are within `oneProofBound δ H`. -/
 theorem tvDist_innerR_innerSJ_le (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) {w : Wit}
     (hw : (x, w) ∈ rel) (σ : FiatShamirSalt kS) :
-    (innerR (E := E) (Qs := Qs) B H x (honest w) σ) ≈[M.toFullPast.oneProofBound δ H]
+    (innerR (E := E) (Qs := Qs) B H x (honest w) σ) ≈[M.toBase.oneProofBound δ H]
       (innerSJ B VE pub Sim T H x σ) := by
   have h1 := tvDist_innerR_innerL_le VE B H x (honest w) σ
   have h2 := tvDist_innerL_innerD_le VE B H x (honest w) σ
@@ -1399,30 +1398,30 @@ theorem tvDist_innerR_innerSJ_le (hvzk : CausalHVZK VE.MV rel honest pub Sim δ)
     (innerL VE B H x (honest w) σ) (innerSJ B VE pub Sim T H x σ)
   have t2 := PMF.tvDist_triangle (innerL VE B H x (honest w) σ)
     (innerD VE B H x (honest w) σ) (innerSJ B VE pub Sim T H x σ)
-  simp only [FullPast.oneProofBound]
+  simp only [Base.oneProofBound]
   linarith
 
 variable (B) in
 open Classical in
 /-- **One merge proof is simulated on a fresh slice** at the bound `oneProofBound δ` of the
-compiler over the term.
+compiler data.
 
 Hypothesis: `hvzk`, honest-verifier zero knowledge of the composite (`CausalHVZK`, CY24
 Definition 23.1.8) at the joint simulator `Sim`. -/
 theorem sliceClose (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     SliceClose M.saltOfBits (fun x w => (x, w) ∈ rel) (M.niProverZKM B honest E Qs)
-      (M.niJointSimulator VE.toViewRead B pub Sim T) (M.toFullPast.oneProofBound δ) where
+      (M.niJointSimulator VE.toViewRead B pub Sim T) (M.toBase.oneProofBound δ) where
   close H x w hw := by
     rw [realSlice_eq_bind B H x honest w, simSlice_joint_eq_bind B VE pub Sim T H x]
     refine (PMF.tvDist_uniformOfFintype_bind_le _ _).trans ?_
     calc 𝔼 σ, PMF.tvDist (innerR (E := E) (Qs := Qs) B H x (honest w) σ)
           (innerSJ B VE pub Sim T H x σ)
-        ≤ 𝔼 _σ : FiatShamirSalt kS, M.toFullPast.oneProofBound δ H := Finset.expect_le_expect fun σ _ =>
+        ≤ 𝔼 _σ : FiatShamirSalt kS, M.toBase.oneProofBound δ H := Finset.expect_le_expect fun σ _ =>
           tvDist_innerR_innerSJ_le B VE honest pub Sim T H x hvzk hw σ
-      _ = M.toFullPast.oneProofBound δ H := Finset.expect_const Finset.univ_nonempty _
+      _ = M.toBase.oneProofBound δ H := Finset.expect_const Finset.univ_nonempty _
   nonneg H := by
     have h1 := SPBCS.leafMax_nonneg (kN := kN) (L := L) H
-    simp only [FullPast.oneProofBound]
+    simp only [Base.oneProofBound]
     positivity
   congr H H' hH := by
     have hcomp : ∀ col : Bytes L, (Out.digest ∘ fun b => outEquiv k e (H b)) ∘
@@ -1435,7 +1434,7 @@ theorem sliceClose (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     have : SPBCS.leafMax (fun b => outEquiv k e (H b)) =
         SPBCS.leafMax (fun b => outEquiv k e (H' b)) := by
       simp only [SPBCS.leafMax, digestLaw, hcomp]
-    simp only [FullPast.oneProofBound, this]
+    simp only [Base.oneProofBound, this]
 
 end Joint
 
@@ -1476,7 +1475,7 @@ theorem everlastingZeroKnowledge [∀ j i, Nonempty ((P j).Challenge i)]
     ring
   have hsqrt : √(Fintype.card (FiatShamirSalt kS) : ℝ) = 2 ^ (4 * kS) := by
     rw [hsalt, show 8 * kS = 4 * kS * 2 by ring, pow_mul, Real.sqrt_sq (by positivity)]
-  have hE := M.toFullPast.expect_oneProofBound_le δ
+  have hE := M.toBase.expect_oneProofBound_le δ
   rw [hsqrt, hsalt]
   gcongr
 

@@ -3,16 +3,16 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.Extract
+public import GordieHowe.SPBCS.Base.Extract
 public import GordieHowe.Model.IOP.CausalSound
 
 @[expose] public section
 
 /-!
-# The instability bound of the series–parallel base model
+# The instability bound of the database extractor
 
-CMS19 Proposition 8.14 (p. 44) for the series–parallel base model (`GordieHowe.SPBCS.FullPast`,
-`GordieHowe/SPBCS/FullPast/Model.lean`), from causal round-by-round soundness (`CausalRBR`,
+CMS19 Proposition 8.14 (p. 44) for the database extractor of the compiler data
+(`GordieHowe.SPBCS.Base`, `GordieHowe/SPBCS/Base/Extractor.lean`), from causal round-by-round soundness (`CausalRBR`,
 `GordieHowe/Model/IOP/Causal.lean`).
 
 `flipAt x σ c chs l` (`P_σ ∩ P̄_{E,σ}` for the challenge `c`): the chains of the leaves before
@@ -37,13 +37,11 @@ open scoped ENNReal NNReal
 
 variable {k kN kS L e : ℕ}
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X Wit : Type} (M : FullPast P t X k kN kS L e) (rel : Set (X × Wit))
+  {X Wit : Type} (M : Base P t X k kN kS L e) (rel : Set (X × Wit))
   (E : CausalExtractor P t X Wit) (S : CausalStateFn P t X)
 
 /-- The chains of the leaves before `p` are full. -/
@@ -222,6 +220,6 @@ theorem prob_nextBad_le (hcol : D ∉ digestCollision) (hrbr : CausalRBR rel E S
     obtain ⟨x, σ, c, chs, l, past, a, ch, hf, hl, hp, ha, hq, -⟩ := hy
     exact ⟨x, σ, c, chs, l, past, a, hf, hl, hp, ha, hq⟩
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

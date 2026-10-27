@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.ZeroKnowledgeROM
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledgeROMQuery
+public import GordieHowe.SPBCS.Base.ZeroKnowledgeROMQuery
 
 @[expose] public section
 
@@ -14,8 +14,8 @@ public import GordieHowe.SPBCS.FullPast.ZeroKnowledgeROMQuery
 Zero knowledge of the spBCS compiler against classical adversaries all of whose queries are
 counted (`ROM.NIZK.ZeroKnowledgeQueryBounded`, Unruh 2017 Definition 6, p. 14, with classical
 adversaries): the prover `niProverZKM` and simulator `niJointSimulator` of
-`GordieHowe.SPBCS.zeroKnowledgeROM`, with the leaf term charged per query. The argument is the compiler's
-over the term (`GordieHowe/SPBCS/FullPast/ZeroKnowledgeROMQuery.lean`) with the merge chain inputs
+`GordieHowe.SPBCS.zeroKnowledgeROM`, with the leaf term charged per query. The argument builds on the pieces of the compiler
+data (`GordieHowe/SPBCS/Base/ZeroKnowledgeROMQuery.lean`) with the merge chain inputs
 (`buildAssign`, `saltOfBits`): the leaf kernel `leafKernel` replies with the honest proof built
 from fresh streams, the digests of the positions not opened at the challenges read from a value
 per position. The error is the compiler's `Base.zkErrorROMQuery δ`:
@@ -51,12 +51,12 @@ theorem buildKey_congr_default (hdef : ∀ c, h₁ (.leaf defaultSalt c) = h₂ 
     (c : ChIdx P t) :
     M.buildKey h₁ ss ρ wr ld c = M.buildKey h₂ ss ρ wr ld c := by
   have hch : M.buildChains h₁ ρ wr ld = M.buildChains h₂ ρ wr ld :=
-    funext fun q => M.toFullPast.buildLeaf_congr_default hdef hnode ρ wr ld q _
+    funext fun q => M.toBase.buildLeaf_congr_default hdef hnode ρ wr ld q _
   have hfin : M.buildFinals h₁ ss ρ wr ld = M.buildFinals h₂ ss ρ wr ld := by
     unfold buildFinals
     rw [hch]
     exact finalsWith_congr_oracle fun _ _ => htr _
-  simp only [buildKey, key, hch, hfin, M.toFullPast.buildLeaf_congr_default hdef hnode, htr]
+  simp only [buildKey, key, hch, hfin, M.toBase.buildLeaf_congr_default hdef hnode, htr]
 
 variable {ss ρ wr ld} in
 /-- **The built assignment list reads the oracle only at queries other than `leaf` queries and the
@@ -93,12 +93,12 @@ noncomputable def leafRun (O : Bits (queryBits k kN kS L) → XOut k e) (x : X)
     (prv : CausalProver P t X) (σ : FiatShamirSalt kS) (ρ : ChIdx P t → Out k e)
     (ν : M.Pos → MerkleSalt kN) (dY : M.Pos → XOut k e) :
     NARG.SimOutput (Bits (queryBits k kN kS L)) (XOut k e) (M.Response B) :=
-  ⟨FullPast.Internal.encodeTotal M.toFullPast B (M.toFullPast.buildProof (chainOracle O) σ (Base.honestWrite' E prv x ρ)
-      (FullPast.mixDigest VE O x prv ν (fun p => (outEquiv k e (dY p)).digest) ρ)
+  ⟨Base.Internal.encodeTotal M.toBase B (M.toBase.buildProof (chainOracle O) σ (Base.honestWrite' E prv x ρ)
+      (Base.mixDigest VE O x prv ν (fun p => (outEquiv k e (dY p)).digest) ρ)
       (Base.honestOpened E prv x ν ρ (VE.posC x (M.chOfStreams ρ)))
       (VE.posC x (M.chOfStreams ρ))),
     (M.buildAssign (chainOracle O) ⟨σ, x⟩ ρ (Base.honestWrite' E prv x ρ)
-      (FullPast.mixDigest VE O x prv ν (fun p => (outEquiv k e (dY p)).digest) ρ)).map fun qa =>
+      (Base.mixDigest VE O x prv ν (fun p => (outEquiv k e (dY p)).digest) ρ)).map fun qa =>
         ⟨Query.toBits qa.input, (outEquiv k e).symm qa.output⟩⟩
 
 /-- **The leaf kernel of the spBCS compiler** (module docstring): the reply `leafRun` at the
@@ -107,7 +107,7 @@ are those not opened at the challenges of the streams; the leaf input of a posit
 the `leaf` query of that salt and the position's honest column. -/
 noncomputable def leafKernel :
     ROM.NIZK.LeafKernel (Bits (queryBits k kN kS L)) (XOut k e) X Wit (M.Response B)
-      (FullPast.LeafMain k kS e P t R) M.Pos (MerkleSalt kN) where
+      (Base.LeafMain k kS e P t R) M.Pos (MerkleSalt kN) where
   run req O m ν dY := leafRun VE B O req.stmt (honest req.wit m.iop) m.salt m.streams ν dY
   hidden req m p := decide (p ∉ VE.posC req.stmt (M.chOfStreams m.streams))
   point req m p a := Query.toBits (.leaf a ((E p.leaf.label).cols p.pos.msg
@@ -124,12 +124,12 @@ theorem leafKernel_laws :
     rfl
   run_digests req O m ν d d' h := by
     simp only [leafKernel, leafRun]
-    have : FullPast.mixDigest VE O req.stmt (honest req.wit m.iop) ν
+    have : Base.mixDigest VE O req.stmt (honest req.wit m.iop) ν
         (fun p => (outEquiv k e (d p)).digest) m.streams =
-        FullPast.mixDigest VE O req.stmt (honest req.wit m.iop) ν
+        Base.mixDigest VE O req.stmt (honest req.wit m.iop) ν
           (fun p => (outEquiv k e (d' p)).digest) m.streams := by
       funext p
-      simp only [FullPast.mixDigest]
+      simp only [Base.mixDigest]
       split_ifs with hp
       · rfl
       · rw [h p (by simp [leafKernel, hp])]
@@ -138,12 +138,12 @@ theorem leafKernel_laws :
     have hν : ∀ p ∈ VE.posC req.stmt (M.chOfStreams m.streams), ν p = ν' p := fun p hp =>
       h p (by simp [leafKernel, hp])
     simp only [leafKernel, leafRun]
-    have hmix : FullPast.mixDigest VE O req.stmt (honest req.wit m.iop) ν
+    have hmix : Base.mixDigest VE O req.stmt (honest req.wit m.iop) ν
         (fun p => (outEquiv k e (d p)).digest) m.streams =
-        FullPast.mixDigest VE O req.stmt (honest req.wit m.iop) ν'
+        Base.mixDigest VE O req.stmt (honest req.wit m.iop) ν'
           (fun p => (outEquiv k e (d p)).digest) m.streams := by
       funext p
-      simp only [FullPast.mixDigest, FullPast.honestDigest]
+      simp only [Base.mixDigest, Base.honestDigest]
       split_ifs with hp
       · rw [hν p hp]
       · rfl
@@ -166,17 +166,17 @@ theorem leafKernel_laws :
       fun c => hq _ (Or.inr (Or.inl ⟨defaultSalt, Finset.mem_singleton_self _, rfl⟩))
     have hnode : ∀ l r, chainOracle O (.node l r) = chainOracle O' (.node l r) := fun l r =>
       hnl _ rfl
-    have hmix : FullPast.mixDigest VE O req.stmt (honest req.wit m.iop) ν
+    have hmix : Base.mixDigest VE O req.stmt (honest req.wit m.iop) ν
         (fun p => (outEquiv k e (d p)).digest) m.streams =
-        FullPast.mixDigest VE O' req.stmt (honest req.wit m.iop) ν
+        Base.mixDigest VE O' req.stmt (honest req.wit m.iop) ν
           (fun p => (outEquiv k e (d p)).digest) m.streams := by
       funext p
-      simp only [FullPast.mixDigest, FullPast.honestDigest, MerkleTree.leafDigest]
+      simp only [Base.mixDigest, Base.honestDigest, MerkleTree.leafDigest]
       split_ifs with hp
       · rw [hq _ (Or.inr (Or.inr ⟨p, by simp [leafKernel, hp], rfl⟩))]
       · rfl
     simp only [leafKernel, leafRun]
-    rw [hmix, M.toFullPast.buildProof_congr_default hdef hnode, M.buildAssign_congr_default hdef hnl]
+    rw [hmix, M.toBase.buildProof_congr_default hdef hnode, M.buildAssign_congr_default hdef hnl]
   assignment_salt req O m ν d a ha := by
     simp only [leafKernel, leafRun, List.mem_map] at ha
     obtain ⟨qa, hqa, rfl⟩ := ha
@@ -190,8 +190,8 @@ theorem leafKernel_laws :
 `leafKernel` through `lazyEquiv`. -/
 noncomputable def lazyKernel :
     ROM.NIZK.Kernel (Bits (queryBits k kN kS L)) (XOut k e) X Wit (M.Response B)
-      (SaltedCoins (FiatShamirSalt kS) (M.toFullPast.LazyCoins R)) :=
-  fun req O c => (leafKernel VE B honest).kL req O (M.toFullPast.lazyEquiv R c)
+      (SaltedCoins (FiatShamirSalt kS) (M.toBase.LazyCoins R)) :=
+  fun req O c => (leafKernel VE B honest).kL req O (M.toBase.lazyEquiv R c)
 
 omit [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
 open Classical in
@@ -219,14 +219,14 @@ theorem saltedLocal_lazy :
     have hleafB : ∀ a b, H (Query.toBits (.leaf a b)) = H' (Query.toBits (.leaf a b)) :=
       fun a b => hH _ (Or.inl (by rw [M.saltOfBits_toBits]; rfl))
     simp only [ROM.NIZK.Kernel.toSimulator, lazyKernel, ROM.NIZK.LeafKernel.kL, leafKernel,
-      leafRun, FullPast.lazyEquiv, Equiv.coe_fn_mk, hleafB]
-    have hmix : ∀ d : M.Pos → Digest k, FullPast.mixDigest VE H r.stmt
+      leafRun, Base.lazyEquiv, Equiv.coe_fn_mk, hleafB]
+    have hmix : ∀ d : M.Pos → Digest k, Base.mixDigest VE H r.stmt
         (honest r.wit s.coins.iop) s.coins.merkleSalts d s.coins.streams =
-        FullPast.mixDigest VE H' r.stmt (honest r.wit s.coins.iop) s.coins.merkleSalts d
+        Base.mixDigest VE H' r.stmt (honest r.wit s.coins.iop) s.coins.merkleSalts d
           s.coins.streams := fun d => by
       funext p
-      simp only [FullPast.mixDigest, FullPast.honestDigest, MerkleTree.leafDigest, hleaf]
-    rw [hmix, M.toFullPast.buildProof_congr hleaf hnode]
+      simp only [Base.mixDigest, Base.honestDigest, MerkleTree.leafDigest, hleaf]
+    rw [hmix, M.toBase.buildProof_congr hleaf hnode]
     congr 2
     simp only [buildAssign]
     congr 1
@@ -247,8 +247,8 @@ theorem simSliceAt_lazy (σ : FiatShamirSalt kS) (H : Bits (queryBits k kN kS L)
     (x : X) (w : Wit) :
     ROM.NIZK.simSliceAt M.saltOfBits (lazyKernel VE B honest).toSimulator σ H ⟨x, w⟩ =
       innerL VE B H x (honest w) σ := by
-  let eq : FreshSlice (Bits (queryBits k kN kS L)) (XOut k e) (M.toFullPast.LazyCoins R) ≃
-      (M.ProverCoins R × FullPast.StreamDraw k kN kS L e P t) × (M.Pos → XOut k e) :=
+  let eq : FreshSlice (Bits (queryBits k kN kS L)) (XOut k e) (M.toBase.LazyCoins R) ≃
+      (M.ProverCoins R × Base.StreamDraw k kN kS L e P t) × (M.Pos → XOut k e) :=
     { toFun := fun a => ((⟨a.coins.iop, a.coins.merkleSalts⟩, ⟨a.slice, a.coins.streams⟩),
         a.coins.digests)
       invFun := fun b => ⟨⟨b.1.1.iop, b.1.2.streams, b.1.1.merkleSalts, b.2⟩, b.1.2.slice⟩
@@ -256,20 +256,20 @@ theorem simSliceAt_lazy (σ : FiatShamirSalt kS) (H : Bits (queryBits k kN kS L)
       right_inv := fun _ => rfl }
   rw [ROM.NIZK.simSliceAt, ← PMF.map_uniformOfFintype_equiv eq.symm, PMF.map_comp, innerL]
   conv_rhs => rw [← PMF.map_fst_uniformOfFintype
-    (α := M.ProverCoins R × FullPast.StreamDraw k kN kS L e P t)
+    (α := M.ProverCoins R × Base.StreamDraw k kN kS L e P t)
     (β := M.Pos → XOut k e), PMF.map_comp]
   congr 1
   funext b
   simp only [Function.comp_apply, eq, Equiv.coe_fn_symm_mk, ROM.NIZK.Kernel.toSimulator,
-    lazyKernel, ROM.NIZK.LeafKernel.kL, leafKernel, leafRun, FullPast.lazyEquiv,
+    lazyKernel, ROM.NIZK.LeafKernel.kL, leafKernel, leafRun, Base.lazyEquiv,
     Equiv.coe_fn_mk, lazyOut, outB]
-  rw [FullPast.mixDigest_honestLeaf VE]
-  have hd : FullPast.honestDigest E (honest w b.1.1.iop) x b.1.1.merkleSalts
+  rw [Base.mixDigest_honestLeaf VE]
+  have hd : Base.honestDigest E (honest w b.1.1.iop) x b.1.1.merkleSalts
       (chainOracle (replaceSlice M.saltOfBits σ H b.1.2.slice)) b.1.2.streams =
-      FullPast.honestDigest E (honest w b.1.1.iop) x b.1.1.merkleSalts (chainOracle H)
+      Base.honestDigest E (honest w b.1.1.iop) x b.1.1.merkleSalts (chainOracle H)
         b.1.2.streams := by
     funext p
-    simp only [FullPast.honestDigest]
+    simp only [Base.honestDigest]
     exact leafDigest_replaceSlice H σ b.1.2.slice _
   rw [hd]
 
@@ -299,7 +299,7 @@ open Classical in
 (`outViewAt`). -/
 theorem kernelReply_kD {x : X} {w : Wit} (hw : (x, w) ∈ rel)
     (O : Bits (queryBits k kN kS L) → XOut k e)
-    (c : ROM.NIZK.LeafCoins (FullPast.LeafMain k kS e P t R) M.Pos (MerkleSalt kN)
+    (c : ROM.NIZK.LeafCoins (Base.LeafMain k kS e P t R) M.Pos (MerkleSalt kN)
       (XOut k e)) :
     ROM.NIZK.kernelReply (fun x w => (x, w) ∈ rel) (leafKernel VE B honest).kD c ⟨x, w⟩ O =
       outViewAt VE B O x c.main.salt O (M.chOfStreams c.main.streams) c.main.streams c.salts
@@ -329,7 +329,7 @@ reply laws are within `overrun + δ` (`Base.tvDist_obs_joint_le`). -/
 theorem tvDist_kD_joint_le (hvzk : CausalHVZK VE.MV rel honest pub Sim δ)
     (req : ProofQuery X Wit) (O : Bits (queryBits k kN kS L) → XOut k e)
     (hr : (req.stmt, req.wit) ∈ rel) :
-    PMF.tvDist ((PMF.uniformOfFintype (ROM.NIZK.LeafCoins (FullPast.LeafMain k kS e P t R)
+    PMF.tvDist ((PMF.uniformOfFintype (ROM.NIZK.LeafCoins (Base.LeafMain k kS e P t R)
         M.Pos (MerkleSalt kN) (XOut k e))).map fun c =>
           ROM.NIZK.kernelReply (fun x w => (x, w) ∈ rel) (leafKernel VE B honest).kD c req O)
       ((PMF.uniformOfFintype (SaltedCoins (FiatShamirSalt kS)
@@ -338,7 +338,7 @@ theorem tvDist_kD_joint_le (hvzk : CausalHVZK VE.MV rel honest pub Sim δ)
           ((M.niJointSimulator VE.toViewRead B pub Sim T).toKernel (Wit := Wit)) c req O) ≤
       M.overrun.toReal + δ := by
   obtain ⟨x, w⟩ := req
-  let e₁ : ROM.NIZK.LeafCoins (FullPast.LeafMain k kS e P t R) M.Pos (MerkleSalt kN)
+  let e₁ : ROM.NIZK.LeafCoins (Base.LeafMain k kS e P t R) M.Pos (MerkleSalt kN)
       (XOut k e) ≃
       (FiatShamirSalt kS × (M.Pos → MerkleSalt kN) × (M.Pos → XOut k e)) ×
         ((ChIdx P t → Out k e) × R) :=
@@ -346,7 +346,7 @@ theorem tvDist_kD_joint_le (hvzk : CausalHVZK VE.MV rel honest pub Sim δ)
       invFun := fun b => ⟨⟨b.1.1, b.2.2, b.2.1⟩, b.1.2.1, b.1.2.2⟩
       left_inv := fun _ => rfl
       right_inv := fun _ => rfl }
-  have hL : (PMF.uniformOfFintype (ROM.NIZK.LeafCoins (FullPast.LeafMain k kS e P t R) M.Pos
+  have hL : (PMF.uniformOfFintype (ROM.NIZK.LeafCoins (Base.LeafMain k kS e P t R) M.Pos
         (MerkleSalt kN) (XOut k e))).map (fun c => ROM.NIZK.kernelReply (fun x w => (x, w) ∈ rel)
           (leafKernel VE B honest).kD c ⟨x, w⟩ O) =
       (PMF.uniformOfFintype (FiatShamirSalt kS × (M.Pos → MerkleSalt kN) × (M.Pos → Digest k))).bind
@@ -411,7 +411,7 @@ queries are counted): at honest-verifier zero knowledge of the composite in the 
 Definition 23.1.8 (`hvzk`), every classical adversary with a budget of `t` queries whose output does
 not read the final oracle distinguishes the prover `niProverZKM` from the simulator
 `niJointSimulator` with `Q` proof queries answered with advantage at most `zkErrorROMQuery δ t Q`, the
-query-counted error of the compiler over the term. -/
+query-counted error of the compiler data. -/
 theorem zeroKnowledgeROMQuery (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     ROM.NIZK.ZeroKnowledgeQueryBounded (fun x w => (x, w) ∈ rel) (M.niProverZKM B honest E Qs)
       (M.niJointSimulator VE.toViewRead B pub Sim T) (M.zkErrorROMQuery δ) := by
@@ -419,7 +419,7 @@ theorem zeroKnowledgeROMQuery (hvzk : CausalHVZK VE.MV rel honest pub Sim δ) :
     (sliceCloseAt_lazy VE B honest (rel := rel))
   have hε₃ : (0 : ℝ) ≤ M.overrun.toReal + δ := add_nonneg ENNReal.toReal_nonneg δ.2
   refine (ROM.NIZK.zeroKnowledgeQueryBounded_of_leafKernel (leafKernel_laws VE B honest)
-    (M.toFullPast.lazyEquiv R) (fun _ _ _ => rfl) h1 hε₃
+    (M.toBase.lazyEquiv R) (fun _ _ _ => rfl) h1 hε₃
     fun req O hr => tvDist_kD_joint_le VE B honest pub T hvzk req O hr).mono fun tq Q => ?_
   have hsalt : (Fintype.card (FiatShamirSalt kS) : ℝ) = 2 ^ (8 * kS) := by
     rw [show Fintype.card (FiatShamirSalt kS) = 2 ^ (8 * kS) from Out.card_digest]

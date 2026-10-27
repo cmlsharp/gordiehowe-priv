@@ -275,7 +275,7 @@ theorem expand_mem_verdictGame_iff
         (fun a => outEquiv k e (H a))).length ≤ kq + Q * Psim.q := by
       rw [htr, List.length_append, List.length_map]
       exact Nat.add_le_add (hkq _ h _ hv)
-        (FullPast.simQueryInputsOf_length_le A.toTPKindAlg Psim Q c.2)
+        (Base.simQueryInputsOf_length_le A.toTPKindAlg Psim Q c.2)
     refine ⟨h, hv, fun q hq => ?_⟩
     have hmem : ∃ i : Fin (kq + Q * Psim.q),
         ((ctrlExpansion A.toTPKindAlg Psim Q Qs).expand
@@ -697,7 +697,7 @@ theorem simLaw_winsNotExtracts_le {Wit : Type} {rel : Set (X × Wit)}
       (SaltedCoins (FiatShamirSalt kS) C)} {fx : X' → X} (hA : M.SimAssignsAtKeys B Psim fx) :
     simLaw (outEquiv k e) (extRun Qs A Psim Q kq hkq)
         {p | WinsNotExtracts Qs A Psim Q kq fx rel E p} ≤
-      knowledgeError k e (kq + Q * Psim.q) (FullPast.branchQueries A Psim Q + (kq + Q * Psim.q))
+      knowledgeError k e (kq + Q * Psim.q) (Base.branchQueries A Psim Q + (kq + Q * Psim.q))
         M.senc.digestsPerInput Mg.nJ (maxError ε) := by
   set A₀ := A.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id
   set V1 := simExtVerifier Qs A Psim Q kq fx
@@ -785,7 +785,7 @@ theorem weak_online_simulation_extractability_qrom [DecidableEq X] {kq : ℕ}
     refine (simLaw_winsNotExtracts_le Qs (𝒜.alg a) Q kq hkq hrbr (hA.comap fx)).trans ?_
     unfold simExtractionError knowledgeError
     have h2 := 𝒜.queries_le a
-    have hb : FullPast.branchQueries (𝒜.alg a) Psim Q + (kq + Q * Psim.q) ≤
+    have hb : Base.branchQueries (𝒜.alg a) Psim Q + (kq + Q * Psim.q) ≤
         tq + Q * Psim.q + (kq + Q * Psim.q) := by
       change (𝒜.alg a).width * (𝒜.alg a).budget + Q * Psim.q + (𝒜.alg a).width * (𝒜.alg a).post +
         (kq + Q * Psim.q) ≤ tq + Q * Psim.q + (kq + Q * Psim.q)

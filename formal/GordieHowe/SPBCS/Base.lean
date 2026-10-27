@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.Encoding
+public import GordieHowe.SPBCS.CausalEncoding
 public import GordieHowe.SPBCS.Extraction.Transcript
 public import GordieHowe.Model.QROM.Lifting
 public import GordieHowe.Model.QROM.Expansion
@@ -12,45 +12,31 @@ public import GordieHowe.SPBCS.Merkle.Opening
 @[expose] public section
 
 /-!
-# The compiler data of a series–parallel composition, and the full-past compiler
-
-TODO: remove `FullPast`. The full-past compiler is a leftover of the causal model, which the merge
-model superseded.
+# The compiler data of a series–parallel composition
 
 `GordieHowe.SPBCS.Base` is the compiler data of a series–parallel composition of public-coin
 protocols (`GordieHowe/Model/IOP/Causal.lean`): the components `P j : ProtocolSpec (n j)` composed
 by a term `t`, each leaf with its own hash chain. The spBCS compiler (`GordieHowe.SPBCS`,
 `GordieHowe/SPBCS/Basic.lean`) extends it with the encoding of chain inputs with merges. The
-namespace `Base` holds the declarations that the headline statements and the paper manifest reach
-(the proofs, the query phases, the error terms, the adversary classes), with their lemmas.
-
-`GordieHowe.SPBCS.FullPast` (proof-internal) is the full-past compiler, an abbreviation of `Base`
-that the spBCS compiler's knowledge-soundness reduction uses: each challenge is derived from a hash
-of its full causal past (`GordieHowe/SPBCS/FullPast/Encoding.lean`); a total order of the components
-is the case of a single hash chain. What remains in the namespace `FullPast` is proof-internal: the
-full-past chains and challenges (`leafChainFullPast`, `chainsFullPast`, `chalOf`), the compiled
-verifier `AcceptsFullPast` and its query programs, the stability and extraction lemmas of the
-knowledge-soundness reduction, the zero-knowledge and witness-indistinguishability hybrids, the ROM
-simulation-extraction adversaries and the oracle-test devices. Field notation on an `M : SPBCS …`
-reaches them through `M.toFullPast`.
+namespace `Base` holds the declarations that do not depend on how chain inputs are encoded (the
+proofs, the query phases, the database extractor, the built chains of the simulator and the honest
+prover, the error terms, the adversary classes), with their lemmas; field notation on an
+`M : SPBCS …` reaches them through `M.toBase`.
 
 * `ComponentModel P k kN L e`: the per-component data of one hash chain (writes, Merkle trees,
-  messages read from writes and views, samplers).
-* `GordieHowe.SPBCS.Base P t X k kN kS L e`: a component model for every component, one chain-input
-  encoding (`CausalEncoding`) of the term, and the Merkle opening format (`MerkleOpening`,
-  `GordieHowe/SPBCS/Merkle/Opening.lean`) with which a proof opens its trees: the authentication paths of
-  paper `prot:generalized-bcs` (`PerLeaf.opening`) or the compressed multiproofs of the C++
-  (`Multiproof.opening`). Every guarantee holds for every format.
+  messages read from writes and views, samplers), and the chain of a component for a key function
+  (`ComponentModel.chainWith`).
+* `GordieHowe.SPBCS.Base P t X k kN kS L e`: a component model for every component, the encoding
+  `enc` of causal pasts (`CausalEncoding`, `GordieHowe/SPBCS/CausalEncoding.lean`) with which the
+  database extractor reads the causal past of a challenge, and the Merkle opening format
+  (`MerkleOpening`, `GordieHowe/SPBCS/Merkle/Opening.lean`) with which a proof opens its trees: the
+  authentication paths of paper `prot:generalized-bcs` (`PerLeaf.opening`) or the compressed
+  multiproofs of the C++ (`Multiproof.opening`). Every guarantee holds for every format.
 * `Base.NIProof`: the salt, the writes of every leaf, the opened leaves and the path digests of every
   tree, in the opening format. `Base.IOPQueries V x`: the query phase of the composite verifier `V`
   and its laws.
-* The chain of leaf `p` given the full chains of the leaves before it (`FullPast.leafChainFullPast`):
-  item `r` is the prover's write at a prover round and, at a challenge round, the digest of the
-  stream at the key of the chain input `(σ, x, p, earlier chains, first r items)` and the salt
-  (the write-back). `FullPast.chainsFullPast` computes the chains of all leaves by the causal
-  fixpoint (`SPTerm.solve`), each from the chains of the leaves before it; `FullPast.chalOf c`
-  samples the challenge `c` from the stream at the key of its chain input.
-  `FullPast.AcceptsFullPast`: the compiled full-past verifier.
+* `Base.gIdx`, `Base.chOrder`: the global round of a challenge (round `r` of leaf `p` is global
+  round `p.off + r`) and the order of the challenges by it.
 -/
 
 namespace GordieHowe.SPBCS
@@ -126,6 +112,18 @@ theorem chainWith_getElem? : ∀ r (hr : r ≤ m) j (hj : j < r), (C.chainWith w
     · rw [List.getElem?_append_right (by rw [length_chainWith]), length_chainWith]
       simp
 
+/-- **The first `r` items of a chain of `s` items are its chain of `r` items.** -/
+theorem take_chainWith : ∀ s (hs : s ≤ m) r (hr : r ≤ s),
+    (C.chainWith wr keyOf salt h s hs).take r = C.chainWith wr keyOf salt h r (hr.trans hs)
+  | 0, _, r, hr => by
+    obtain rfl : r = 0 := by omega
+    rfl
+  | s + 1, hs, r, hr => by
+    rcases Nat.lt_succ_iff_lt_or_eq.1 (Nat.lt_succ_of_le hr) with hr' | rfl
+    · rw [chainWith, List.take_append_of_le_length (by rw [length_chainWith]; omega),
+        take_chainWith s (by omega) r (by omega)]
+    · rw [List.take_of_length_le (by rw [length_chainWith])]
+
 variable {wr keyOf salt h} in
 /-- **Two chains agree** when their key functions, salts and oracles give the same items at the
 chain's own prefixes. -/
@@ -186,27 +184,20 @@ variable {ι : Type} {n : ι → ℕ}
 
 /-- **The compiler data of a series–parallel composition** of the components `P` by the term `t`,
 for statements in `X`, which the spBCS compiler (`GordieHowe.SPBCS`) extends with the encoding of
-chain inputs with merges: a component model per component, the encoding of chain inputs
-(`CausalEncoding`) of the salted statement and the causal past, whose digests are the roots of the
-writes and the absorbed digests, and the Merkle opening format. -/
+chain inputs with merges: a component model per component, the encoding (`CausalEncoding`) of
+the salted statement and the causal past of a challenge, whose digests are the roots of the writes
+and the absorbed digests, with which the database extractor reads causal pasts, and the Merkle
+opening format. -/
 structure Base (P : (j : ι) → ProtocolSpec (n j)) (t : SPTerm ι) (X : Type)
     (k kN kS L e : ℕ) [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
     where
   /-- The data of each component. -/
   comp : (j : ι) → ComponentModel (P j) k kN L e
-  /-- The encoding of chain inputs. -/
+  /-- The encoding of causal pasts, read by the database extractor. -/
   enc : CausalEncoding k L t n (SaltedStatement kS X) (fun j => (comp j).W)
     (fun j => (comp j).roots) (fun j => chainWF (P j))
   /-- How a proof opens the queried leaves of a tree. -/
   opening : MerkleOpening k kN kS L e
-
-/-- **The full-past compiler** (proof-internal) used in the spBCS compiler's knowledge-soundness
-reduction: the compiler data `Base`, whose challenges the declarations in the namespace
-`FullPast` derive from a hash of the full causal past. Field notation on a `FullPast` reaches
-these declarations and, through the abbreviation, those of `Base`. -/
-abbrev FullPast (P : (j : ι) → ProtocolSpec (n j)) (t : SPTerm ι) (X : Type)
-    (k kN kS L e : ℕ) [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] :=
-  Base P t X k kN kS L e
 
 namespace Base
 
@@ -367,6 +358,22 @@ theorem length_openedIn_le (τ : M.Tree) (ps : List M.Pos) (as : List (MerkleLea
     (M.openedIn τ ps as).length ≤ as.length :=
   (List.length_filterMap_le _ _).trans (by rw [List.length_zip]; exact min_le_right _ _)
 
+open Classical in
+/-- The opened leaves of the trees of the positions `ps`, one per position. -/
+theorem sum_length_openedIn {ps : List M.Pos} {as : List (MerkleLeaf kN L)}
+    (hl : ps.length = as.length) :
+    ((M.trees ps).map fun τ => (M.openedIn τ ps as).length).sum = ps.length := by
+  have hfst : (ps.zip as).map (Pos.treeOf ∘ Prod.fst) = ps.map Pos.treeOf := by
+    rw [← List.map_map, List.map_fst_zip hl.le]
+  have hcount : ∀ τ, (M.openedIn τ ps as).length = (ps.map Pos.treeOf).count τ := by
+    intro τ
+    rw [← hfst, List.count, List.countP_map, openedIn, List.length_filterMap_eq_countP]
+    congr 1
+    funext pa
+    by_cases hτ : pa.1.treeOf = τ <;> simp [hτ]
+  simp only [hcount, trees]
+  rw [List.sum_map_count_dedup_eq_length, List.length_map]
+
 /-- The opened leaves of a tree among positions whose leaves are `f` of the position. -/
 theorem openedIn_map (f : M.Pos → MerkleLeaf kN L) (τ : M.Tree) :
     ∀ ps : List M.Pos, M.openedIn τ ps (ps.map f) =
@@ -435,115 +442,6 @@ theorem mem_chList (c : ChIdx P t) : c ∈ chList P t := by
   simp only [hd, ↓reduceDIte]
   rfl
 
-end Base
-
-namespace FullPast
-
-open Base
-
-variable {P : (j : ι) → ProtocolSpec (n j)} [∀ j i, Fintype ((P j).Challenge i)]
-  [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  (M : FullPast P t X k kN kS L e)
-
-variable (h : Query k kN kS L → Out k e) (x : X) (σ : FiatShamirSalt kS)
-
-/-- **The key of a chain input**: the digest of `h` at the encoded salted statement and causal
-past (leaf `p`, context `ctx`, own items `l`). -/
-def keyFullPast (p : t.Leaf) (ctx : M.Ctx p) (l : M.Items p) : Digest k :=
-  (h (.transcript (M.enc.encode ⟨σ, x⟩ (M.content p ctx l)))).digest
-
-/-- **Item `r` of leaf `p`'s chain after the items `l`**: the write at a prover round, the digest
-of the stream at the key and the salt at a challenge round (the write-back). -/
-def itemAt (wr : M.Writes) (p : t.Leaf) (ctx : M.Ctx p) (r : ℕ) (hr : r < n p.label)
-    (l : M.Items p) : Item k (M.comp p.label).W :=
-  if hd : (P p.label).dir ⟨r, hr⟩ = .P_to_V then .write ⟨⟨⟨r, hr⟩, hd⟩, wr p ⟨⟨r, hr⟩, hd⟩⟩
-  else .absorb (h (.xof (M.keyFullPast h x σ p ctx l) σ)).digest
-
-/-- **The first `r` items of leaf `p`'s chain** in the causal context `ctx`. -/
-def leafChainFullPast (wr : M.Writes) (p : t.Leaf) (ctx : M.Ctx p) :
-    (r : ℕ) → r ≤ n p.label → M.Items p
-  | 0, _ => []
-  | r + 1, hr => leafChainFullPast wr p ctx r (by omega) ++
-      [M.itemAt h x σ wr p ctx r (by omega) (leafChainFullPast wr p ctx r (by omega))]
-
-/-- **A leaf's chain is the chain of its component for the keys of its chain inputs.** -/
-theorem leafChainFullPast_eq_chainWith (wr : M.Writes) (p : t.Leaf) (ctx : M.Ctx p) :
-    ∀ r (hr : r ≤ n p.label), M.leafChainFullPast h x σ wr p ctx r hr =
-      (M.comp p.label).chainWith (wr p) (M.keyFullPast h x σ p ctx) σ h r hr
-  | 0, _ => rfl
-  | r + 1, hr => by
-    rw [leafChainFullPast, ComponentModel.chainWith, leafChainFullPast_eq_chainWith wr p ctx r]
-    rfl
-
-theorem length_leafChainFullPast (wr : M.Writes) (p : t.Leaf) (ctx : M.Ctx p) :
-    ∀ r (hr : r ≤ n p.label), (M.leafChainFullPast h x σ wr p ctx r hr).length = r
-  | 0, _ => rfl
-  | r + 1, hr => by simp [leafChainFullPast, length_leafChainFullPast wr p ctx r]
-
-/-- **The chains of all leaves** (the causal fixpoint): each leaf's full chain in the context of
-the chains of the leaves before it. -/
-def chainsFullPast (wr : M.Writes) : (p : t.Leaf) → M.Items p :=
-  SPTerm.solve fun p ctx => M.leafChainFullPast h x σ wr p ctx (n p.label) le_rfl
-
-/-- The causal context of leaf `p` in the chains of all leaves. -/
-def ctxOf (wr : M.Writes) (p : t.Leaf) : M.Ctx p := fun q => M.chainsFullPast h x σ wr q.1
-
-theorem leafChainFullPast_getElem? (wr : M.Writes) (p : t.Leaf) (ctx : M.Ctx p) :
-    ∀ r (hr : r ≤ n p.label) j (hj : j < r), (M.leafChainFullPast h x σ wr p ctx r hr)[j]? =
-      some (M.itemAt h x σ wr p ctx j (by omega) (M.leafChainFullPast h x σ wr p ctx j (by omega)))
-  | 0, _, _, hj => absurd hj (Nat.not_lt_zero _)
-  | r + 1, hr, j, hj => by
-    rw [leafChainFullPast]
-    rcases Nat.lt_succ_iff_lt_or_eq.1 hj with hj' | rfl
-    · rw [List.getElem?_append_left (by rw [length_leafChainFullPast]; exact hj'),
-        leafChainFullPast_getElem? wr p ctx r (by omega) j hj']
-    · rw [List.getElem?_append_right (by rw [length_leafChainFullPast]), length_leafChainFullPast]
-      simp
-
-theorem chainsFullPast_eq (wr : M.Writes) (p : t.Leaf) :
-    M.chainsFullPast h x σ wr p = M.leafChainFullPast h x σ wr p (M.ctxOf h x σ wr p) (n p.label) le_rfl :=
-  SPTerm.solve_eq _ p
-
-/-- **The item of a prover round of a leaf's chain is the leaf's write.** -/
-theorem chainsFullPast_getElem?_message (wr : M.Writes) (p : t.Leaf) (i : (P p.label).MessageIdx) :
-    (M.chainsFullPast h x σ wr p)[i.1.1]? = some (.write ⟨i, wr p i⟩) := by
-  rw [chainsFullPast_eq, leafChainFullPast_getElem? M h x σ wr p _ _ le_rfl i.1 i.1.2]
-  unfold itemAt
-  simp only [i.2, ↓reduceDIte]
-  rfl
-
-/-- **The challenge `c`** derived from the stream at the key of its chain input and the salt, or
-`none` when the sampler rejects. -/
-def chalOf (wr : M.Writes) (c : ChIdx P t) : Option c.Challenge :=
-  ((M.comp c.leaf.label).sampler c.idx).sample (h (.xof (M.keyFullPast h x σ c.leaf
-    (M.ctxOf h x σ wr c.leaf)
-    (M.leafChainFullPast h x σ wr c.leaf (M.ctxOf h x σ wr c.leaf) c.idx.1 c.idx.1.2.le)) σ)).stream
-
-/-- The derived challenges, with the sampler's default value where it rejects (the verifier
-rejects then). -/
-def chVFullPast (wr : M.Writes) : Chs P t := fun c =>
-  (M.chalOf h x σ wr c).getD ((M.comp c.leaf.label).sampler c.idx).default
-
-variable {M}
-
-/-- **The compiled verifier `V^h(x, π)` accepts**: recompute the chains of all leaves, the keys,
-the absorbed digests and the challenges from `h`, each challenge from its causal past; the
-samplers accept every stream (`sampled`); there is one opened leaf per queried position
-(`leaves_length`); every tree's opening checks (`paths`); the query phase accepts
-(`decides`). -/
-structure AcceptsFullPast [∀ j i, Nonempty ((P j).Challenge i)] {StmtIn : Type} {M : FullPast P t StmtIn k kN kS L e}
-    {V : StmtIn → FullTr P t → Bool} (x : StmtIn) (π : M.NIProof) (Q : M.IOPQueries V x) : Prop where
-  /-- The sampler accepts the stream of every challenge. -/
-  sampled : ∀ c, (M.chalOf h x π.salt π.writes c).isSome
-  /-- One opened leaf per queried position. -/
-  leaves_length : (Q.pos (M.chainsFullPast h x π.salt π.writes) (M.chVFullPast h x π.salt π.writes)).length =
-    π.leaves.length
-  /-- Every tree's opening checks. -/
-  paths : ∀ τ ∈ M.trees (Q.pos (M.chainsFullPast h x π.salt π.writes) (M.chVFullPast h x π.salt π.writes)),
-    checkTree h π (Q.pos (M.chainsFullPast h x π.salt π.writes) (M.chVFullPast h x π.salt π.writes)) τ
-  /-- The query phase's decision accepts. -/
-  decides : Q.verdict (M.chainsFullPast h x π.salt π.writes) (M.chVFullPast h x π.salt π.writes) π.leaves = true
-
 /-! ### The global order of the challenges -/
 
 /-- The global round of a challenge: round `c.idx` of its leaf, after the rounds of the leaves
@@ -577,6 +475,6 @@ decided by its own instance alone). -/
 abbrev chOrder : LinearOrder (ChIdx P t) :=
   LinearOrder.lift' gIdx gIdx_injective
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

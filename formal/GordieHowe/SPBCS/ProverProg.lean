@@ -4,16 +4,22 @@
 module
 
 public import GordieHowe.SPBCS.SimProg
-public import GordieHowe.SPBCS.FullPast.ProverProg
-public import GordieHowe.SPBCS.FullPast.Online
+public import GordieHowe.SPBCS.Base.ProverProg
+public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.Extraction.KnowledgeError
+public import GordieHowe.Model.QROM.QueryBits
+public import GordieHowe.Model.QROM.QueryCount
+public import GordieHowe.SPBCS.Extraction.OnlineExtract
+public import GordieHowe.SPBCS.Extraction.OnlineExtractROM
+public import GordieHowe.Model.ROM.Model
 
 @[expose] public section
 
 /-!
 # The honest prover of the spBCS compiler
 
-The honest prover `niProver`: the generic prover program of the compiler over the term
-(`GordieHowe.SPBCS.Base.niProverProgOf`, `GordieHowe/SPBCS/FullPast/ProverProg.lean`) at the key
+The honest prover `niProver`: the generic prover program of the compiler data
+(`GordieHowe.SPBCS.Base.niProverProgOf`, `GordieHowe/SPBCS/Base/ProverProg.lean`) at the key
 program with merges `mergeKeyProg`, which, for a challenge, queries the final inputs of all sites in
 the order `siteOrder` (`finalsProg`) and then its chain input (`keyProg`). The key law holds at the
 honest streams `honestStreams` (`keyLaw_mergeKeyProg`, from `honestStreams_eq`), so the program's
@@ -60,20 +66,20 @@ variable {M} in
 /-- **The key program with merges has its key law at the honest streams** (`honestStreams_eq`). -/
 theorem keyLaw_mergeKeyProg (E : (j : ι) → (M.comp j).Encoder) (prv : CausalProver P t X)
     (x : X) (ν : M.Pos → MerkleSalt kN) (σ : FiatShamirSalt kS) (h : Query k kN kS L → Out k e) :
-    M.toFullPast.KeyLaw E prv x ν σ h (honestStreams E prv x ν σ h) (M.mergeKeyProg Λ x σ) where
+    M.toBase.KeyLaw E prv x ν σ h (honestStreams E prv x ν σ h) (M.mergeKeyProg Λ x σ) where
   congr chs chs' c hb ho := by
     rw [run_mergeKeyProg, run_mergeKeyProg, ho]
     refine congrFun (key_congr (fun q hq => hb q hq.1) fun s hs => ?_) _
     exact finalsWith_congr_of_hides hb hs
   honest c := by
     rw [honestStreams_eq, keyStep, run_mergeKeyProg, buildKey, buildFinals,
-      M.toFullPast.buildLeaf_take h _ _ _ c.leaf c.idx.1.2.le]
+      M.toBase.buildLeaf_take h _ _ _ c.leaf c.idx.1.2.le]
     rfl
 
 variable {Wit R : Type} [Fintype R] [Nonempty R] (honest : Wit → R → CausalProver P t X)
 
 /-- **The honest prover of the spBCS compiler** (paper `prot:generalized-bcs`): the generic prover
-program of the compiler over the term (`Base.niProverProgOf`) at the key program with merges,
+program of the compiler data (`Base.niProverProgOf`) at the key program with merges,
 against the compiler's oracle `Query → Out`, with uniform coins (the Fiat–Shamir salt, the causal
 prover's coins and a Merkle salt per position). Its proofs are in the format `B` by the format
 bounds `hb` of the query phases. At most `2 |Pos| + (|sites| + 2) · t.size n` queries.
@@ -98,7 +104,7 @@ theorem toFn_niProver (E : (j : ι) → (M.comp j).Encoder) {V : X → FullTr P 
     (a : SaltedCoins (FiatShamirSalt kS) (M.ProverCoins R)) :
     ((M.niProver Λ honest E hb).toFn.prove h x w a).val =
       prove (honest w a.coins.iop) x a.salt E a.coins.merkleSalts h (Qs x) := by
-  rw [niProver, M.toFullPast.toFn_niProverProgOf honest E (M.mergeKeyProg Λ)
+  rw [niProver, M.toBase.toFn_niProverProgOf honest E (M.mergeKeyProg Λ)
     (fun x σ chs c h => M.length_trace_mergeKeyProg Λ x σ chs c h) VE hb
     (fun w r x ν σ h => honestStreams E (honest w r) x ν σ h)
     (fun w r x ν σ h => keyLaw_mergeKeyProg Λ E (honest w r) x ν σ h) h x w a,
@@ -107,7 +113,7 @@ theorem toFn_niProver (E : (j : ι) → (M.comp j).Encoder) {V : X → FullTr P 
 variable [∀ j i, Fintype ((M.comp j).MessageWrite i)]
 
 /-- **Bridge to the hybrid argument**: the prover run through `queryEncoding` is the prover of the
-zero-knowledge games, whose proofs are encoded by the proof device `FullPast.Internal.encodeTotal`;
+zero-knowledge games, whose proofs are encoded by the proof device `Base.Internal.encodeTotal`;
 within the format bounds the device is the constructor of a bounded proof. -/
 theorem toFn_encode_niProver (E : (j : ι) → (M.comp j).Encoder) {V : X → FullTr P t → Bool}
     {Qs : ∀ x, M.IOPQueries V x} (VE : M.ViewEncoder E Qs) {B : ℕ} (hb : M.FormatBounds Qs B B) :
@@ -118,8 +124,8 @@ theorem toFn_encode_niProver (E : (j : ι) → (M.comp j).Encoder) {V : X → Fu
         (M.niProverZKM B honest E Qs).prove H x w a := by
     intro H x w a
     rw [NARG.Prover.toFn_encode_prove, NARG.Prover.toFn_mapOutput_prove, decode_queryEncoding]
-    show _ = FullPast.Internal.encodeTotal M.toFullPast B _
-    rw [FullPast.Internal.encodeTotal_of_bounded _ (prove_eq_honestProof E _ x _ _ _ (Qs x) ▸
+    show _ = Base.Internal.encodeTotal M.toBase B _
+    rw [Base.Internal.encodeTotal_of_bounded _ (prove_eq_honestProof E _ x _ _ _ (Qs x) ▸
       bounded_honestProof E _ x _ _ (Qs x) _ (hb.pos_le x) hb.nLeaves_le)]
     exact congrArg some (Subtype.ext (M.toFn_niProver Λ honest E VE hb _ x w a))
   unfold NARG.Prover.toFn niProverZKM

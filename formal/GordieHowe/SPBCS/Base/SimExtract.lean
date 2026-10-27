@@ -3,19 +3,19 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.SimExtractGame
+public import GordieHowe.SPBCS.Base.SimExtractGame
 public import GordieHowe.Model.QROM.QueryCountExpand
 public import GordieHowe.Model.QROM.AdaptiveCount
 
 @[expose] public section
 
 /-!
-# The simulation-extraction game at one adversary, for the series–parallel base model
+# The simulation-extraction game at one adversary
 
 Objects of the weak simulation-sound extractability game (Unruh 2017, ePrint 2017/398,
 Definition 14, p. 21, eq. (6), weak variant, for residual-state tests that make no oracle queries)
 at one adaptive interactive adversary `A` with the simulation challenger running the simulator
-program `Psim`, at the series–parallel base model (`GordieHowe.SPBCS.FullPast`):
+program `Psim`, for the compiler data (`GordieHowe.SPBCS.Base`):
 
 - `Reg`: the composed registers; `branchQueries`: the per-branch query count of the composed
   algorithm; `Fresh`: the adversary's statement is none of its proof queries.
@@ -73,14 +73,12 @@ theorem SimExtractionAdversary.tsum_le_tsum_add {tq Q : ℕ} (𝒜 : M.SimExtrac
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
   [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : FullPast P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {V : X → FullTr P t → Bool} (Qs : ∀ x, M.IOPQueries V x) {X' : Type} [Fintype X']
   [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
 
@@ -93,6 +91,6 @@ variable (A : AdaptiveIAlg (Bits (queryBits k kN kS L)) (XOut k e) X' (M.Respons
 /-- **The per-branch query count of the composed algorithm.** -/
 abbrev branchQueries : ℕ := A.width * A.budget + Q * Psim.q + A.width * A.post
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

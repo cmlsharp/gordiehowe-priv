@@ -3,16 +3,16 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledgeROM
+public import GordieHowe.SPBCS.Base.ZeroKnowledgeROM
 public import GordieHowe.Model.ROM.LeafZK
 public import GordieHowe.Model.ROM.SaltedZK
 
 @[expose] public section
 
 /-!
-# Query-counted zero knowledge of the compiler over a composition in the classical ROM
+# Query-counted zero knowledge in the classical ROM: the pieces of the compiler data
 
-Zero knowledge of the compiled argument of a composition (`GordieHowe/SPBCS/FullPast/Model.lean`) against
+The pieces, at the compiler data of a composition (`GordieHowe/SPBCS/Base.lean`), of zero knowledge against
 classical adversaries all of whose queries are counted (`ROM.NIZK.ZeroKnowledgeQueryBounded`, Unruh
 2017 Definition 6, p. 14, with classical adversaries): the honest prover `GordieHowe.SPBCS.niProverZKM`
 and simulator `GordieHowe.SPBCS.niJointSimulator` of `GordieHowe.SPBCS.zeroKnowledgeROM`, with the leaf term
@@ -93,13 +93,11 @@ noncomputable def zkErrorROMQuery (δ : ℝ≥0) (tq Q : ℕ) : ℝ :=
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X : Type} (M : FullPast P t X k kN kS L e)
+  {X : Type} (M : Base P t X k kN kS L e)
 
 /-! ### Reading the oracle off the leaves -/
 
@@ -249,6 +247,6 @@ theorem mixDigest_honestLeaf (O : Bits (queryBits k kN kS L) → XOut k e) (x : 
   simp only [mixDigest]
   split_ifs <;> rfl
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

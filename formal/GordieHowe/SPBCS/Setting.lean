@@ -6,9 +6,15 @@ module
 public import GordieHowe.Model.IOP.SPIOP
 public import GordieHowe.SPBCS.Bytes
 public import GordieHowe.SPBCS.Basic
-public import GordieHowe.SPBCS.FullPast.Extract
-public import GordieHowe.SPBCS.FullPast.Online
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.Extract
+public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.Extraction.KnowledgeError
+public import GordieHowe.Model.QROM.QueryBits
+public import GordieHowe.Model.QROM.QueryCount
+public import GordieHowe.SPBCS.Extraction.OnlineExtract
+public import GordieHowe.SPBCS.Extraction.OnlineExtractROM
+public import GordieHowe.Model.ROM.Model
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
 public import GordieHowe.SPBCS.Merkle.Multiproof
 
 @[expose] public section

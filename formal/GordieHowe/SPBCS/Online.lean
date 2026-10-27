@@ -4,8 +4,14 @@
 module
 
 public import GordieHowe.SPBCS.KnowledgeROM
-public import GordieHowe.SPBCS.FullPast.Online
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.Extraction.KnowledgeError
+public import GordieHowe.Model.QROM.QueryBits
+public import GordieHowe.Model.QROM.QueryCount
+public import GordieHowe.SPBCS.Extraction.OnlineExtract
+public import GordieHowe.SPBCS.Extraction.OnlineExtractROM
+public import GordieHowe.Model.ROM.Model
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
 
 @[expose] public section
 
@@ -119,7 +125,7 @@ theorem queries_length_le_of_accepts {Q : M.IOPQueries V x} {N : ℕ}
         exact Nat.mul_le_mul_left _ (Nat.add_le_add_left (Nat.log_mono_right (by
           have := hN τ.leaf τ.tree.msg τ.tree.tree; omega)) _)
     _ = ps.length * (1 + Nat.log 2 (2 * N)) := by
-        rw [List.sum_map_mul_right, Base.sum_length_openedIn hv.leaves_length]
+        rw [List.sum_map_mul_right, Base.sum_length_openedIn _ hv.leaves_length]
 
 end QueryCount
 

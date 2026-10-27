@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.Basic
-public import GordieHowe.SPBCS.FullPast.Completeness
+public import GordieHowe.SPBCS.Base.Completeness
 
 @[expose] public section
 

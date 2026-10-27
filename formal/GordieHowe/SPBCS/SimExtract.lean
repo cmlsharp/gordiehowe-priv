@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.SimExtractGame
-public import GordieHowe.SPBCS.FullPast.SimExtract
+public import GordieHowe.SPBCS.Base.SimExtract
 public import GordieHowe.Model.Quantum.Interactive.QueryBounded
 
 @[expose] public section
@@ -74,7 +74,7 @@ noncomputable abbrev extAdv :
 /-- The per-branch query count of the simulated adversary: `branchQueries + kq + Q · q`. -/
 noncomputable def extAdvQueryCount :
     QueryCount (outEquiv k e) (extAdv Qs A Psim Q kq)
-      (FullPast.branchQueries A Psim Q + (kq + Q * Psim.q)) :=
+      (Base.branchQueries A Psim Q + (kq + Q * Psim.q)) :=
   QueryCount.expandAdv (kq + Q * Psim.q) (outEquiv k e)
     (simExtractionExpansion A.toTPKindAlg Psim Q Qs)
     (AdaptiveIAlg.tpQueryCount (outEquiv k e) A (simExtChallenger Psim Q) id _)
@@ -151,11 +151,11 @@ theorem winTestProb_le_fresh [DecidableEq X]
     (ok : A.W → Prop) :
     winTestProb Qs A Psim' Q fx ok ≤ extractFreshTestProb Qs A Psim' Q kq fx rel E ok +
       knowledgeError k e (kq + Q * Psim'.q)
-        (FullPast.branchQueries A Psim' Q + (kq + Q * Psim'.q))
+        (Base.branchQueries A Psim' Q + (kq + Q * Psim'.q))
         M.senc.digestsPerInput Mg.nJ (maxError ε) := by
   set e' := outEquiv k e
   set K := kq + Q * Psim'.q
-  set b := FullPast.branchQueries A Psim' Q + K
+  set b := Base.branchQueries A Psim' Q + K
   set G := simExtGame A.toTPKindAlg Psim' Q Qs fx K ∩
     {o | ok (Base.advWorkspace A.toTPKindAlg Psim' Q o.out).1}
   set 𝒜 := extAdv Qs A Psim' Q kq
@@ -287,7 +287,7 @@ theorem simulation_sound_extractability_game [DecidableEq X] {kq : ℕ}
     (add_le_add le_rfl ?_)
   unfold simExtractionError knowledgeError
   have h2 := 𝒜.queries_le a
-  have hb : FullPast.branchQueries (𝒜.alg a) Psim Q + (kq + Q * Psim.q) ≤
+  have hb : Base.branchQueries (𝒜.alg a) Psim Q + (kq + Q * Psim.q) ≤
       tq + Q * Psim.q + (kq + Q * Psim.q) := by
     change (𝒜.alg a).width * (𝒜.alg a).budget + Q * Psim.q + (𝒜.alg a).width * (𝒜.alg a).post +
       (kq + Q * Psim.q) ≤ tq + Q * Psim.q + (kq + Q * Psim.q)

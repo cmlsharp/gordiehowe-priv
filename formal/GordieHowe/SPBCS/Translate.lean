@@ -6,7 +6,7 @@ module
 public import GordieHowe.SPBCS.Basic
 public import GordieHowe.SPBCS.Extraction.TranscriptLookup
 public import GordieHowe.SPBCS.Extraction.ChainProg
-public import GordieHowe.SPBCS.FullPast.Extract
+public import GordieHowe.SPBCS.Base.Extract
 
 @[expose] public section
 
@@ -19,9 +19,8 @@ chains. Following each such digest once, through the recorded final input whose 
 digest, recovers the chains of the branch: the sink of a hidden branch reads its branch in full
 (`Merges.visible_sink_of_mem`), and it reads the leaves before the branch as the observer does
 (`Merges.visible_sink_iff`, `Merges.hides_sink_iff`). Re-encoding the recovered causal past with
-the full-past compiler's encoding gives the chain input of the compiler over the term (`GordieHowe.SPBCS.FullPast`)
-with the same answer, which carries the knowledge argument of the compiler over the term to the
-spBCS compiler.
+the encoding of causal pasts (`Base.enc`) gives the input from which the database extractor
+(`Base.dbExtract`) reads the causal past, with the same answer.
 
 * `Merges.Obs.siteOf`: the hidden branch that contains a leaf an observer does not read in full
   (unique, `Merges.eq_of_hides`).
@@ -31,7 +30,7 @@ spBCS compiler.
   the branch.
 * `fill o chs R`: the chains of the past of `o`: `chs` at the leaves `o` reads in full, the
   resolved chains `R s` at the leaves of each hidden branch `s`.
-* `fullChain D c`: the salted statement and causal-model content of a round content; final inputs
+* `fullChain D c`: the salted statement and the causal past of a round content; final inputs
   have none. `φ D`, `trans D`: the translated query and database.
 
 Running time: `findTr` is one pass over the entries; `fullChain` follows at most `nJ` digests,
@@ -533,7 +532,7 @@ theorem pastChains_honest (hD : D ∉ digestCollision) (hr : M.RecordsFinals h s
       exact Merges.Obs.viewChains_of_visible _ _ (Merges.visible_sink_of_mem hm)
 
 /-- **The chain input of the proof at a proper prefix translates** to its salted statement and
-the full-past compiler's chain input of the same causal past. -/
+the encoding of the same causal past. -/
 theorem fullOf_honest (hD : D ∉ digestCollision) (hr : M.RecordsFinals h ss wr D)
     (p : t.Leaf) (l : M.Items p) :
     M.fullOf D (roundContent ss (M.chains h ss wr) (M.finals h ss wr) p l) =
@@ -543,8 +542,8 @@ theorem fullOf_honest (hD : D ∉ digestCollision) (hr : M.RecordsFinals h ss wr
   congr 3
   exact M.content_congr (fun q hq => hFe q hq) l
 
-/-- **A chain input of the proof at a proper prefix translates** to the full-past compiler's chain
-input of the same causal past. -/
+/-- **A chain input of the proof at a proper prefix translates** to the encoding of the same
+causal past. -/
 theorem φ_transcript_honest (hD : D ∉ digestCollision) (hr : M.RecordsFinals h ss wr D)
     (p : t.Leaf) {l : M.Items p} (hl : chainWF (P p.label) l) (hlen : l.length < n p.label) :
     M.φ D (.transcript (M.senc.encode (roundContent ss (M.chains h ss wr) (M.finals h ss wr) p l))) =

@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.Completeness
+public import GordieHowe.SPBCS.Base.Completeness
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.SPBCS.Merkle.LeafHidingAdaptive
 public import GordieHowe.SPBCS.Extraction.LazySampling
@@ -17,14 +17,15 @@ public import GordieHowe.Model.QROM.SaltedZKProofQuery
 @[expose] public section
 
 /-!
-# Zero knowledge: the series–parallel base model
+# Zero knowledge: the pieces of the compiler data
 
-Everlasting zero knowledge of the compiled argument of a composition
-(`GordieHowe/SPBCS/FullPast/Model.lean`), in the quantum random-oracle model, from honest-verifier zero
-knowledge of the composite's observation in the form of CY24 Definition 23.1.8, over the
-challenges of all leaves. This file holds the pieces at the series–parallel base model
-(`GordieHowe.SPBCS.FullPast`); the theorem for the spBCS compiler is `GordieHowe.SPBCS.everlastingZeroKnowledge`
-(`GordieHowe/SPBCS/ZeroKnowledge.lean`). The argument:
+The pieces of everlasting zero knowledge in the quantum random-oracle model that depend only on the
+compiler data of a composition (`GordieHowe.SPBCS.Base`, `GordieHowe/SPBCS/Base.lean`), from
+honest-verifier zero knowledge of the composite's observation in the form of CY24 Definition
+23.1.8, over the challenges of all leaves: bounded proofs, the view laws, the chains and proofs
+built from streams (`buildLeaf`, `buildProof`), the honest digests (`honestDigest`), the stream
+and leaf draws, and the one-proof bound. The theorem for the spBCS compiler is
+`GordieHowe.SPBCS.everlastingZeroKnowledge` (`GordieHowe/SPBCS/ZeroKnowledge.lean`). The argument:
 
 * the challenges are ordered by their global round (`chOrder`: round `r` of leaf `p` is global
   round `p.off + r`); a challenge's chain input reads only the streams of earlier challenges in
@@ -396,13 +397,11 @@ noncomputable def zkError (δ : ℝ≥0) (tq Q : ℕ) : ℝ :=
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X : Type} (M : FullPast P t X k kN kS L e)
+  {X : Type} (M : Base P t X k kN kS L e)
 
 /-- Boundedness of a proof is decidable. -/
 instance (B : ℕ) (π : M.NIProof) : Decidable (M.Bounded B π) :=
@@ -601,14 +600,6 @@ theorem honestWrite_eq (ρ : ChIdx P t → Out k e) (p : t.Leaf) (i : (P p.label
     simp only [MerkleTree.root, MerkleTree.treeDigest, rootsOf]
     rw [root_leafFn]
   simp only [honestWrite, honestWrite', h1]
-
-/-- The honest chains have a write at every prover round. -/
-theorem writesAll_honestChainsFullPast : M.WritesAll (honestChainsFullPast E prv x ν σ h) := by
-  intro p i
-  rw [honestChainsFullPast, leafChainW_getElem? prv x _ _ p _ i.1.1 i.1.2]
-  unfold itemW
-  rw [dite_eq_left i.1.2, dite_eq_left i.2]
-  exact ⟨_, rfl⟩
 
 end Honest
 
@@ -919,6 +910,6 @@ theorem expect_oneProofBound_le (δ : ℝ≥0) :
     ← Finset.mul_expect]
   gcongr
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

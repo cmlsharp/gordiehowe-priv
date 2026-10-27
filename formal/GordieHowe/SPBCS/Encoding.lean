@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.Merges
-public import GordieHowe.SPBCS.FullPast.Encoding
+public import GordieHowe.SPBCS.CausalEncoding
 
 @[expose] public section
 
@@ -31,7 +31,7 @@ decoder that inverts it on well-formed content, whose decoded strings are encodi
 well-formed content, and the digests of an input containing those of its items.
 
 Without merges (`Merges.none`) every observer is a leaf reading its whole causal past, and the
-content is the content of the compiler over the term (`CausalChain`).
+content is the causal past of the chain input (`CausalChain`).
 -/
 
 namespace GordieHowe.SPBCS

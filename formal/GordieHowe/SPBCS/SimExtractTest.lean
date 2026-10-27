@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.SimExtract
-public import GordieHowe.SPBCS.FullPast.SimExtractTest
+public import GordieHowe.SPBCS.Base.SimExtractTest
 
 @[expose] public section
 
@@ -15,9 +15,9 @@ The test forms of simulation-sound extractability (paper `thm:bcs-se`(1) and the
 `def:bcs-se` to Unruh's Definition 14 in the paper's Section 6.1.2; Unruh 2017, ePrint 2017/398,
 Definition 14, p. 21, eq. (6)) for the spBCS compiler, from
 `simulation_sound_extractability_game` (`GordieHowe/SPBCS/SimExtract.lean`), with the tests and the
-adversary followed by the test of the compiler over the term
+adversary followed by the test of the compiler data
 (`GordieHowe.SPBCS.Base.SimExtractionAdversary.QTest`, `withTest`, `QFTest`,
-`GordieHowe/SPBCS/FullPast/SimExtractTest.lean`).
+`GordieHowe/SPBCS/Base/SimExtractTest.lean`).
 
 - `simulation_sound_extractability_folded`: for tests that query the final oracle, folded into the
   adversary on both sides (`SimulationSoundExtractableFolded`).

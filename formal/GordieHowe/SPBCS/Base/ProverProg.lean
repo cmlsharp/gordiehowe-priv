@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.SimProg
+public import GordieHowe.SPBCS.Base.SimProg
 public import GordieHowe.Model.Quantum.Interactive.QueryBoundedLastProofQuery
 
 @[expose] public section
@@ -11,8 +11,8 @@ public import GordieHowe.Model.Quantum.Interactive.QueryBoundedLastProofQuery
 /-!
 # The honest prover of the composite as a counted oracle program
 
-The honest prover of a compiled composite (built from the pieces of
-`GordieHowe/SPBCS/FullPast/ZeroKnowledge.lean`) written as a counted classical oracle program
+The honest prover of the compiler data (built from the pieces of
+`GordieHowe/SPBCS/Base/ZeroKnowledge.lean`) written as a counted classical oracle program
 (`GordieHowe.NARG.Prover`), over the global rounds in term order (`SPTerm.slots`). The program is
 generic in how a challenge's key is queried (`KeyProg`); the spBCS compiler queries its chain input
 after the merged branches' final inputs (`GordieHowe/SPBCS/ProverProg.lean`). The program's classical semantics
@@ -234,13 +234,11 @@ end NIProverProg
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X : Type} (M : FullPast P t X k kN kS L e)
+  {X : Type} (M : Base P t X k kN kS L e)
 
 theorem run_defaultAt (h : Query k kN kS L → Out k e) {τ : M.Tree}
     (hτ : (M.comp τ.leaf.label).nLeaves τ.tree.msg τ.tree.tree = 0) :
@@ -461,6 +459,6 @@ theorem toFn_niProverProgOf (E : (j : ι) → (M.comp j).Encoder)
 
 end NIProverProg
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

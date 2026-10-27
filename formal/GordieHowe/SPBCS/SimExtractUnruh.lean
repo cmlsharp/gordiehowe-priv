@@ -4,7 +4,8 @@
 module
 
 public import GordieHowe.SPBCS.SimExtractTest
-public import GordieHowe.SPBCS.FullPast.SimExtractUnruh
+public import GordieHowe.SPBCS.Base.SimExtractTest
+public import GordieHowe.SPBCS.Extraction.CohTest
 
 @[expose] public section
 
@@ -23,6 +24,47 @@ and trace-preserving adversaries, from the model-independent density-matrix argu
   query-bounded adversary and every query-free test, Unruh's Prove and Unruh's Extract with the test
   (`SimulationSoundExtractableQueryFreeUnruh`).
 -/
+
+/-! ### The challenger's registers
+
+`ChalRegs`: the challenger's registers of the composition of an adversary with the simulation
+challenger, for the compiler data (`GordieHowe.SPBCS.Base`).
+-/
+
+section
+
+open Finset Matrix
+open scoped BigOperators Kronecker
+
+namespace GordieHowe.SPBCS
+
+open GordieHowe.QROM GordieHowe.IOP IOP.SPTerm Quantum GordieHowe.QROM QROM.ExpandAdv
+open scoped NNReal ENNReal ComplexOrder
+
+variable {k kN kS L e : ℕ}
+
+namespace Base
+
+variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
+  [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
+  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
+  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  {V : X → FullTr P t → Bool} (Qs : ∀ x, M.IOPQueries V x) {X' : Type} [Fintype X']
+  [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
+
+variable (A : AdaptiveIAlg (Bits (queryBits k kN kS L)) (XOut k e) X' (M.Response B)
+    (Claim X M.NIProof))
+  (Psim : NARG.Simulator (Bits (queryBits k kN kS L)) (XOut k e) X' (M.Response B) SC) (Q kq : ℕ)
+
+/-- The challenger's registers of the composition of `A` with the simulation challenger. -/
+abbrev ChalRegs : Type :=
+  ChallengerRegs (Bits (queryBits k kN kS L)) (XOut k e) X' A.slots (simExtChallenger Psim Q).q
+    (simExtChallenger Psim Q).Coins
+
+end Base
+end GordieHowe.SPBCS
+
+end
 
 open Finset Matrix
 open scoped BigOperators Kronecker

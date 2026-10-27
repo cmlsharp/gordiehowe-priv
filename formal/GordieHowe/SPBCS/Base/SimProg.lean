@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.FullPast.ZeroKnowledge
+public import GordieHowe.SPBCS.Base.ZeroKnowledge
 public import GordieHowe.SPBCS.Merkle.TreeProg
 public import GordieHowe.Model.Quantum.Interactive.ZeroKnowledge
 
@@ -13,7 +13,7 @@ public import GordieHowe.Model.Quantum.Interactive.ZeroKnowledge
 # The simulator of the composite as a counted oracle program
 
 The pieces of the composite's simulator as a counted classical oracle program
-(`GordieHowe.NARG.Simulator`) at the series–parallel base model (`GordieHowe.SPBCS.FullPast`): the chains from
+(`GordieHowe.NARG.Simulator`) for the compiler data (`GordieHowe.SPBCS.Base`): the chains from
 writes (`writeLeaf`), the proof from heaps (`proofOfHeaps`, `HeapsOf`), the default leaf
 (`defaultProg`) and the assignments at the keys (`assignOfKeys`). The spBCS compiler's key program
 (`GordieHowe.SPBCS.keyProg`), its program of the reply (`GordieHowe.SPBCS.jointProg`: the `leaf`
@@ -218,13 +218,11 @@ theorem length_chList_le : (chList P t).length ≤ t.size n := by
 
 end Base
 
-namespace FullPast
-
-open Base
+namespace Base
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {t : SPTerm ι}
-  {X : Type} (M : FullPast P t X k kN kS L e)
+  {X : Type} (M : Base P t X k kN kS L e)
 
 variable (h : Query k kN kS L → Out k e)
 
@@ -289,6 +287,6 @@ theorem run_defaultProg {τ : M.Tree} (hτ : (M.comp τ.leaf.label).nLeaves τ.t
   rw [defaultProg, if_pos ⟨τ, hτ⟩]
   rfl
 
-end FullPast
+end Base
 
 end GordieHowe.SPBCS

@@ -4,20 +4,22 @@
 module
 
 public import GordieHowe.SPBCS.Verifier
+public import GordieHowe.SPBCS.Base.Targeted
 
 @[expose] public section
 
 /-!
-# An accepted spBCS proof is an accepted proof of the compiler over the term
+# An accepted spBCS proof and the translated database
 
-A database `D` that records the spBCS verifier's queries on an accepted proof with the
-answers of `h` translates (`GordieHowe.SPBCS.trans`, `GordieHowe/SPBCS/Translate.lean`) into a database that
-records the queries of the compiler over the term (`GordieHowe.SPBCS.FullPast`) on the same proof, under the
-oracle `transOracle D h` that answers each translated query as `D` answered its preimage. Under
-that oracle the keys, chains and challenges of the compiler over the term are those of the
-spBCS verifier (`chains_transOracle`, `chalOf_transOracle`), the Merkle queries are answered
-as by `h`, and the proof is accepted (`accepts_transOracle`). So CMS19 Proposition 8.12 for the
-compiler over the term applies to the translated database (`mem_of_verify`).
+A database `D` without a digest collision that records the spBCS verifier's queries on an
+accepted proof with the answers of `h` translates (`GordieHowe.SPBCS.trans`,
+`GordieHowe/SPBCS/Translate.lean`) into a database that records the verifier's chains with merges
+and challenges in the sense of `Base.RecordsChains` (`recordsChains_trans`): each chain input of a
+challenge, re-encoded as its causal past, carries the answer `D` holds for the chain input with
+merges, and the stream queries are unchanged. The translated database answers the Merkle queries as
+`D` (`trans_lookup_merkle`), so the proof's leaves are those of its views
+(`openedAs_views_trans`). CMS19 Proposition 8.12 at recorded chains (`Base.mem_of_recordsChains`)
+then applies to the translated database (`mem_of_verify`).
 -/
 
 namespace GordieHowe.SPBCS
@@ -32,10 +34,6 @@ section
 
 variable (M : SPBCS Mg P X k kN kS L e)
 
-/-- **The oracle of the translated database**: its answer at a translated query, `h` elsewhere. -/
-def transOracle (D : ODB k kN kS L e) (h : Query k kN kS L → Out k e) : Query k kN kS L → Out k e :=
-  fun q => ((M.trans D).lookup q).getD (h q)
-
 /-! ### Reading the translated database -/
 
 section Lookup
@@ -46,10 +44,19 @@ theorem trans_lookup_of (hD : D ∉ digestCollision) {q q' : Query k kN kS L} {y
     (hq : D.lookup q = some y) (hφ : M.φ D q = some q') : (M.trans D).lookup q' = some y :=
   DB.lookup_image_of_lookup (injOnKeys_φ hD) hq hφ
 
-theorem transOracle_of (hD : D ∉ digestCollision) (h : Query k kN kS L → Out k e)
-    {q q' : Query k kN kS L} {y : Out k e} (hq : D.lookup q = some y) (hφ : M.φ D q = some q') :
-    M.transOracle D h q' = y := by
-  rw [transOracle, trans_lookup_of hD hq hφ, Option.getD_some]
+/-- **The translated database has no digest collision** when `D` has none: its answers are
+answers of `D` at distinct queries. -/
+theorem trans_notMem_digestCollision (hD : D ∉ digestCollision) : M.trans D ∉ digestCollision := by
+  rintro ⟨q₁, h₁, q₂, h₂, hne, heq⟩
+  obtain ⟨y₁, hy₁⟩ := Finmap.mem_iff.1 h₁
+  obtain ⟨y₂, hy₂⟩ := Finmap.mem_iff.1 h₂
+  obtain ⟨p₁, hp₁, hφ₁⟩ := (DB.lookup_image_eq_some_iff (injOnKeys_φ hD)).1 hy₁
+  obtain ⟨p₂, hp₂, hφ₂⟩ := (DB.lookup_image_eq_some_iff (injOnKeys_φ hD)).1 hy₂
+  rw [hy₁, hy₂] at heq
+  refine hD ⟨p₁, Finmap.mem_of_lookup_eq_some hp₁, p₂, Finmap.mem_of_lookup_eq_some hp₂,
+    fun he => hne ?_, by rw [hp₁, hp₂]; exact heq⟩
+  rw [he] at hφ₁
+  exact Option.some_inj.1 (hφ₁.symm.trans hφ₂)
 
 /-- Only a Merkle query translates to itself. -/
 theorem φ_eq_merkle_iff {q q' : Query k kN kS L} (hq' : (∃ a b, q' = .leaf a b) ∨ ∃ l r, q' = .node l r) :
@@ -84,7 +91,7 @@ theorem trans_lookup_merkle (hD : D ∉ digestCollision) {q : Query k kN kS L}
 
 end Lookup
 
-/-! ### The translated oracle computes the chains with merges -/
+/-! ### The translated database records the chains with merges -/
 
 section Chains
 
@@ -107,139 +114,52 @@ theorem RecordsQueries.finals (hrec : RecordsQueries D h x π Q) :
 variable (hD : D ∉ digestCollision) (hrec : RecordsQueries D h x π Q)
 include hD hrec
 
-/-- **The keys of the compiler over the term under the translated oracle** at the chains of the
-proof are the keys with merges. -/
-theorem key_transOracle (p : t.Leaf) (r : ℕ) (hr : r < n p.label) :
-    M.toFullPast.keyFullPast (M.transOracle D h) x π.salt p (M.ctx h (M.ssOf x π) π.writes p)
-        ((M.comp p.label).chainWith (π.writes p)
-          (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p)
-          π.salt h r hr.le) =
-      M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p
-        ((M.comp p.label).chainWith (π.writes p)
-          (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p)
-          π.salt h r hr.le) := by
-  unfold FullPast.keyFullPast
-  rw [transOracle_of hD h (hrec.of_rounds (M.mem_roundsProg_input x π h p r hr).1)
-    (φ_transcript_honest hD hrec.finals p ((M.comp p.label).chainWF_chainWith _ _ _ _ r hr.le)
-      (by rw [ComponentModel.length_chainWith]; exact hr))]
-  rfl
-
-theorem point_transOracle (p : t.Leaf) (r : ℕ) (hr : r < n p.label) :
-    M.transOracle D h (.xof (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes)
-        (M.finals h (M.ssOf x π) π.writes) p
-        ((M.comp p.label).chainWith (π.writes p)
-          (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p)
-          π.salt h r hr.le)) π.salt) =
-      h (.xof (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes)
-        (M.finals h (M.ssOf x π) π.writes) p
-        ((M.comp p.label).chainWith (π.writes p)
-          (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p)
-          π.salt h r hr.le)) π.salt) :=
-  transOracle_of hD h (hrec.of_rounds (M.mem_roundsProg_input x π h p r hr).2)
-    (φ_of_not_transcript fun _ h' => by cases h')
-
-/-- **A leaf's chain under the translated oracle**, in the context of the chains of the proof, is
-its chain with merges. -/
-theorem leafChain_transOracle (p : t.Leaf) (r : ℕ) (hr : r ≤ n p.label) :
-    M.toFullPast.leafChainFullPast (M.transOracle D h) x π.salt π.writes p (M.ctx h (M.ssOf x π) π.writes p) r hr =
-      (M.comp p.label).chainWith (π.writes p)
-        (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes) (M.finals h (M.ssOf x π) π.writes) p)
-        π.salt h r hr := by
-  rw [FullPast.leafChainFullPast_eq_chainWith]
-  refine ((M.comp p.label).chainWith_congr r hr fun j hj => ?_).symm
-  have hk := key_transOracle hD hrec p j (by omega)
-  have hp := point_transOracle hD hrec p j (by omega)
-  rw [hk, hp]
-
-/-- **The chains of the compiler over the term under the translated oracle are the chains with
-merges.** -/
-theorem chains_transOracle :
-    M.toFullPast.chainsFullPast (M.transOracle D h) x π.salt π.writes = M.chains h (M.ssOf x π) π.writes :=
-  (solve_unique _ _ fun p => ((leafChain_transOracle hD hrec p _ le_rfl).trans
-    (chains_eq_chainWith π.writes p).symm).symm).symm
-
-theorem ctxOf_transOracle (p : t.Leaf) :
-    M.toFullPast.ctxOf (M.transOracle D h) x π.salt π.writes p = M.ctx h (M.ssOf x π) π.writes p := by
-  funext q
-  exact congrFun (chains_transOracle hD hrec) q.1
-
-/-- **The challenges of the compiler over the term under the translated oracle are the challenges
-with merges.** -/
-theorem chalOf_transOracle (c : ChIdx P t) :
-    M.toFullPast.chalOf (M.transOracle D h) x π.salt π.writes c = M.chal h (M.ssOf x π) π.writes c := by
-  rw [FullPast.chalOf, ctxOf_transOracle hD hrec, leafChain_transOracle hD hrec,
-    key_transOracle hD hrec _ _ c.idx.1.2, point_transOracle hD hrec _ _ c.idx.1.2]
-  rfl
-
-theorem chV_transOracle :
-    M.toFullPast.chVFullPast (M.transOracle D h) x π.salt π.writes = M.chV h (M.ssOf x π) π.writes := by
-  funext c
-  simp only [FullPast.chVFullPast, chV, chalOf_transOracle hD hrec]
-
-/-- **The translated oracle answers the verifier's Merkle queries as `h`.** -/
-theorem transOracle_tree {τ : M.Tree}
-    (hτ : τ ∈ M.trees (Q.pos (M.chains h (M.ssOf x π) π.writes) (M.chV h (M.ssOf x π) π.writes)))
-    {q : Query k kN kS L} (hq : q ∈ (M.treeProg π (Q.pos (M.chains h (M.ssOf x π) π.writes)
-      (M.chV h (M.ssOf x π) π.writes)) τ).trace h) : M.transOracle D h q = h q := by
-  have hrq : Recorded h D q := hrec q (by
-    rw [queries_eq]
-    exact List.mem_append_right _ (List.mem_flatMap.2 ⟨τ, hτ, hq⟩))
-  have hm : (∃ a b, q = .leaf a b) ∨ ∃ l r, q = .node l r := M.opening.merkle_of_mem_trace hq
-  rw [transOracle, trans_lookup_merkle hD hm, hrq, Option.getD_some]
-
-/-- **An accepted spBCS proof is accepted by the compiler over the term under the
-translated oracle.** -/
-theorem accepts_transOracle (hv : M.Accepts h x π Q) : M.toFullPast.AcceptsFullPast (M.transOracle D h) x π Q where
-  sampled c := by
-    rw [chalOf_transOracle hD hrec]
-    exact hv.sampled c
-  leaves_length := by
-    rw [chains_transOracle hD hrec, chV_transOracle hD hrec]
-    exact hv.leaves_length
-  paths τ hτ := by
-    rw [chains_transOracle hD hrec, chV_transOracle hD hrec] at hτ ⊢
-    obtain ⟨h1, h2, h3, h4, h5⟩ := hv.paths τ hτ
-    refine ⟨h1, h2, h3, h4, ?_⟩
-    rw [← h5]
-    exact (GordieHowe.OracleProg.run_congr _ fun a ha => (transOracle_tree hD hrec hτ ha).symm).symm
-  decides := by
-    rw [chains_transOracle hD hrec, chV_transOracle hD hrec]
-    exact hv.decides
-
-/-- **Every query of the compiler over the term under the translated oracle** is recorded in the
-translated database with the oracle's answer. -/
-theorem mem_trans_of_queries :
-    ∀ q ∈ M.toFullPast.queriesFullPast x π (M.transOracle D h) Q,
-      (M.trans D).lookup q = some (M.transOracle D h q) := by
-  have hfix : ∀ {q : Query k kN kS L} {y : Out k e}, (M.trans D).lookup q = some y →
-      (M.trans D).lookup q = some (M.transOracle D h q) := fun hy => by
-    rw [transOracle, hy, Option.getD_some]
-  intro q hq
-  rw [FullPast.queriesFullPast_eq] at hq
-  rcases List.mem_append.1 hq with hq | hq
-  · rcases M.toFullPast.isChainQuery_of_mem_trace_roundsProgFullPast (M.transOracle D h) x π _ hq with
-      ⟨b, rfl⟩ | ⟨d, s, rfl⟩
-    · obtain ⟨p, r, rfl⟩ := M.toFullPast.transcript_mem_trace_roundsProgFullPast (M.transOracle D h) x π _ le_rfl hq
-      rw [Base.inputAt, chains_transOracle hD hrec]
-      have hctx : M.ctxOfChains p (M.chains h (M.ssOf x π) π.writes) = M.ctx h (M.ssOf x π) π.writes p :=
+/-- **The translated database records the chains of an accepted proof**: the chains with merges
+of `π`, at its challenges with merges. -/
+theorem recordsChains_trans (hv : M.Accepts h x π Q) :
+    M.toBase.RecordsChains (M.trans D) x π (M.chains h (M.ssOf x π) π.writes)
+      (M.chV h (M.ssOf x π) π.writes) where
+  length_eq := length_chains π.writes
+  write_eq := chains_getElem?_message π.writes
+  challenge c := by
+    have hr := c.idx.1.2
+    obtain ⟨h1, h2⟩ := M.mem_roundsProg_input x π h c.leaf c.idx.1 hr
+    have htake : (M.chains h (M.ssOf x π) π.writes c.leaf).take c.idx.1 =
+        (M.comp c.leaf.label).chainWith (π.writes c.leaf)
+          (M.key h (M.ssOf x π) (M.chains h (M.ssOf x π) π.writes)
+            (M.finals h (M.ssOf x π) π.writes) c.leaf) π.salt h c.idx.1 hr.le := by
+      rw [chains_eq_chainWith]
+      exact ComponentModel.take_chainWith _ _ _ _ _ _ _ _ hr.le
+    obtain ⟨v, hsv⟩ := Option.isSome_iff_exists.1 (hv.sampled c)
+    refine ⟨_, _, ?_, trans_lookup_of hD (hrec.of_rounds h2)
+      (φ_of_not_transcript fun _ h' => by cases h'), ?_, ?_⟩
+    · rw [htake]
+      exact trans_lookup_of hD (hrec.of_rounds h1)
+        (φ_transcript_honest hD hrec.finals c.leaf
+          ((M.comp c.leaf.label).chainWF_chainWith _ _ _ _ _ hr.le)
+          (by rw [ComponentModel.length_chainWith]; exact hr))
+    · have hd : ¬ (P c.leaf.label).dir c.idx.1 = .P_to_V := by simp [c.idx.2]
+      rw [chains_eq_chainWith, ComponentModel.chainWith_getElem? _ _ _ _ _ _ _ c.idx.1 hr]
+      unfold ComponentModel.itemWith
+      simp only [hd, ↓reduceDIte]
+    · have hc : M.chV h (M.ssOf x π) π.writes c = v := by
+        simp only [chV]
+        rw [hsv]
         rfl
-      rw [hctx, ctxOf_transOracle hD hrec, leafChain_transOracle hD hrec]
-      exact hfix (trans_lookup_of hD (hrec.of_rounds (M.mem_roundsProg_input x π h p r r.2).1)
-        (φ_transcript_honest hD hrec.finals p ((M.comp p.label).chainWF_chainWith _ _ _ _ r r.2.le)
-          (by rw [ComponentModel.length_chainWith]; exact r.2)))
-    · obtain ⟨p, r, rfl, rfl, -⟩ := M.toFullPast.xof_mem_trace_roundsProgFullPast (M.transOracle D h) x π _ le_rfl hq
-      rw [ctxOf_transOracle hD hrec, leafChain_transOracle hD hrec,
-        key_transOracle hD hrec p r r.2]
-      exact hfix (trans_lookup_of hD (hrec.of_rounds (M.mem_roundsProg_input x π h p r r.2).2)
-        (φ_of_not_transcript fun _ h' => by cases h'))
-  · obtain ⟨τ, hτ, hq⟩ := List.mem_flatMap.1 hq
-    rw [chains_transOracle hD hrec, chV_transOracle hD hrec] at hτ hq
-    rw [← GordieHowe.OracleProg.trace_congr _ fun a ha => (transOracle_tree hD hrec hτ ha).symm] at hq
-    have hrq : Recorded h D q := hrec q (by
-      rw [queries_eq]
-      exact List.mem_append_right _ (List.mem_flatMap.2 ⟨τ, hτ, hq⟩))
-    have hm : (∃ a b, q = .leaf a b) ∨ ∃ l r, q = .node l r := M.opening.merkle_of_mem_trace hq
-    exact hfix ((trans_lookup_merkle hD hm).trans hrq)
+      rw [hc, ← hsv]
+      rfl
+
+/-- **The leaves of an accepted proof are those of the translated database's views.** -/
+theorem openedAs_views_trans (hv : M.Accepts h x π Q) :
+    M.OpenedAs (fun p i => (M.comp p.label).views (M.trans D) i (π.writes p i))
+      (Q.pos (M.chains h (M.ssOf x π) π.writes) (M.chV h (M.ssOf x π) π.writes)) π.leaves :=
+  Base.openedAs_views_of_check (trans_notMem_digestCollision hD) hv.leaves_length hv.paths
+    fun τ hτ q hq => by
+      have hrq : Recorded h D q := hrec q (by
+        rw [queries_eq]
+        exact List.mem_append_right _ (List.mem_flatMap.2 ⟨τ, hτ, hq⟩))
+      have hm : (∃ a b, q = .leaf a b) ∨ ∃ l r, q = .node l r := M.opening.merkle_of_mem_trace hq
+      exact (trans_lookup_merkle hD hm).trans hrq
 
 end Chains
 
@@ -253,17 +173,16 @@ variable {M} [∀ j i, Nonempty ((P j).Challenge i)] {V : X → FullTr P t → B
 
 /-- **CMS19 Proposition 8.12** (p. 42), knowledge form (p. 44), for the spBCS compiler at
 one accepted proof: a database that records the verifier's queries on an accepted proof `π` of `x`
-with the answers of `h` has a digest collision, or its translation extracts a witness at `x`,
-lies in `badAny` of the compiler over the term, or has a digest collision. -/
+with the answers of `h` has a digest collision, or the database extractor on its translation
+returns a witness for `x`, or its translation lies in `badAny`. -/
 theorem mem_of_verify [DecidableEq X] (hrbr : CausalRBRKnowledgeSound rel V E St ε)
     {h : Query k kN kS L → Out k e} {x : X} {π : M.NIProof} {Q : M.IOPQueries V x}
     {D : ODB k kN kS L e} (hv : M.Accepts h x π Q) (hrec : RecordsQueries D h x π Q) :
-    D ∈ digestCollision ∨
-      M.trans D ∈ M.toFullPast.extractsFullPast rel E x ∪ (M.toFullPast.badAny rel E St ∪ digestCollision) := by
+    D ∈ digestCollision ∨ M.trans D ∈ M.toBase.extracts rel E x ∪ M.toBase.badAny rel E St := by
   by_cases hD : D ∈ digestCollision
   · exact Or.inl hD
-  · exact Or.inr (M.toFullPast.mem_of_verifyFullPast rel E St hrbr (M.transOracle D h) x π Q
-      (accepts_transOracle hD hrec hv) (mem_trans_of_queries hD hrec))
+  · exact Or.inr (M.toBase.mem_of_recordsChains rel E St hrbr Q (recordsChains_trans hD hrec hv)
+      (openedAs_views_trans hD hrec hv) hv.decides)
 
 end Prop812
 

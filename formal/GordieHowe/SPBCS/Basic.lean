@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.Encoding
-public import GordieHowe.SPBCS.FullPast.Model
+public import GordieHowe.SPBCS.Base
 
 @[expose] public section
 
@@ -13,16 +13,16 @@ public import GordieHowe.SPBCS.FullPast.Model
 
 The spBCS compiler (paper `prot:generalized-bcs`) on a series–parallel term `t` with merges
 `Mg` (`GordieHowe/SPBCS/Merges.lean`): the leaves have the chains, writes, Merkle trees, proofs and
-query phases of the compiler data over the term (`GordieHowe.SPBCS.Base`), every stream point carries the
+query phases of the compiler data (`GordieHowe.SPBCS.Base`), every stream point carries the
 Fiat–Shamir salt, and every chain input holds its observer's view (`GordieHowe/SPBCS/Encoding.lean`):
 the full chains of the leaves it reads in full and the final digests of the branches hidden from
 it.
 
 * `GordieHowe.SPBCS Mg P X k kN kS L e`: a `GordieHowe.SPBCS.Base` of the term with Fiat–Shamir salts of `kS` bytes,
-  and the encoding `senc` of the chain inputs with merges. The base model's own encoding `enc`
-  (the full causal past) is not used by the compiled argument; a database extractor re-encodes
-  the causal pasts it reads with it, and a knowledge bound counts its digests as those of the
-  content (`enc_digests_subset`).
+  and the encoding `senc` of the chain inputs with merges. The encoding `enc` of causal pasts of
+  the compiler data is not used by the compiled argument; the database extractor re-encodes the
+  causal pasts it reads with it, and a knowledge bound counts its digests as those of the content
+  (`enc_digests_subset`).
 * `roundContent`, `finalContent`: the content of a challenge round's chain input and of a
   branch's final input, from chains `chs` of all leaves and final digests `fs` of all branches.
 * `finalStep`, `finalsWith chs`: the final digest of a branch is the digest of its final input,
@@ -51,7 +51,7 @@ structure _root_.GordieHowe.SPBCS (Mg : Merges t) {n : ι → ℕ} (P : (j : ι)
   /-- The encoding of the chain inputs with merges. -/
   senc : MergeEncoding k L Mg n (SaltedStatement kS X) (fun j => (comp j).W)
     (fun j => (comp j).roots) (fun j => chainWF (P j))
-  /-- The base model's encoding carries only the digests of its content. -/
+  /-- The encoding of causal pasts carries only the digests of its content. -/
   enc_digests_subset : ∀ ss ch, ch.WF n (fun j => chainWF (P j)) →
     enc.digestsOf (enc.encode ss ch) ⊆ ch.digests fun j => (comp j).roots
 
@@ -60,10 +60,6 @@ section
 variable {Mg : Merges t} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)] {X : Type}
   (M : SPBCS Mg P X k kN kS L e)
-
-/-- The compiler data of `M` as a full-past compiler (proof-internal): field notation on it reaches
-the declarations of the namespace `FullPast`. -/
-abbrev toFullPast : FullPast P t X k kN kS L e := M.toBase
 
 /-- The content of a chain input of `M`. -/
 abbrev MContent : Type := Content Mg k (fun j => (M.comp j).W) (SaltedStatement kS X)

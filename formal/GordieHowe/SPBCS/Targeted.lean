@@ -5,7 +5,7 @@ module
 
 public import GordieHowe.SPBCS.Cover
 public import GordieHowe.SPBCS.Stability
-public import GordieHowe.SPBCS.FullPast.Targeted
+public import GordieHowe.SPBCS.Base.Targeted
 public import GordieHowe.Foundations.ToMathlib.FinsetSingleton
 
 @[expose] public section
@@ -13,8 +13,8 @@ public import GordieHowe.Foundations.ToMathlib.FinsetSingleton
 /-!
 # The targeted extractor of the spBCS compiler
 
-The targeted extractor of the compiler over the term (`GordieHowe.SPBCS.Base.targetedExtract`,
-`GordieHowe/SPBCS/FullPast/Targeted.lean`) at the challenges with merges (`chV`): the composite transcript
+The targeted extractor (`GordieHowe.SPBCS.Base.targetedExtract`,
+`GordieHowe/SPBCS/Base/Targeted.lean`) at the challenges with merges (`chV`): the composite transcript
 along the proof, with the messages read from the Merkle views of the database at the roots of the
 proof's writes. The argument reads the database through the translation with merges (`GordieHowe.SPBCS.trans`).
 
@@ -24,8 +24,8 @@ proof's writes. The argument reads the database through the translation with mer
 - `mem_of_verify_targeted`: CMS19 Proposition 8.12 along one accepted spBCS proof with the
   targeted extractor: a database recording the spBCS verifier's queries with the answers of
   `h` has a digest collision, lies in `bad`, or the targeted extractor at the challenges with
-  merges returns a witness (`mem_of_verify_targeted` for the compiler over the term on the
-  translated database, `accepts_transOracle`, `chV_transOracle`, `view_trans`).
+  merges returns a witness (`Base.mem_of_recordsChains_targeted` on the translated database,
+  `recordsChains_trans`, `openedAs_views_trans`, `view_trans`).
 -/
 
 namespace GordieHowe.SPBCS
@@ -192,16 +192,14 @@ theorem mem_of_verify_targeted [DecidableEq X] (hrbr : CausalRBRKnowledgeSound r
       D ∈ M.bad rel E St ∪ digestCollision := by
   by_cases hD : D ∈ digestCollision
   · exact Or.inr (Or.inr hD)
-  rcases M.toFullPast.mem_of_verifyFullPast_targeted rel E St hrbr (M.transOracle D h) x π Q
-      (accepts_transOracle hD hrec hv) (mem_trans_of_queries hD hrec) with hE | hbad | hcol
+  rcases M.toBase.mem_of_recordsChains_targeted rel E St hrbr Q (recordsChains_trans hD hrec hv)
+      (openedAs_views_trans hD hrec hv) hv.decides with hE | hbad
   · obtain ⟨w, hw, hrel⟩ := hE
     refine Or.inl ⟨w, ?_, hrel⟩
-    rw [chV_transOracle hD hrec] at hw
     unfold Base.targetedExtract at hw ⊢
     rw [M.trT_congr _ fun q i => funext fun τ => view_trans hD _ _] at hw
     exact hw
   · exact Or.inr (Or.inl hbad)
-  · exact absurd hcol (trans_notMem_digestCollision hD)
 
 end Prop812
 

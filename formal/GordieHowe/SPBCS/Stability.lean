@@ -224,20 +224,6 @@ section Digests
 
 variable {M} {D : ODB k kN kS L e}
 
-/-- **The translated database has no digest collision** when `D` has none: its answers are
-answers of `D` at distinct queries. -/
-theorem trans_notMem_digestCollision (hD : D ∉ digestCollision) : M.trans D ∉ digestCollision := by
-  rintro ⟨q₁, h₁, q₂, h₂, hne, heq⟩
-  obtain ⟨y₁, hy₁⟩ := Finmap.mem_iff.1 h₁
-  obtain ⟨y₂, hy₂⟩ := Finmap.mem_iff.1 h₂
-  obtain ⟨p₁, hp₁, hφ₁⟩ := (DB.lookup_image_eq_some_iff (injOnKeys_φ hD)).1 hy₁
-  obtain ⟨p₂, hp₂, hφ₂⟩ := (DB.lookup_image_eq_some_iff (injOnKeys_φ hD)).1 hy₂
-  rw [hy₁, hy₂] at heq
-  refine hD ⟨p₁, Finmap.mem_of_lookup_eq_some hp₁, p₂, Finmap.mem_of_lookup_eq_some hp₂,
-    fun he => hne ?_, by rw [hp₁, hp₂]; exact heq⟩
-  rw [he] at hφ₁
-  exact Option.some_inj.1 (hφ₁.symm.trans hφ₂)
-
 /-- The item digests of a chain of a content are among the content's. -/
 theorem chainDigests_subset_itemDigests {c : M.MContent} (q : t.Leaf) :
     chainDigests ((M.comp q.label).roots) (c.chains q) ⊆ c.itemDigests (fun j => (M.comp j).roots) := by
@@ -347,15 +333,15 @@ theorem trans_empty : M.trans (∅ : ODB k kN kS L e) = ∅ := by
   rw [trans, DB.lookup_image, Finmap.lookup_empty]
   exact DB.select_eq_none_of_forall fun q y hq => by simp [Finmap.lookup_empty] at hq
 
-/-- **The bad databases with merges**: those whose translation lies in `badAny` of the compiler
-over the term (paper `lem:sse-instability`, the knowledge failures read through the final
+/-- **The bad databases with merges**: those whose translation lies in `badAny` of the database
+extractor (paper `lem:sse-instability`, the knowledge failures read through the final
 digests). -/
-def bad : Set (ODB k kN kS L e) := {D | M.trans D ∈ M.toFullPast.badAny rel E St}
+def bad : Set (ODB k kN kS L e) := {D | M.trans D ∈ M.toBase.badAny rel E St}
 
 theorem empty_notMem_bad : (∅ : ODB k kN kS L e) ∉ M.bad rel E St := by
   show M.trans ∅ ∉ _
   rw [trans_empty]
-  exact M.toFullPast.empty_notMem_badAny rel E St
+  exact M.toBase.empty_notMem_badAny rel E St
 
 variable [∀ j i, Nonempty ((P j).Challenge i)] {ε : ChIdx P t → NNReal}
   {claim : X → Prop} {claimOut : X → FullTr P t → Prop}
@@ -371,7 +357,7 @@ theorem condFlip_bad_le (hrbr : CausalRBR rel E St ε claim claimOut) {tq : ℕ}
   set A := M.pend D q ∪ (halfPre M.senc.digestsOf D ∪ q.digests M.senc.digestsOf) with hA
   calc Pr[y ← Out k e : D.extend q y ∈ M.bad rel E St ∩ digestCollisionᶜ]
       ≤ Pr[y ← Out k e : y.digest ∈ A ∨
-          ∃ q', M.φ D q = some q' ∧ M.toFullPast.nextBad rel E St (M.trans D) q' y] := by
+          ∃ q', M.φ D q = some q' ∧ M.toBase.nextBad rel E St (M.trans D) q' y] := by
         refine QROM.probUniform_mono fun y hy => ?_
         obtain ⟨hyb, hyc⟩ := hy
         by_cases hyA : y.digest ∈ A
@@ -381,13 +367,13 @@ theorem condFlip_bad_le (hrbr : CausalRBR rel E St ε claim claimOut) {tq : ℕ}
         have hext := trans_extend hq hyc hyp
         rcases hφ : M.φ D q with _ | q'
         · simp only [hφ] at hext
-          exact absurd (show M.trans D ∈ M.toFullPast.badAny rel E St by rw [← hext]; exact hyb) hDb
+          exact absurd (show M.trans D ∈ M.toBase.badAny rel E St by rw [← hext]; exact hyb) hDb
         · simp only [hφ] at hext
           refine ⟨q', rfl, ?_⟩
           have hcol' : (M.trans D).extend q' y ∉ digestCollision := by
             rw [← hext]
             exact trans_notMem_digestCollision hyc
-          rcases M.toFullPast.flip_into_bad rel E St hDb (φ_notMem_trans hq hyc hyp hφ) hcol'
+          rcases M.toBase.flip_into_bad rel E St hDb (φ_notMem_trans hq hyc hyp hφ) hcol'
               (by rw [← hext]; exact hyb) with h | h
           · exfalso
             apply hyA
@@ -396,7 +382,7 @@ theorem condFlip_bad_le (hrbr : CausalRBR rel E St ε claim claimOut) {tq : ℕ}
             · exact Finset.mem_union_right _ (digests_φ_subset hDc' hφ h)
           · exact h
     _ ≤ Pr[y ← Out k e : y.digest ∈ A] +
-          Pr[y ← Out k e : ∃ q', M.φ D q = some q' ∧ M.toFullPast.nextBad rel E St (M.trans D) q' y] :=
+          Pr[y ← Out k e : ∃ q', M.φ D q = some q' ∧ M.toBase.nextBad rel E St (M.trans D) q' y] :=
         probUniform_or_le _ _
     _ ≤ (((max 2 M.senc.digestsPerInput + Mg.nJ) * tq : ℕ) : ENNReal) / 2 ^ (8 * k) +
           maxError ε := by
@@ -418,9 +404,9 @@ theorem condFlip_bad_le (hrbr : CausalRBR rel E St ε claim claimOut) {tq : ℕ}
           exact_mod_cast h3.trans h4
         · rcases hφ : M.φ D q with _ | q'
           · exact le_of_eq_of_le (probUniform_eq_zero fun y ⟨q', h, _⟩ => by cases h) zero_le
-          · refine (QROM.probUniform_mono (E' := fun y => M.toFullPast.nextBad rel E St (M.trans D) q' y)
+          · refine (QROM.probUniform_mono (E' := fun y => M.toBase.nextBad rel E St (M.trans D) q' y)
               fun y ⟨q'', h, hb⟩ => ?_).trans
-              (M.toFullPast.prob_nextBad_le rel E St (q := q') (trans_notMem_digestCollision (M := M) hDc') hrbr)
+              (M.toBase.prob_nextBad_le rel E St (q := q') (trans_notMem_digestCollision (M := M) hDc') hrbr)
             obtain rfl := Option.some_inj.1 h
             exact hb
     _ = _ := add_comm _ _
@@ -444,12 +430,12 @@ theorem condFlip_compl_bad_le {tq : ℕ} :
         have hext := trans_extend hq hyc hyp
         rcases hφ : M.φ D q with _ | q'
         · simp only [hφ] at hext
-          exact absurd (show M.trans (D.extend q y) ∈ M.toFullPast.badAny rel E St by rw [hext]; exact hDb) hyb
+          exact absurd (show M.trans (D.extend q y) ∈ M.toBase.badAny rel E St by rw [hext]; exact hDb) hyb
         · simp only [hφ] at hext
           have hcol' : (M.trans D).extend q' y ∉ digestCollision := by
             rw [← hext]
             exact trans_notMem_digestCollision hyc
-          exact halfPre_trans_subset hDc' (M.toFullPast.flip_out_of_bad rel E St hDb
+          exact halfPre_trans_subset hDc' (M.toBase.flip_out_of_bad rel E St hDb
             (φ_notMem_trans hq hyc hyp hφ) hcol' (by rw [← hext]; exact hyb))
     _ ≤ _ := by
         rw [Out.probUniform_digest_mem]

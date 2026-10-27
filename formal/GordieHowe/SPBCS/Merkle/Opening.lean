@@ -11,8 +11,8 @@ public import GordieHowe.Model.NARG.OracleProg
 /-!
 # Merkle opening formats
 
-How a compiled proof opens the queried leaves of one Merkle tree. The compiler of a series–parallel
-composition (`GordieHowe.SPBCS.FullPast`, `GordieHowe/SPBCS/FullPast/Model.lean`) takes the format as a parameter
+How a compiled proof opens the queried leaves of one Merkle tree. The compiler data of a series–parallel
+composition (`GordieHowe.SPBCS.Base`, `GordieHowe/SPBCS/Base.lean`) takes the format as a parameter
 (`GordieHowe.SPBCS.Base.opening`), and every guarantee of the compiler holds for every lawful format.
 
 - `MerkleFormat`: the data of a format for the leaves at the indices `js` of an `n`-leaf tree in

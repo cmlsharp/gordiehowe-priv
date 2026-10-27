@@ -281,7 +281,7 @@ abbrev prog (r : 𝒜.Coins) :
 
 /-- **The adversary without its auxiliary output**, an adversary of
 `SPBCS.weak_online_simulation_extractability_rom_basic`. -/
-abbrev claims : FullPast.SimExtractionAdversaryROM M.toFullPast B X' tq :=
+abbrev claims : Base.SimExtractionAdversaryROM M.toBase B X' tq :=
   𝒜.mapOut Prod.fst
 
 omit [∀ j i, Nonempty ((P j).Challenge i)] [∀ j i, Fintype ((M.comp j).MessageWrite i)] in
