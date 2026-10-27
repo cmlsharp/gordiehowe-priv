@@ -5,7 +5,7 @@ module
 
 public import GordieHowe.SPBCS.SimExtractTest
 public import GordieHowe.SPBCS.ProverProg
-public import GordieHowe.SPBCS.Base.SimExtractTest
+public import GordieHowe.SPBCS.SimExtractTest
 public import GordieHowe.Model.Quantum.Interactive.ProgAlg
 public import GordieHowe.Model.Quantum.Interactive.KeptTestAdaptive
 public import GordieHowe.Model.Quantum.Interactive.Embed
@@ -13,8 +13,8 @@ public import GordieHowe.Model.Quantum.Interactive.Test
 public import GordieHowe.Model.Quantum.OracleTestBoundary
 public import GordieHowe.Model.QROM.Instability
 public import GordieHowe.SPBCS.Extraction.ProveLemmas
-public import GordieHowe.SPBCS.Base.ProverProg
-public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.ProverProg
+public import GordieHowe.SPBCS.Extractor
 public import GordieHowe.SPBCS.Extraction.KnowledgeError
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.Model.QROM.QueryCount
@@ -30,29 +30,29 @@ public import GordieHowe.Headline
 
 The counterexample to eq. (6) of Unruh 2017 (ePrint 2017/398, Definition 14, p. 21) for tests that
 query the oracle (the oracle-test gap lemma of `GordieHowe/Model/Quantum/OracleTestBoundary.lean`) for the spBCS
-compiler: the generic construction of the compiler data (below) at the acceptance of the
+compiler: the generic construction (below) at the acceptance of the
 spBCS verifier (`Accepts`) and the honest spBCS prover `niProver` at a site layout `Λ`, run through
 `queryEncoding`.
 
 - `honestOracleTestQB`, `honestOracleTestQBTest`: the adversary of the oracle-test gap lemma, a
   query-bounded adversary of `def:adversary` with one query more than the honest prover
-  (`GordieHowe.SPBCS.Base.oracleTestQB`), and its test with one query
-  (`GordieHowe.SPBCS.Base.oracleTestQBTest`); the spBCS verifier rejects the claim of the
+  (`GordieHowe.SPBCS.oracleTestQB`), and its test with one query
+  (`GordieHowe.SPBCS.oracleTestQBTest`); the spBCS verifier rejects the claim of the
   honest prover program with probability at most `ε + overrun + keyCollision (t.size n) k`
   (`prob_not_accepts_claimProg_le`).
 - `oracleTest_eq6_fails_eventually`: along a family of spBCS compilers within the bounds
-  `GordieHowe.SPBCS.Base.OracleTestBounds`, with polynomially bounded assignment lists, eq. (6) fails for all
+  `GordieHowe.SPBCS.OracleTestBounds`, with polynomially bounded assignment lists, eq. (6) fails for all
   large `η`, for every polynomially bounded `p`, every `d` and every negligible `µ`.
 -/
 
-/-! ### The oracle-test gap lemma for the compiler data
+/-! ### The oracle-test gap lemma for an acceptance predicate
 
 The counterexample to eq. (6) of Unruh 2017 (ePrint 2017/398, Definition 14, p. 21) for tests that
 query the oracle (the oracle-test gap lemma of `GordieHowe/Model/Quantum/OracleTestBoundary.lean`), stated for
-the simulation-extraction game of the compiler data (`GordieHowe.SPBCS.Base`) and generic in
+the simulation-extraction game and generic in
 the verifier's acceptance predicate `acc` and the honest prover program `Pv`, so that it applies to
 the spBCS compiler (`acc = GordieHowe.SPBCS.Accepts`, `Pv` the prover `GordieHowe.SPBCS.niProver` run through `queryEncoding`,
-`GordieHowe.SPBCS.oracleTest_eq6_fails_eventually`). Only the game reads the compiler data.
+`GordieHowe.SPBCS.oracleTest_eq6_fails_eventually`).
 
 - `WinsWith acc`, `winTestProbWith acc`: the event of Prove with the acceptance predicate `acc` (a
   fresh statement accepted under the final oracle), and the probability that an adversary with
@@ -206,12 +206,12 @@ theorem norm_graphState {X Y : Type} [Fintype X] [DecidableEq X] [Fintype Y] [De
       nsmul_eq_mul, inv_pow, Real.sq_sqrt hN.le, mul_inv_cancel₀ hN.ne']
   exact (pow_left_inj₀ (norm_nonneg _) zero_le_one two_ne_zero).1 (by rw [h, one_pow])
 
-namespace Base
+section
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
-  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {Mg : Merges t} {X : Type}
+  {M : SPBCS Mg P X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {X' : Type} [Fintype X'] [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
 
 /-! ### Prove with an acceptance predicate -/
@@ -593,7 +593,7 @@ extractors blind on the Merkle-node inputs whose assignment lists have length at
 bounded by a polynomial `C η^c`, every exponent `d` and every negligible `µ`
 (`Quantum.eq6_fails_eventually`, `lemma1Error_negligible`). -/
 theorem oracleTest_eq6_fails_eventually_with {k kN kS L e : ℕ → ℕ}
-    {M : ∀ η, Base P t X (k η) (kN η) (kS η) (L η) (e η)} {B : ℕ → ℕ}
+    {M : ∀ η, SPBCS Mg P X (k η) (kN η) (kS η) (L η) (e η)} {B : ℕ → ℕ}
     [∀ η j i, Fintype (((M η).comp j).MessageWrite i)] {Wit : Type} {Cn : ℕ → Type}
     (Pv : ∀ η, NARG.Prover (Bits (queryBits (k η) (kN η) (kS η) (L η))) (XOut (k η) (e η)) X Wit
       ((M η).Response (B η)) (Cn η))
@@ -659,7 +659,7 @@ The development has no cost model for quantum algorithms: `lengths_le` and `size
 polynomial-time quantifiers of Unruh's definition, and the proofs do not use them (the probability
 inequality holds without them). -/
 structure OracleTestBounds {k kN kS L e : ℕ → ℕ}
-    (M : ∀ η, Base P t X (k η) (kN η) (kS η) (L η) (e η)) (ε : ℕ → ℝ≥0∞) {Wit : Type}
+    (M : ∀ η, SPBCS Mg P X (k η) (kN η) (kS η) (L η) (e η)) (ε : ℕ → ℝ≥0∞) {Wit : Type}
     (x : ℕ → X) (wit : ℕ → PMF Wit) (size : X → ℕ) (wsize : Wit → ℕ) (C : ℝ) (c : ℕ) : Prop where
   /-- Digests have at least `η` bytes. -/
   k_ge : ∀ η, η ≤ k η
@@ -675,7 +675,7 @@ structure OracleTestBounds {k kN kS L e : ℕ → ℕ}
 
 end Family
 
-end Base
+end
 end GordieHowe.SPBCS
 
 end
@@ -683,7 +683,6 @@ end
 namespace GordieHowe.SPBCS
 
 open GordieHowe.QROM GordieHowe.IOP IOP.SPTerm Quantum GordieHowe.QROM
-open Base (SimExtractionAdversary claimProg oracleTestQB oracleTestQBTest run_claimProg)
 open scoped NNReal ENNReal BigOperators
 
 variable {ι : Type} {t : SPTerm ι} {Mg : Merges t} {k kN kS L e : ℕ} {n : ι → ℕ}
@@ -745,18 +744,18 @@ variable [Nonempty X']
 
 variable (M B E Qs) in
 /-- **The adversary of the oracle-test gap lemma at the honest spBCS prover**, a query-bounded adversary of
-`def:adversary` (`Base.oracleTestQB` at the honest prover `niProver` run through `queryEncoding`): the
+`def:adversary` (`SPBCS.oracleTestQB` at the honest prover `niProver` run through `queryEncoding`): the
 honest prover on `x` with a witness drawn from `wit`, plus one kept query on the uniform
 superposition of the Merkle-node inputs; no proof query, at most one query more than the honest
 prover. -/
 noncomputable abbrev honestOracleTestQB (hb : M.FormatBounds Qs B B) (x : X) (wit : PMF Wit) (X' : Type) [Fintype X']
     [DecidableEq X'] [Nonempty X'] :
     M.QBSimExtractionAdversary B X' ((((M.niProver Λ honest E hb).mapOutput some).encode queryEncoding).q + 1) :=
-  oracleTestQB M.toBase B (((M.niProver Λ honest E hb).mapOutput some).encode queryEncoding) (honestFallback E Qs honest) x
+  oracleTestQB M B (((M.niProver Λ honest E hb).mapOutput some).encode queryEncoding) (honestFallback E Qs honest) x
     wit X'
 
 variable (M B E Qs) in
-/-- **The test of the oracle-test gap lemma for `honestOracleTestQB`** (`Base.oracleTestQBTest`): one query
+/-- **The test of the oracle-test gap lemma for `honestOracleTestQB`** (`SPBCS.oracleTestQBTest`): one query
 to the final oracle, then the projective measurement onto the uniform superposition of the
 Merkle-node inputs with the answer register at `0`. -/
 noncomputable abbrev honestOracleTestQBTest (hb : M.FormatBounds Qs B B) (x : X) (wit : PMF Wit) (X' : Type) [Fintype X']
@@ -767,14 +766,14 @@ noncomputable abbrev honestOracleTestQBTest (hb : M.FormatBounds Qs B B) (x : X)
 /-- **Eq. (6) fails eventually for the spBCS compiler, for every blind extractor** (Unruh
 2017, Definition 14, p. 21: "a polynomial `p > 0`" and "a negligible `µ`"): for a family of spBCS compilers `M η` of one
 composite and one term with merges, at one site layout `Λ`, within the bounds
-`Base.OracleTestBounds` at constants `C', c'` (digests of at least `η` bytes, completeness
+`SPBCS.OracleTestBounds` at constants `C', c'` (digests of at least `η` bytes, completeness
 error `ε η + overrun + keyCollision (t.size n) k` eventually at most `1/2`, byte lengths of the
 model, the statement and the witnesses at most `C' η^c'`), with `B η` bounding the proof format
 (`hb`), when the composite verifier rejects the honest run on the statement `x η` with probability
 at most `ε η` at every witness of `wit η` and all coins (`hε`), and for extractors blind on the
 Merkle-node inputs whose assignment lists have length at most `ℓ η ≤ C' η^c'` for all large `η`, the adversary
 `honestOracleTestQB` and its test `honestOracleTestQBTest` make eq. (6) fail for all large `η`, for
-every `p` bounded by a polynomial `C η^c`, every exponent `d` and every negligible `µ`. By the argument of `Base.OracleTestBounds`, the
+every `p` bounded by a polynomial `C η^c`, every exponent `d` and every negligible `µ`. By the argument of `SPBCS.OracleTestBounds`, the
 adversary and the test run in time polynomial in `η` under the bounds, so the statement has
 Unruh's quantifiers. -/
 @[headline]
@@ -787,7 +786,7 @@ theorem oracleTest_eq6_fails_eventually {k kN kS L e : ℕ → ℕ}
     (hε : ∀ η, ∀ w ∈ (wit η).support, ∀ r,
       Pr[ch ← Chs P t : V (x η) ((honest w r).run (x η) ch) ≠ true] ≤ ε η)
     {size : X → ℕ} {wsize : Wit → ℕ} {C' : ℝ} {c' : ℕ}
-    (hS : Base.OracleTestBounds (fun η => (M η).toBase) ε x wit size wsize C' c')
+    (hS : SPBCS.OracleTestBounds (fun η => (M η)) ε x wit size wsize C' c')
     (Psim : ∀ η, NARG.Simulator (Bits (queryBits (k η) (kN η) (kS η) (L η))) (XOut (k η) (e η)) X'
       ((M η).Response (B η)) SC)
     (fx : X' → X) {ℓ : ℕ → ℕ} (hℓ : ∀ᶠ η in Filter.atTop, (ℓ η : ℝ) ≤ C' * (η : ℝ) ^ c')
@@ -802,7 +801,7 @@ theorem oracleTest_eq6_fails_eventually {k kN kS L e : ℕ → ℕ}
         (Psim η) fx
         (honestOracleTestQBTest (M η) (B η) Λ (E η) (Qs η) honest (hb η) (x η) (wit η) X')).toReal ^ d -
         μ η :=
-  Base.oracleTest_eq6_fails_eventually_with
+  SPBCS.oracleTest_eq6_fails_eventually_with
     (fun η => (((M η).niProver Λ honest (E η) (hb η)).mapOutput some).encode queryEncoding)
     (fun η => honestFallback (E η) (Qs η) honest)
     (fun η H o => (M η).Accepts (chainOracle H) o.stmt o.proof (Qs η o.stmt)) x wit

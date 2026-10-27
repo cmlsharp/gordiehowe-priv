@@ -908,7 +908,7 @@ def entries : List Entry := [
   { key := "bcs-nj", label := "def:bcs-quantities",
     decl := ``GordieHowe.SPBCS.Merges.nJ },
   { key := "bcs-overrun", label := "def:bcs-quantities",
-    decl := ``GordieHowe.SPBCS.Base.overrun },
+    decl := ``GordieHowe.SPBCS.overrun },
   { key := "bcs-key-collision", label := "def:bcs-quantities",
     decl := ``GordieHowe.SPBCS.keyCollision },
   { key := "bcs-leaf-bound", label := "def:bcs-quantities",

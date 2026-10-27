@@ -6,9 +6,9 @@ module
 public import GordieHowe.SPBCS.SimExtractTest
 public import GordieHowe.SPBCS.Targeted
 public import GordieHowe.SPBCS.Online
-public import GordieHowe.SPBCS.Base.SimExtractTest
-public import GordieHowe.SPBCS.Base.Targeted
-public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.SimExtractTest
+public import GordieHowe.SPBCS.Targeted
+public import GordieHowe.SPBCS.Extractor
 public import GordieHowe.SPBCS.Extraction.KnowledgeError
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.Model.QROM.QueryCount
@@ -27,7 +27,7 @@ public import GordieHowe.Model.QROM.QueryCountExpandAt
 
 The variant of Unruh 2017 (ePrint 2017/398), Definition 14, p. 21, eq. (6) in which the test's
 queries after extraction are answered by the extractor's simulated oracle, patched by the
-simulator's assignments, for the spBCS compiler, from the pieces of the compiler data (below), with the spBCS verifier
+simulator's assignments, for the spBCS compiler, from the pieces below, with the spBCS verifier
 (`Accepts`, `queries`), its challenges (`chV`) and its bad set (`bad`), for a counted
 simulator program that assigns only at the keys of its chain inputs (`SimAssignsAtKeys`):
 
@@ -43,18 +43,18 @@ simulator program that assigns only at the keys of its chain inputs (`SimAssigns
   (`SimulationSoundExtractableSimOracle`) against query-bounded adversaries.
 -/
 
-/-! ### The pieces of the compiler data
+/-! ### The control of the extraction and the swap error
 
 The variant of Unruh 2017 (ePrint 2017/398), Definition 14, p. 21, eq. (6) in which the test's
 queries after extraction are answered by the extractor's simulated oracle: Prove is
 the adversary followed by its test (`GordieHowe.SPBCS.acceptsQTest`); in Extract′ the adversary runs
 against CMS19's compressed oracle with the simulation challenger, the targeted extractor `E_T`
-(`GordieHowe/SPBCS/Base/Targeted.lean`) runs its classical queries and measures
+(`GordieHowe/SPBCS/Targeted.lean`) runs its classical queries and measures
 its output, and then the test runs with its queries answered by the same compressed oracle,
 patched by the simulator's assignments. The shape is CDHZ26's (ePrint 2025/2166) Definition 10.3,
 p. 71, whose relation deciders query the emulated oracle after extraction.
 
-The pieces for the compiler data (`GordieHowe.SPBCS.Base`):
+The pieces:
 
 - `Ctrl`, `ctrlOf`: the control of the extraction (the adversary's output and the challenger's
   registers); `finalAnswerOf`, `finalAnswerOf_eq`, `simQueryInputsOf`,
@@ -81,12 +81,12 @@ open scoped NNReal ENNReal
 
 variable {k kN kS L e : ℕ}
 
-namespace Base
+section
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
-  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {Mg : Merges t} {X : Type}
+  {M : SPBCS Mg P X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {X' : Type} [Fintype X'] [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
 
 /-! ### The control and the targeted extractor -/
@@ -262,14 +262,14 @@ theorem swapError_mono {tTest tTest' : ℕ} (h : tTest ≤ tTest') :
 
 end Notion
 
-end Base
+end
 
-namespace Base
+section
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
-  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {Mg : Merges t} {X : Type}
+  {M : SPBCS Mg P X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {X' : Type} [Fintype X'] [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
 
 /-! ### The control and the targeted extractor -/
@@ -332,7 +332,7 @@ variable (A Psim Q)
 
 end Control
 
-end Base
+end
 
 end GordieHowe.SPBCS
 
@@ -341,7 +341,6 @@ end
 namespace GordieHowe.SPBCS
 
 open GordieHowe.QROM GordieHowe.IOP IOP.SPTerm Quantum GordieHowe.QROM QROM.ExpandAdv
-open Base (SimExtractionAdversary)
 open scoped NNReal ENNReal BigOperators
 
 variable {ι : Type} {t : SPTerm ι} {Mg : Merges t} {k kN kS L e : ℕ} {n : ι → ℕ}
@@ -362,50 +361,50 @@ variable (A : KindAlg (Bits (queryBits k kN kS L)) (XOut k e) X' (M.Response B) 
   {V : X → FullTr P t → Bool} (Qs : ∀ x, M.IOPQueries V x) {K : ℕ}
 
 /-- **The extraction queries of a control at `slots` slots** (`extractionProg`). -/
-def extractionProgAt (slots : ℕ) (c : Base.CtrlAt Psim Q slots) :
+def extractionProgAt (slots : ℕ) (c : SPBCS.CtrlAt Psim Q slots) :
     GordieHowe.OracleProg (Bits (queryBits k kN kS L)) (Out k e) (List (Out k e)) :=
   (OracleProg.translate Query.toBits
-      (fun q y => Base.finalAnswerAt Psim Q slots c.2 (Query.toBits q) y)
+      (fun q y => SPBCS.finalAnswerAt Psim Q slots c.2 (Query.toBits q) y)
       (M.queryProg c.1.stmt c.1.proof (Qs c.1.stmt))).bind fun _ =>
-    OracleProg.queryAll (Base.simQueryInputsAt Psim Q slots c.2)
+    OracleProg.queryAll (SPBCS.simQueryInputsAt Psim Q slots c.2)
 
 /-- **The extraction queries of a control** (`extractionProgAt` at the adversary's slots). -/
-abbrev extractionProgOf (c : Base.Ctrl A Psim Q) :
+abbrev extractionProgOf (c : SPBCS.Ctrl A Psim Q) :
     GordieHowe.OracleProg (Bits (queryBits k kN kS L)) (Out k e) (List (Out k e)) :=
   extractionProgAt Psim Q Qs A.slots c
 
 /-- **The expansion for extraction on a control at `slots` slots** (`simExtractionExpansion`). -/
 def ctrlExpansionAt (slots : ℕ) :
-    Expansion (Bits (queryBits k kN kS L)) (Out k e) (Base.CtrlAt Psim Q slots) :=
-  OracleProg.toExpansion (extractionProgAt Psim Q Qs slots) (Base.padQuery (kS := kS))
+    Expansion (Bits (queryBits k kN kS L)) (Out k e) (SPBCS.CtrlAt Psim Q slots) :=
+  OracleProg.toExpansion (extractionProgAt Psim Q Qs slots) (SPBCS.padQuery (kS := kS))
 
 /-- **The expansion for extraction on the control** (`ctrlExpansionAt` at the adversary's slots). -/
-abbrev ctrlExpansion : Expansion (Bits (queryBits k kN kS L)) (Out k e) (Base.Ctrl A Psim Q) :=
+abbrev ctrlExpansion : Expansion (Bits (queryBits k kN kS L)) (Out k e) (SPBCS.Ctrl A Psim Q) :=
   ctrlExpansionAt Psim Q Qs A.slots
 
 /-- **The expansion for extraction reads the control only.** -/
 theorem comapIn_ctrlExpansion :
-    (ctrlExpansion A Psim Q Qs).comapIn (Base.ctrlOf A Psim Q) =
+    (ctrlExpansion A Psim Q Qs).comapIn (SPBCS.ctrlOf A Psim Q) =
       simExtractionExpansion A Psim Q Qs := by
   simp only [Expansion.comapIn, ctrlExpansion, ctrlExpansionAt, simExtractionExpansion,
-    OracleProg.toExpansion, extractionProgAt, extractionProg, Base.finalAnswerOf_ctrlOf]
+    OracleProg.toExpansion, extractionProgAt, extractionProg, SPBCS.finalAnswerOf_ctrlOf]
   rfl
 
 /-- **The extraction queries of a control** under the base oracle `H`: the spBCS verifier's
 queries on the output `c.1` under the final oracle, then the simulator's query inputs, both read
 from the challenger's registers `c.2` (`trace_extProg`). -/
 theorem trace_extractionProgOf (H : Bits (queryBits k kN kS L) → XOut k e)
-    (c : Base.Ctrl A Psim Q) :
+    (c : SPBCS.Ctrl A Psim Q) :
     (extractionProgOf A Psim Q Qs c).trace (fun a => outEquiv k e (H a)) =
       (M.queries c.1.stmt c.1.proof
         (chainOracle (H.reprogram (A.postAss (simExtChallenger Psim Q) c.2)))
-        (Qs c.1.stmt)).map Query.toBits ++ Base.simQueryInputsOf A Psim Q c.2 := by
+        (Qs c.1.stmt)).map Query.toBits ++ SPBCS.simQueryInputsOf A Psim Q c.2 := by
   rw [extractionProgOf, extractionProgAt, OracleProg.trace_bind, OracleProg.trace_translate,
     OracleProg.trace_queryAll]
-  have hf : (fun a => Base.finalAnswerAt Psim Q A.slots c.2 (Query.toBits a)
+  have hf : (fun a => SPBCS.finalAnswerAt Psim Q A.slots c.2 (Query.toBits a)
       (outEquiv k e (H (Query.toBits a)))) =
       chainOracle (H.reprogram (A.postAss (simExtChallenger Psim Q) c.2)) :=
-    funext (Base.finalAnswerOf_eq A Psim Q H c.2)
+    funext (SPBCS.finalAnswerOf_eq A Psim Q H c.2)
   rw [hf]
   rfl
 
@@ -416,19 +415,19 @@ through this): `targetedExtract` along the proof of the control's output, at the
 verifier derives from the oracle the recorded queries and answers give (`tupleOracleOf`), on the
 database restricted to the encoded queries. Running time: that of `targetedExtractor`. This running
 time is argued here, not proved in Lean. -/
-def targetedExtractorAt (slots : ℕ) (E : CausalExtractor P t X Wit) (c : Base.CtrlAt Psim Q slots)
+def targetedExtractorAt (slots : ℕ) (E : CausalExtractor P t X Wit) (c : SPBCS.CtrlAt Psim Q slots)
     (qs : Fin K → Bits (queryBits k kN kS L)) (as : Fin K → Out k e)
     (D : DB (Bits (queryBits k kN kS L)) (Out k e)) : Multiset Wit :=
   M.targetedExtract (D.restrictBy Query.toBits Query.ofBits fun _ _ => Query.ofBits_eq_some_iff)
     c.1.proof
-    (M.chV (Base.tupleOracleAt Psim Q slots c.2 qs as) (M.ssOf c.1.stmt c.1.proof)
+    (M.chV (SPBCS.tupleOracleAt Psim Q slots c.2 qs as) (M.ssOf c.1.stmt c.1.proof)
       c.1.proof.writes) E
     c.1.stmt
 
 /-- **The targeted extractor on a control** (`targetedExtractorAt` at the adversary's slots).
 
 Running time: that of `targetedExtractor`. This running time is argued here, not proved in Lean. -/
-abbrev targetedExtractorOf (E : CausalExtractor P t X Wit) (c : Base.Ctrl A Psim Q)
+abbrev targetedExtractorOf (E : CausalExtractor P t X Wit) (c : SPBCS.Ctrl A Psim Q)
     (qs : Fin K → Bits (queryBits k kN kS L)) (as : Fin K → Out k e)
     (D : DB (Bits (queryBits k kN kS L)) (Out k e)) : Multiset Wit :=
   targetedExtractorAt Psim Q A.slots E c qs as D
@@ -449,13 +448,13 @@ This running time is argued here, not proved in Lean. -/
 def targetedExtractor (E : CausalExtractor P t X Wit)
     (o : BaseGame.Tuple (Bits (queryBits k kN kS L)) (Out k e) (M.Register B A Psim Q) K)
     (D : DB (Bits (queryBits k kN kS L)) (Out k e)) : Multiset Wit :=
-  targetedExtractorOf A Psim Q E (Base.ctrlOf A Psim Q o.out) o.queries o.answers D
+  targetedExtractorOf A Psim Q E (SPBCS.ctrlOf A Psim Q o.out) o.queries o.answers D
 
 /-- **`E_T` returns a witness for the output statement.** -/
 def TargetedExtracts (rel : Set (X × Wit)) (E : CausalExtractor P t X Wit)
     (o : BaseGame.Tuple (Bits (queryBits k kN kS L)) (Out k e) (M.Register B A Psim Q) K)
     (D : DB (Bits (queryBits k kN kS L)) (Out k e)) : Prop :=
-  ∃ w ∈ targetedExtractor A Psim Q E o D, ((Base.advOut A Psim Q o.out).stmt, w) ∈ rel
+  ∃ w ∈ targetedExtractor A Psim Q E o D, ((SPBCS.advOut A Psim Q o.out).stmt, w) ∈ rel
 
 variable {A Psim Q} (fx : X' → X) {rel : Set (X × Wit)} {E : CausalExtractor P t X Wit}
   (St : CausalStateFn P t X) {ε : ChIdx P t → ℝ≥0}
@@ -475,19 +474,19 @@ theorem cover_simExtGame_targeted [DecidableEq X] (hrbr : CausalRBRKnowledgeSoun
   · exact Or.inr (Or.inr hcol)
   obtain ⟨h, hv, hcov⟩ := ho.2.1
   have hQ := lookup_of_mem_queries_of_no_collision A Psim Q fx ho hD hcol hcov
-  have hh : ∀ q ∈ M.queries (Base.advOut A Psim Q o.out).stmt
-      (Base.advOut A Psim Q o.out).proof h (Qs (Base.advOut A Psim Q o.out).stmt),
-      Base.tupleOracle A Psim Q o q = h q := fun q hq => by
+  have hh : ∀ q ∈ M.queries (SPBCS.advOut A Psim Q o.out).stmt
+      (SPBCS.advOut A Psim Q o.out).proof h (Qs (SPBCS.advOut A Psim Q o.out).stmt),
+      SPBCS.tupleOracle A Psim Q o q = h q := fun q hq => by
     obtain ⟨i, hi1, hi2⟩ := hcov q hq
-    rw [Base.tupleOracle_eq hD hi1, hi2]
+    rw [SPBCS.tupleOracle_eq hD hi1, hi2]
   rcases mem_of_verify_targeted rel E St hrbr hv (D := D.restrict Query.toBits) hQ with hE | hrest
   · obtain ⟨w, hw, hrel⟩ := hE
     refine Or.inl ⟨w, ?_, hrel⟩
     rw [targetedExtractor, targetedExtractorOf, targetedExtractorAt, DB.restrictBy_eq]
-    show w ∈ M.targetedExtract (D.restrict Query.toBits) (Base.advOut A Psim Q o.out).proof
-      (M.chV (Base.tupleOracle A Psim Q o)
-        (M.ssOf (Base.advOut A Psim Q o.out).stmt (Base.advOut A Psim Q o.out).proof)
-        (Base.advOut A Psim Q o.out).proof.writes) E (Base.advOut A Psim Q o.out).stmt
+    show w ∈ M.targetedExtract (D.restrict Query.toBits) (SPBCS.advOut A Psim Q o.out).proof
+      (M.chV (SPBCS.tupleOracle A Psim Q o)
+        (M.ssOf (SPBCS.advOut A Psim Q o.out).stmt (SPBCS.advOut A Psim Q o.out).proof)
+        (SPBCS.advOut A Psim Q o.out).proof.writes) E (SPBCS.advOut A Psim Q o.out).stmt
     rw [chV_eq_of_eqOn_queries hh]
     exact hw
   · exact Or.inr hrest
@@ -495,9 +494,9 @@ theorem cover_simExtGame_targeted [DecidableEq X] (hrbr : CausalRBRKnowledgeSoun
 variable (A Psim Q E) in
 /-- **The instability of `E_T`'s outcome** at a fixed control and record: one more recorded query
 changes the output of `E_T` with probability at most `visitBound / 2^(8k)`, for every database (an
-input outside the encoded queries changes nothing; `Base.prob_targetedExtract_change_le`).
+input outside the encoded queries changes nothing; `prob_targetedExtract_change_le`).
 -/
-theorem instabPart_targetedExtractorOf_le (c : Base.Ctrl A Psim Q) (qs : Fin K → Bits (queryBits k kN kS L))
+theorem instabPart_targetedExtractorOf_le (c : SPBCS.Ctrl A Psim Q) (qs : Fin K → Bits (queryBits k kN kS L))
     (as : Fin K → Out k e) (tq : ℕ) :
     instabPart (targetedExtractorOf A Psim Q E c qs as) tq ≤ M.visitBound / 2 ^ (8 * k) := by
   refine instabPart_le fun D _ x hx => ?_
@@ -505,7 +504,7 @@ theorem instabPart_targetedExtractorOf_le (c : Base.Ctrl A Psim Q) (qs : Fin K �
   · obtain ⟨q, rfl⟩ := hr
     have hq : q ∉ D.restrict Query.toBits := fun h => hx (DB.mem_restrict.1 h)
     simp only [targetedExtractorOf, targetedExtractorAt, DB.restrictBy_eq, DB.restrict_extend_image]
-    exact M.toBase.prob_targetedExtract_change_le _ _ _ E _ hq
+    exact M.prob_targetedExtract_change_le _ _ _ E _ hq
   · refine (probUniform_eq_zero fun y hy => hy ?_).trans_le zero_le
     simp only [targetedExtractorOf, targetedExtractorAt, DB.restrictBy_eq, DB.restrict_extend_of_notMem_range hr]
 
@@ -523,7 +522,7 @@ variable (A : AdaptiveIAlg (Bits (queryBits k kN kS L)) (XOut k e) X' (M.Respons
 /-- **The algorithm with the extraction inserted before the test** (`expandAt`), with the
 spBCS verifier's extraction queries (`ctrlExpansion`).
 
-Running time: that of `Base.pureWithTest`, plus the `kq + Q · Psim.q` extraction queries
+Running time: that of `SPBCS.pureWithTest`, plus the `kq + Q · Psim.q` extraction queries
 computed from the measured registers by the query program with merges.
 This running time is argued here, not proved in Lean. -/
 noncomputable abbrev extAt :
@@ -532,7 +531,7 @@ noncomputable abbrev extAt :
       (BaseGame.Tuple (Bits (queryBits k kN kS L)) (Out k e) (M.Register B (A.withTest T).toTPKindAlg Psim Q)
         ((kq + Q * Psim.q))) :=
   expandAt (outEquiv k e) ((ctrlExpansion (A.withTest T).toTPKindAlg Psim Q Qs)) ((kq + Q * Psim.q))
-    (Base.pureWithTest A T Psim Q) (Base.splitStep A T Psim Q) (Base.pureCtrl A T Psim Q)
+    (SPBCS.pureWithTest A T Psim Q) (SPBCS.splitStep A T Psim Q) (SPBCS.pureCtrl A T Psim Q)
 
 variable {Wit : Type} (E : CausalExtractor P t X Wit)
 
@@ -547,7 +546,7 @@ the control), then one run of `E_T`, whose cost is `targetedExtractor`'s; polyno
 sparse encoding of the database (sorted pairs, Zha19 p. 7) is implemented in time linear in that
 classical running time (DFMS22, ePrint 2021/280, App. B, Lemma B.1, p. 26: coherent evaluation,
 copy of the output, uncomputation). This running time is argued here, not proved in Lean. -/
-def extractLabel (c : Base.Ctrl (A.withTest T).toTPKindAlg Psim Q)
+def extractLabel (c : SPBCS.Ctrl (A.withTest T).toTPKindAlg Psim Q)
     (as : Fin ((kq + Q * Psim.q)) → Out k e) (D : DB (Bits (queryBits k kN kS L)) (Out k e)) :
     X × Multiset Wit :=
   (c.1.stmt, targetedExtractorAt Psim Q A.slots E c
@@ -559,7 +558,7 @@ noncomputable def labelRange : Finset (X × Multiset Wit) :=
   Finset.univ.image fun b : SimRegister (extAt A T Psim Q Qs kq).W (Fin (k + e)) (Fin 8)
       (queryBits k kN kS L)
       (((A.withTest T).toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).depth + (kq + Q * Psim.q)) =>
-    extractLabel A T Psim Q Qs kq E (Base.pureCtrl A T Psim Q b.1.1.1) (fun j => outEquiv k e (b.1.1.2.2 j))
+    extractLabel A T Psim Q Qs kq E (SPBCS.pureCtrl A T Psim Q b.1.1.1) (fun j => outEquiv k e (b.1.1.2.2 j))
       (slotsDB (outEquiv k e) b.2)
 
 open Classical in
@@ -572,7 +571,7 @@ whose running time is polynomial in `t`, `tTest`, `Q` and the proof size when `E
 restriction (a membership test over all basis states, not efficient) is a device of the proof
 that makes the label type finite, and it changes no outcome of the measurement.
 This running time is argued here, not proved in Lean. -/
-noncomputable def extractLabelR (c : Base.Ctrl (A.withTest T).toTPKindAlg Psim Q)
+noncomputable def extractLabelR (c : SPBCS.Ctrl (A.withTest T).toTPKindAlg Psim Q)
     (as : Fin ((kq + Q * Psim.q)) → Out k e) (D : DB (Bits (queryBits k kN kS L)) (Out k e)) :
     Option (labelRange A T Psim Q Qs kq E) :=
   if h : extractLabel A T Psim Q Qs kq E c as D ∈ labelRange A T Psim Q Qs kq E then some ⟨_, h⟩ else none
@@ -585,7 +584,7 @@ def labelSucceeds (rel : Set (X × Wit)) : Set (Option (labelRange A T Psim Q Qs
 /-- **The test's outcome at the end of the run of `𝒜_E`**: the test's predicate on the residual
 workspace in the output of `𝒜`. -/
 def testAccepts (w : (extAt A T Psim Q Qs kq).W) : Prop :=
-  T.ok (Base.advWorkspace (A.withTest T).toTPKindAlg Psim Q ((Base.pureWithTest A T Psim Q).out w.1)).1.1
+  T.ok (SPBCS.advWorkspace (A.withTest T).toTPKindAlg Psim Q ((SPBCS.pureWithTest A T Psim Q).out w.1)).1.1
 
 /-- **The probability that the straight-line extractor `E_T` returns a witness and the test accepts,
 in the Extract′ game** (the game of eq. (6) with the test's queries answered by the simulated
@@ -613,13 +612,13 @@ input bit length `m`, `k` and `e` are polynomial in the input length. This runni
 here, not proved in Lean. -/
 noncomputable def extractQTestProb (rel : Set (X × Wit)) : ℝ≥0∞ :=
   ENNReal.ofReal <| extractAtProb (outEquiv k e) ((ctrlExpansion (A.withTest T).toTPKindAlg Psim Q Qs)) ((kq + Q * Psim.q))
-    (Base.pureWithTest A T Psim Q) (Base.splitStep A T Psim Q) (Base.pureCtrl A T Psim Q) (extractLabelR A T Psim Q Qs kq E)
+    (SPBCS.pureWithTest A T Psim Q) (SPBCS.splitStep A T Psim Q) (SPBCS.pureCtrl A T Psim Q) (extractLabelR A T Psim Q Qs kq E)
     (testAccepts A T Psim Q Qs kq) (labelSucceeds A T Psim Q Qs kq E rel)
 
 /-- **The generalized instability of the restricted label** is at most `V / 2^(8k)`: the label
 changes only where `E_T`'s output does (`instabPart_le_instabPart`,
 `instabPart_targetedExtractorOf_le`). -/
-theorem instabPart_extractLabelR_le (c : Base.Ctrl (A.withTest T).toTPKindAlg Psim Q)
+theorem instabPart_extractLabelR_le (c : SPBCS.Ctrl (A.withTest T).toTPKindAlg Psim Q)
     (as : Fin ((kq + Q * Psim.q)) → Out k e) (t : ℕ) :
     (instabPart (extractLabelR A T Psim Q Qs kq E c as) t).toReal ≤ M.visitBound / 2 ^ (8 * k) := by
   have h := (instabPart_le_instabPart (t := t) (L := extractLabelR A T Psim Q Qs kq E c as)
@@ -666,7 +665,7 @@ theorem winTestProb_withTest_le
     winTestProb Qs (A.withTest T) Psim Q fx (fun w => T.ok w.1) ≤
       extractQTestProb A T Psim Q Qs kq E rel +
       knowledgeError k e (kq + Q * Psim.q)
-        (Base.branchQueries (A.withTest T) Psim Q + (kq + Q * Psim.q))
+        (SPBCS.branchQueries (A.withTest T) Psim Q + (kq + Q * Psim.q))
         M.senc.digestsPerInput Mg.nJ (maxError ε) +
       M.swapError T.queries := by
   classical
@@ -674,31 +673,31 @@ theorem winTestProb_withTest_le
   set A' := A.withTest T
   set K := kq + Q * Psim.q
   set ok' : A'.W → Prop := fun w => T.ok w.1
-  set G := simExtGame A'.toTPKindAlg Psim Q Qs fx K ∩ {o | ok' (Base.advWorkspace A'.toTPKindAlg Psim Q o.out).1}
-  set 𝒜 := Base.pureWithTest A T Psim Q
-  set s := Base.splitStep A T Psim Q
-  set κ := Base.pureCtrl A T Psim Q
+  set G := simExtGame A'.toTPKindAlg Psim Q Qs fx K ∩ {o | ok' (SPBCS.advWorkspace A'.toTPKindAlg Psim Q o.out).1}
+  set 𝒜 := SPBCS.pureWithTest A T Psim Q
+  set s := SPBCS.splitStep A T Psim Q
+  set κ := SPBCS.pureCtrl A T Psim Q
   set 𝒜E := extAt A T Psim Q Qs kq
   have hs : s ≤ (A'.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).depth := Nat.sub_le _ _
   have hκ : KeepsClasses 𝒜 s κ :=
-    Alg.keepsClasses_toQueryAlgCoh _ (Base.ctrlOf A'.toTPKindAlg Psim Q)
+    Alg.keepsClasses_toQueryAlgCoh _ (SPBCS.ctrlOf A'.toTPKindAlg Psim Q)
       ((AdaptiveIAlg.stepsKeep_composeBothOut_withTest T
         (simExtChallenger Psim Q) id).map fun p => ((A.out p.1 : Claim X M.NIProof), p.2))
   have hout : ∀ (H : (Bits (queryBits k kN kS L)) → (XOut k e)) r, 𝒜.final H r ≠ 0 →
-      κ r.1 = Base.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out r.1) := fun _ _ _ => rfl
+      κ r.1 = SPBCS.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out r.1) := fun _ _ _ => rfl
   -- Prove's event lies in the expanded game of `𝒜_E`
   have hexpand : winTestProb Qs A' Psim Q fx ok' ≤ winO ee 𝒜E G := by
     set Acc : Set (Outcome (M.Register B A'.toTPKindAlg Psim Q) (Bits (queryBits k kN kS L)) (Out k e)) :=
       {p | (Wins A'.toTPKindAlg Psim Q Qs fx (ee.symm ∘ p.oracle) p.out ∧
-        ok' (Base.advWorkspace A'.toTPKindAlg Psim Q p.out).1) ∧
+        ok' (SPBCS.advWorkspace A'.toTPKindAlg Psim Q p.out).1) ∧
         A'.toTPKindAlg.Consistent (simExtChallenger Psim Q) (ee.symm ∘ p.oracle) p.out}
     have hdom := A'.realLaw_composeBothOut_le (simExtChallenger Psim Q) id ee
       {p | ∃ v, p.out = some v ∧ Wins A'.toTPKindAlg Psim Q Qs fx (ee.symm ∘ p.oracle) v ∧
-        ok' (Base.advWorkspace A'.toTPKindAlg Psim Q v).1} (fun p ⟨v, hv, _⟩ => by rw [hv]; simp)
+        ok' (SPBCS.advWorkspace A'.toTPKindAlg Psim Q v).1} (fun p ⟨v, hv, _⟩ => by rw [hv]; simp)
     refine hdom.trans ?_
     have hinter := A'.toTPKindAlg.realLaw_composeBothOut_inter (simExtChallenger Psim Q) ee
       (fun v f => Wins A'.toTPKindAlg Psim Q Qs fx (ee.symm ∘ f) v ∧
-        ok' (Base.advWorkspace A'.toTPKindAlg Psim Q v).1)
+        ok' (SPBCS.advWorkspace A'.toTPKindAlg Psim Q v).1)
     refine le_of_eq_of_le (by convert hinter using 1) ?_
     refine le_trans (MeasureTheory.measure_mono
       (t := {p : Outcome (Option (M.Register B A'.toTPKindAlg Psim Q)) (Bits (queryBits k kN kS L)) (Out k e) |
@@ -707,7 +706,7 @@ theorem winTestProb_withTest_le
       exact ⟨v, hv, hw, hc⟩
     refine ((A'.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).toOuterMeasure_realLaw_le_coh ee
       (A'.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).defaultOut Acc).trans ?_
-    refine winO_expandAt ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)) K 𝒜 κ (Base.ctrlOf A'.toTPKindAlg Psim Q)
+    refine winO_expandAt ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)) K 𝒜 κ (SPBCS.ctrlOf A'.toTPKindAlg Psim Q)
       hs hκ hout fun p hp => ⟨?_, hp.1.2⟩
     rw [comapIn_ctrlExpansion]
     have hm := expand_mem_simExtGame Q Qs fx A'.toTPKindAlg hkq hA hp.2 hp.1.1
@@ -719,7 +718,7 @@ theorem winTestProb_withTest_le
   -- the cover with `E_T`
   set R' : BaseGame.Tuple (Bits (queryBits k kN kS L)) (Out k e) (M.Register B A'.toTPKindAlg Psim Q) K →
       DB (Bits (queryBits k kN kS L)) (Out k e) → Prop :=
-    fun o D => TargetedExtracts A'.toTPKindAlg Psim Q rel E o D ∧ ok' (Base.advWorkspace A'.toTPKindAlg Psim Q o.out).1
+    fun o D => TargetedExtracts A'.toTPKindAlg Psim Q rel E o D ∧ ok' (SPBCS.advWorkspace A'.toTPKindAlg Psim Q o.out).1
   have hcover : winS ee 𝒜E G ≤ simLaw ee 𝒜E {p | R' p.1 p.2} +
       dbProb ee 𝒜E (DB.restrict Query.toBits ⁻¹' (M.bad rel E St ∪ digestCollision)) := by
     refine (MeasureTheory.measure_mono fun p hp => ?_).trans (MeasureTheory.measure_union_le
@@ -755,10 +754,10 @@ theorem winTestProb_withTest_le
   have hfold : simLaw ee 𝒜E {p | R' p.1 p.2} ≤ ENNReal.ofReal (foldedProb ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs))
       K 𝒜 s κ (extractLabelR A T Psim Q Qs kq E) (testAccepts A T Psim Q Qs kq) (labelSucceeds A T Psim Q Qs kq E rel)) := by
     refine simLaw_le_ofReal_foldedProb ee _ K 𝒜 s κ _ _ _ fun b hb ⟨hT, hok⟩ => ⟨hok, ?_⟩
-    have hc : κ b.1.1.1 = Base.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out b.1.1.1) := by
+    have hc : κ b.1.1.1 = SPBCS.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out b.1.1.1) := by
       by_contra hne
       exact hb (simState_expandAt_eq_zero ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)) K 𝒜 κ hs hκ
-        (Q := fun w => κ w = Base.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out w)) hout hne)
+        (Q := fun w => κ w = SPBCS.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out w)) hout hne)
     have hmem : extractLabel A T Psim Q Qs kq E (κ b.1.1.1) (fun j => ee (b.1.1.2.2 j)) (slotsDB ee b.2) ∈
         labelRange A T Psim Q Qs kq E :=
       Finset.mem_image_of_mem _ (Finset.mem_univ b)
@@ -767,7 +766,7 @@ theorem winTestProb_withTest_le
     rw [extractLabelR, dite_eq_left_of_eq_true (eq_true hmem)]
     obtain ⟨w, hw, hrel⟩ := hT
     refine ⟨_, rfl, w, ?_, ?_⟩
-    · have hw' : w ∈ targetedExtractorOf A'.toTPKindAlg Psim Q E (Base.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out b.1.1.1))
+    · have hw' : w ∈ targetedExtractorOf A'.toTPKindAlg Psim Q E (SPBCS.ctrlOf A'.toTPKindAlg Psim Q (𝒜.out b.1.1.1))
           (fun j => ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)).next (κ b.1.1.1)
             ((List.ofFn fun i => ee (b.1.1.2.2 i)).take j))
           (fun j => ee (b.1.1.2.2 j)) (slotsDB ee b.2) := hw
@@ -777,8 +776,8 @@ theorem winTestProb_withTest_le
       rw [hc]
       exact hrel
   -- the swap
-  have : Nonempty (Base.Ctrl A'.toTPKindAlg Psim Q) :=
-    ⟨Base.ctrlOf A'.toTPKindAlg Psim Q (A'.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).defaultOut⟩
+  have : Nonempty (SPBCS.Ctrl A'.toTPKindAlg Psim Q) :=
+    ⟨SPBCS.ctrlOf A'.toTPKindAlg Psim Q (A'.toTPKindAlg.composeBothOut (simExtChallenger Psim Q) id).defaultOut⟩
   have hswap := abs_foldedProb_sub_extractAtProb_le ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)) K 𝒜 s κ
     (extractLabelR A T Psim Q Qs kq E) (testAccepts A T Psim Q Qs kq) (labelSucceeds A T Psim Q Qs kq E rel) hs hκ
     (fun c a => instabPart_extractLabelR_le A T Psim Q Qs kq E c a _)
@@ -788,7 +787,7 @@ theorem winTestProb_withTest_le
   have hfold' : ENNReal.ofReal (foldedProb ee ((ctrlExpansion A'.toTPKindAlg Psim Q Qs)) K 𝒜 s κ
       (extractLabelR A T Psim Q Qs kq E) (testAccepts A T Psim Q Qs kq) (labelSucceeds A T Psim Q Qs kq E rel)) ≤
       extractQTestProb A T Psim Q Qs kq E rel + M.swapError T.queries := by
-    rw [extractQTestProb, Base.swapError]
+    rw [extractQTestProb, SPBCS.swapError]
     refine (ENNReal.ofReal_le_ofReal ?_).trans ENNReal.ofReal_add_le
     have h1 := (le_abs_self _).trans hswap
     linarith [mul_le_mul_of_nonneg_right hTq
@@ -796,9 +795,9 @@ theorem winTestProb_withTest_le
   calc winTestProb Qs A' Psim Q fx ok'
       ≤ winS ee 𝒜E G + 2 * esqrt (K / Fintype.card (Out k e)) := hexpand.trans hsimulation
     _ ≤ extractQTestProb A T Psim Q Qs kq E rel + M.swapError T.queries +
-          6 * ((Base.branchQueries A' Psim Q + K : ℕ) : ℝ≥0∞) ^ 2 *
+          6 * ((SPBCS.branchQueries A' Psim Q + K : ℕ) : ℝ≥0∞) ^ 2 *
             ((maxError ε : ℝ≥0∞) + (((max 2 M.senc.digestsPerInput + Mg.nJ + 1) *
-              (Base.branchQueries A' Psim Q + K) : ℕ) : ℝ≥0∞) / 2 ^ (8 * k)) +
+              (SPBCS.branchQueries A' Psim Q + K) : ℕ) : ℝ≥0∞) / 2 ^ (8 * k)) +
           2 * esqrt (K / Fintype.card (Out k e)) := by
         gcongr
         exact hcover.trans (add_le_add (hfold.trans hfold') hbad)
@@ -876,14 +875,14 @@ theorem simulation_sound_extractability_sim_oracle_game [DecidableEq X] {kq : �
   have hq : Psim.q = Sim.q := rfl
   rw [← hq]
   beta_reduce
-  refine Base.SimExtractionAdversary.tsum_le_tsum_add (𝒜.withTest T) fun a => ?_
+  refine SPBCS.SimExtractionAdversary.tsum_le_tsum_add (𝒜.withTest T) fun a => ?_
   refine (winTestProb_withTest_le Q Qs kq fx hkq hrbr (hA.comap fx)).trans ?_
   rw [add_assoc]
   refine add_le_add le_rfl (add_le_add ?_ (M.swapError_mono (T.queries_le a)))
   unfold simExtractionError knowledgeError
   set B' := (𝒜.alg a).withTest (T.test a)
   have h2 : B'.width * (B'.budget + B'.post) ≤ tq + tTest := (𝒜.withTest T).queries_le a
-  have hb : Base.branchQueries B' Psim Q + (kq + Q * Psim.q) ≤
+  have hb : SPBCS.branchQueries B' Psim Q + (kq + Q * Psim.q) ≤
       tq + tTest + Q * Psim.q + (kq + Q * Psim.q) := by
     change B'.width * B'.budget + Q * Psim.q + B'.width * B'.post + (kq + Q * Psim.q) ≤
       tq + tTest + Q * Psim.q + (kq + Q * Psim.q)

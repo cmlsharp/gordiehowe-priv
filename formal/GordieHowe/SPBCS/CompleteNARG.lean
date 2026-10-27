@@ -5,7 +5,7 @@ module
 
 public import GordieHowe.SPBCS.CompleteAdaptive
 public import GordieHowe.SPBCS.Online
-public import GordieHowe.SPBCS.Base.ZeroKnowledge
+public import GordieHowe.SPBCS.ZeroKnowledge
 public import GordieHowe.SPBCS.ProverProg
 
 @[expose] public section

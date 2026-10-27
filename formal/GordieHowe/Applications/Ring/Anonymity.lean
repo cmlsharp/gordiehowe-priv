@@ -182,7 +182,7 @@ theorem anon_suppliedSignatures {adm : List Sch.PK → Prop} {bind : List Sch.PK
     (h : CausalHVZK Rv.MV (ringRel adm bind) honest pub sim δ) {Q C : ℕ}
     (A : AnonAdversary M adm bind Q) (hA : A.choices.card ≤ C) (D : M.WIDistinguisher Q) :
     anonAdvantage M E Qs honest A D ≤ Q * M.wiError δ C :=
-  SPBCS.witnessIndistinguishable Rv (Base.obsClose_of_causalHVZK Rv h) Q C
+  SPBCS.witnessIndistinguishable Rv (SPBCS.obsClose_of_causalHVZK Rv h) Q C
     A.toWIAdversary (A.card_choices_toWIAdversary.trans_le hA) D
 
 /-! ### Challenger-signed challenges with exposed honest keys -/

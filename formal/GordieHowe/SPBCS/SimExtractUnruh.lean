@@ -4,7 +4,7 @@
 module
 
 public import GordieHowe.SPBCS.SimExtractTest
-public import GordieHowe.SPBCS.Base.SimExtractTest
+public import GordieHowe.SPBCS.SimExtractTest
 public import GordieHowe.SPBCS.Extraction.CohTest
 
 @[expose] public section
@@ -28,7 +28,7 @@ and trace-preserving adversaries, from the model-independent density-matrix argu
 /-! ### The challenger's registers
 
 `ChalRegs`: the challenger's registers of the composition of an adversary with the simulation
-challenger, for the compiler data (`GordieHowe.SPBCS.Base`).
+challenger.
 -/
 
 section
@@ -43,12 +43,12 @@ open scoped NNReal ENNReal ComplexOrder
 
 variable {k kN kS L e : ℕ}
 
-namespace Base
+section
 
 variable {ι : Type} {n : ι → ℕ} {P : (j : ι) → ProtocolSpec (n j)}
   [∀ j i, Fintype ((P j).Challenge i)] [∀ j i, DecidableEq ((P j).Challenge i)]
-  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {X : Type}
-  {M : Base P t X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
+  [∀ j i, Nonempty ((P j).Challenge i)] {t : SPTerm ι} {Mg : Merges t} {X : Type}
+  {M : SPBCS Mg P X k kN kS L e} {B : ℕ} [∀ j i, Fintype ((M.comp j).MessageWrite i)]
   {V : X → FullTr P t → Bool} (Qs : ∀ x, M.IOPQueries V x) {X' : Type} [Fintype X']
   [DecidableEq X'] {SC : Type} [Fintype SC] [DecidableEq SC]
 
@@ -61,7 +61,7 @@ abbrev ChalRegs : Type :=
   ChallengerRegs (Bits (queryBits k kN kS L)) (XOut k e) X' A.slots (simExtChallenger Psim Q).q
     (simExtChallenger Psim Q).Coins
 
-end Base
+end
 end GordieHowe.SPBCS
 
 end
@@ -72,7 +72,6 @@ open scoped BigOperators Kronecker
 namespace GordieHowe.SPBCS
 
 open GordieHowe.QROM GordieHowe.IOP IOP.SPTerm Quantum GordieHowe.QROM QROM.ExpandAdv
-open Base (SimExtractionAdversary)
 open scoped NNReal ENNReal ComplexOrder
 
 variable {ι : Type} {t : SPTerm ι} {Mg : Merges t} {k kN kS L e : ℕ} {n : ι → ℕ}
@@ -96,7 +95,7 @@ abbrev ExtBasis : Type :=
 
 /-- **The composed registers read from a basis state of the extractor's run** (the classical output
 of the run, `extAdv`). -/
-noncomputable abbrev extOut (b : ExtBasis Qs A Psim Q kq) : Base.Reg A Psim Q :=
+noncomputable abbrev extOut (b : ExtBasis Qs A Psim Q kq) : SPBCS.Reg A Psim Q :=
   ((extAdv Qs A Psim Q kq).out b.1.1).out
 
 /-- **The query-free test on the registers of the coherent extractor's run**: the test's channel on
@@ -117,32 +116,32 @@ test's channel acts on the adversary's registers of the unmeasured run; then all
 measured, and the event `F` of `o`, the challenger's registers and the database holds and the test
 accepts on the adversary's workspace. -/
 noncomputable def extractQFTestProbAt (T : A.QFTest)
-    (F : Claim X M.NIProof → Base.ChalRegs A Psim Q → DB (Bits (queryBits k kN kS L)) (Out k e) → Prop) :
+    (F : Claim X M.NIProof → SPBCS.ChalRegs A Psim Q → DB (Bits (queryBits k kN kS L)) (Out k e) → Prop) :
     ℝ≥0∞ :=
   ∑ o ∈ AdaptiveIAlg.outputs A, ∑ b : ExtBasis Qs A Psim Q kq, Set.indicator
     {b | F o (extOut Qs A Psim Q kq b).chal (slotsDB (outEquiv k e) b.2) ∧
-      T.ok (Base.advWorkspace A.toTPKindAlg Psim Q (extOut Qs A Psim Q kq b)).1}
+      T.ok (SPBCS.advWorkspace A.toTPKindAlg Psim Q (extOut Qs A Psim Q kq b)).1}
     (fun b => ENNReal.ofReal ((testOnExtract Qs A Psim Q kq T
-      (cutTo {b | Base.advOut A.toTPKindAlg Psim Q (extOut Qs A Psim Q kq b) = o}
+      (cutTo {b | SPBCS.advOut A.toTPKindAlg Psim Q (extOut Qs A Psim Q kq b) = o}
         (pureMat (simState (outEquiv k e) (extAdv Qs A Psim Q kq))))) b b).re) b
 
 variable {A} in
 /-- **The extraction queries of `A^Π` at copy value `c`** are those of `A` when the output of `c`
 is `A`'s output: the expansion reads only the output and the challenger's registers. -/
-theorem extractionProg_withTest (T : A.QFTest) (u : Base.Reg A Psim Q) (c : A.W)
-    (h : A.out c = Base.advOut A.toTPKindAlg Psim Q u) :
+theorem extractionProg_withTest (T : A.QFTest) (u : SPBCS.Reg A Psim Q) (c : A.W)
+    (h : A.out c = SPBCS.advOut A.toTPKindAlg Psim Q u) :
     extractionProg (A.withTest T.toQTest).toTPKindAlg Psim Q Qs
         ((AdaptiveIAlg.cwCopy T (simExtChallenger Psim Q)).symm (u, c)) =
       extractionProg A.toTPKindAlg Psim Q Qs u := by
-  have hadv : Base.advOut (A.withTest T.toQTest).toTPKindAlg Psim Q
+  have hadv : SPBCS.advOut (A.withTest T.toQTest).toTPKindAlg Psim Q
       ((AdaptiveIAlg.cwCopy T (simExtChallenger Psim Q)).symm (u, c)) =
-      Base.advOut A.toTPKindAlg Psim Q u := h
+      SPBCS.advOut A.toTPKindAlg Psim Q u := h
   unfold extractionProg
   rw [hadv]
   congr 2
 
 variable {A} in
-theorem extractionProg_withTest_congr (T : A.QFTest) {u u' : Base.Reg A Psim Q} (c : A.W)
+theorem extractionProg_withTest_congr (T : A.QFTest) {u u' : SPBCS.Reg A Psim Q} (c : A.W)
     (h : u.chal = u'.chal) :
     extractionProg (A.withTest T.toQTest).toTPKindAlg Psim Q Qs
         ((AdaptiveIAlg.cwCopy T (simExtChallenger Psim Q)).symm (u, c)) =
@@ -161,10 +160,10 @@ the coherent extractor on `A`, the output measured, then the test's channel on t
 registers) is the probability of the event in the coherent extractor's run on the adversary followed
 by the test (`A^Π`), with the test's outcome read from the workspace of `A^Π`. -/
 theorem extractQFTestProbAt_eq_simProb (hA : A.TracePreserving) (T : A.QFTest)
-    (F : Claim X M.NIProof → Base.ChalRegs A Psim Q → DB (Bits (queryBits k kN kS L)) (Out k e) → Prop) :
+    (F : Claim X M.NIProof → SPBCS.ChalRegs A Psim Q → DB (Bits (queryBits k kN kS L)) (Out k e) → Prop) :
     extractQFTestProbAt Qs A Psim Q kq T F =
       simProb (outEquiv k e) (extAdv Qs (A.withTest T.toQTest) Psim Q kq) fun c D =>
-        F (Base.advOut _ Psim Q c) c.chal D ∧ T.ok (Base.advWorkspace _ Psim Q c).1.1 := by
+        F (SPBCS.advOut _ Psim Q c) c.chal D ∧ T.ok (SPBCS.advWorkspace _ Psim Q c).1.1 := by
   set C := simExtChallenger Psim Q
   set 𝒜 := A.toTPKindAlg.composeBothOut C id
   set 𝒜' := (A.withTest T.toQTest).toTPKindAlg.composeBothOut C id
@@ -176,10 +175,10 @@ theorem extractQFTestProbAt_eq_simProb (hA : A.TracePreserving) (T : A.QFTest)
   have hL := sum_testFull_eq (outEquiv k e) (outEquiv k e)
     (simExtractionExpansion A.toTPKindAlg Psim Q Qs) (kq + Q * Psim.q) 𝒜
     (·.getD 𝒜.defaultOut) h𝒜 (AdaptiveIAlg.testOnComposed T C) (AdaptiveIAlg.outputs A)
-    (fun o => {x | Base.advOut A.toTPKindAlg Psim Q (cohOut 𝒜 (·.getD 𝒜.defaultOut) x.1.1.1) = o})
+    (fun o => {x | SPBCS.advOut A.toTPKindAlg Psim Q (cohOut 𝒜 (·.getD 𝒜.defaultOut) x.1.1.1) = o})
     (fun o x => @ite _ (F o (cohOut 𝒜 (·.getD 𝒜.defaultOut) x.1.1.1).chal
         (slotsDB (outEquiv k e) x.2) ∧
-      T.ok (Base.advWorkspace A.toTPKindAlg Psim Q (cohOut 𝒜 (·.getD 𝒜.defaultOut) x.1.1.1)).1)
+      T.ok (SPBCS.advWorkspace A.toTPKindAlg Psim Q (cohOut 𝒜 (·.getD 𝒜.defaultOut) x.1.1.1)).1)
       (Classical.dec _) 1 0)
   refine (Finset.sum_congr rfl fun o _ => Finset.sum_congr rfl fun b _ => ?_).trans
     (hL.trans ?_)
@@ -200,20 +199,20 @@ theorem extractQFTestProbAt_eq_simProb (hA : A.TracePreserving) (T : A.QFTest)
     (simExtractionExpansion (A.withTest T.toQTest).toTPKindAlg Psim Q Qs) (kq + Q * Psim.q)
     𝒜 𝒜' (AdaptiveIAlg.testFold C T hA) (fun v => (some (𝒜.out v)).getD 𝒜.defaultOut)
     (fun v => (some (𝒜'.out v)).getD 𝒜'.defaultOut) (fun v c hl => ?_) (fun c v v' hv => ?_)
-    (fun v D => @ite _ (F (Base.advOut _ Psim Q ((some (𝒜'.out v)).getD 𝒜'.defaultOut))
+    (fun v D => @ite _ (F (SPBCS.advOut _ Psim Q ((some (𝒜'.out v)).getD 𝒜'.defaultOut))
         ((some (𝒜'.out v)).getD 𝒜'.defaultOut).chal D ∧
-      T.ok (Base.advWorkspace _ Psim Q ((some (𝒜'.out v)).getD 𝒜'.defaultOut)).1.1)
+      T.ok (SPBCS.advWorkspace _ Psim Q ((some (𝒜'.out v)).getD 𝒜'.defaultOut)).1.1)
       (Classical.dec _) 1 0)).trans ?_
-  · show (extractionProg A.toTPKindAlg Psim Q Qs v.1).next (Base.padQuery (kS := kS)) =
+  · show (extractionProg A.toTPKindAlg Psim Q Qs v.1).next (SPBCS.padQuery (kS := kS)) =
       (extractionProg (A.withTest T.toQTest).toTPKindAlg Psim Q Qs
-        ((AdaptiveIAlg.cwCopy T C).symm (v.1, c))).next (Base.padQuery (kS := kS))
+        ((AdaptiveIAlg.cwCopy T C).symm (v.1, c))).next (SPBCS.padQuery (kS := kS))
     rw [extractionProg_withTest Qs Psim Q T v.1 c (by
       rw [← hl]
       exact A.out_outRep _)]
   · show (extractionProg (A.withTest T.toQTest).toTPKindAlg Psim Q Qs
-        ((AdaptiveIAlg.cwCopy T C).symm (v.1, c))).next (Base.padQuery (kS := kS)) =
+        ((AdaptiveIAlg.cwCopy T C).symm (v.1, c))).next (SPBCS.padQuery (kS := kS)) =
       (extractionProg (A.withTest T.toQTest).toTPKindAlg Psim Q Qs
-        ((AdaptiveIAlg.cwCopy T C).symm (v'.1, c))).next (Base.padQuery (kS := kS))
+        ((AdaptiveIAlg.cwCopy T C).symm (v'.1, c))).next (SPBCS.padQuery (kS := kS))
     rw [extractionProg_withTest_congr Qs Psim Q T c (congrArg (fun r => r.1.2) hv)]
   · let Fn : Claim X M.NIProof → Set (DReg A.W A.width (Bits (queryBits k kN kS L)) (XOut k e) X'
         (M.Response B)) → ℝ≥0∞ := fun o Sd => ∑ y, (@ite _ (F o y.1.1.1.1.chal

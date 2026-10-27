@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.ComponentModel
 
 @[expose] public section
 

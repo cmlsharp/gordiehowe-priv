@@ -127,7 +127,7 @@ theorem zkErrorROM_le_bits (C : R.Compiled) {lam : ℝ} (hB : R.zkBudgetROM ≤ 
           linarith
   calc (setting R F C).model.zkErrorROM 0 t Q
       ≤ Q * t * (1 / 2 ^ (8 * R.kS)) + Q * t * (2 ^ 64 / (2 * 2 ^ (8 * R.kS))) + Q * t * c := by
-        rw [Base.zkErrorROM, NNReal.coe_zero]
+        rw [SPBCS.zkErrorROM, NNReal.coe_zero]
         refine add_le_add (add_le_add (le_of_eq ?_) hsalt) hreq'
         change (Q : ℝ) * t / 2 ^ (8 * R.kS) = _
         ring
@@ -170,7 +170,7 @@ theorem zkError_le_bits (C : R.Compiled) {lam : ℝ} (hB : R.zkBudget ≤ 2 ^ (-
           linarith
   calc (setting R F C).model.zkError 0 t Q
       ≤ Q * t * (4 / 2 ^ (4 * R.kS)) + Q * t * (2 ^ 64 / 2 ^ (8 * R.kS)) + Q * t * c := by
-        rw [Base.zkError, NNReal.coe_zero]
+        rw [SPBCS.zkError, NNReal.coe_zero]
         refine add_le_add (add_le_add (le_of_eq ?_) hsalt) hreq'
         change 4 * (Q : ℝ) * t / 2 ^ (4 * R.kS) = _
         ring

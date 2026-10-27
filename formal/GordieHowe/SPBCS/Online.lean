@@ -4,14 +4,14 @@
 module
 
 public import GordieHowe.SPBCS.KnowledgeROM
-public import GordieHowe.SPBCS.Base.Extractor
+public import GordieHowe.SPBCS.Extractor
 public import GordieHowe.SPBCS.Extraction.KnowledgeError
 public import GordieHowe.Model.QROM.QueryBits
 public import GordieHowe.Model.QROM.QueryCount
 public import GordieHowe.SPBCS.Extraction.OnlineExtract
 public import GordieHowe.SPBCS.Extraction.OnlineExtractROM
 public import GordieHowe.Model.ROM.Model
-public import GordieHowe.SPBCS.Base.ZeroKnowledge
+public import GordieHowe.SPBCS.ZeroKnowledge
 
 @[expose] public section
 
@@ -27,7 +27,7 @@ adversaries of `def:adversary` without proof queries (paper `thm:bcs-ks` and `th
 - `accepts_of_eqOn_queries`: the verifier reads the oracle only at its queries.
 - `queries_length_le_of_accepts`, `kqOf`: an accepting run makes at most
   `2 · t.size n + |Site| + NQ · (1 + ⌊log₂ 2N⌋)` queries (two per round, one final input per
-  branch, the openings of the trees) under the format bounds `NQ`, `N` (`GordieHowe.SPBCS.Base.FormatBounds`); this is
+  branch, the openings of the trees) under the format bounds `NQ`, `N` (`GordieHowe.SPBCS.FormatBounds`); this is
   the paper's `k_q` (`def:bcs-quantities`), with `n_B = |Site|`.
 - `toQVerifier`, `knowledgeBound`: the instance; its knowledge error is
   `knowledgeError k e kq b c_in nJ (max_c ε c)` (`knowledgeError_toQVerifier`).
@@ -125,7 +125,7 @@ theorem queries_length_le_of_accepts {Q : M.IOPQueries V x} {N : ℕ}
         exact Nat.mul_le_mul_left _ (Nat.add_le_add_left (Nat.log_mono_right (by
           have := hN τ.leaf τ.tree.msg τ.tree.tree; omega)) _)
     _ = ps.length * (1 + Nat.log 2 (2 * N)) := by
-        rw [List.sum_map_mul_right, Base.sum_length_openedIn _ hv.leaves_length]
+        rw [List.sum_map_mul_right, SPBCS.sum_length_openedIn _ hv.leaves_length]
 
 end QueryCount
 

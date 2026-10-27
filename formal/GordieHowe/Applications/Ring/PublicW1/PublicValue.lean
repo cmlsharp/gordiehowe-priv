@@ -181,18 +181,18 @@ theorem map_wiRun_replay (law : (Query k kN kS L → Out k e) → X → W → PM
     {rel : Set (X × W)} {S : Finset (SPBCS.WIChoice X W)}
     {hS : ∀ c ∈ S, (c.stmt, c.wit₀) ∈ rel ∧ (c.stmt, c.wit₁) ∈ rel} {c₀ : SPBCS.WIChoice X W}
     {hc₀ : c₀ ∈ S} {hF : ∀ j h hist c, F j h hist = some c → c ∈ S} (bs : ℕ → Bool) :
-    ∀ j (hj : j ≤ Q), (Base.wiRun law (F.toWIAdversary pubOf S hS hc₀ hF) bs j hj).map
+    ∀ j (hj : j ≤ Q), (SPBCS.wiRun law (F.toWIAdversary pubOf S hS hc₀ hF) bs j hj).map
         (fun s => (s.1, replay pubOf F j hj s.1 s.2)) =
       pubRun law pubOf (F.selector bs) j hj
   | 0, _ => by
-    rw [Base.wiRun, pubRun, PMF.map_comp]
+    rw [SPBCS.wiRun, pubRun, PMF.map_comp]
     congr 1
   | j + 1, hj => by
-    rw [Base.wiRun, pubRun, ← map_wiRun_replay law (hS := hS) (hc₀ := hc₀) (hF := hF) bs j
+    rw [SPBCS.wiRun, pubRun, ← map_wiRun_replay law (hS := hS) (hc₀ := hc₀) (hF := hF) bs j
       (by omega), PMF.map_bind, PMF.bind_map]
     congr 1
     funext s
-    simp only [Function.comp_apply, Base.wiStep, pubStep, PMF.map_comp, HistChoices.selector,
+    simp only [Function.comp_apply, SPBCS.wiStep, pubStep, PMF.map_comp, HistChoices.selector,
       HistChoices.toWIAdversary]
     simp only [Function.comp_def, replay_succ_snoc]
     cases hc : F ⟨j, by omega⟩ s.1 (replay pubOf F j (by omega) s.1 s.2) with
@@ -233,12 +233,12 @@ theorem gameAdvantage_pubRun_le {E : (j : ι) → (M.comp j).Encoder} {V : X →
     rw [hsel]
     unfold GordieHowe.gameAdvantage GordieHowe.advantage
     rw [sub_self, abs_zero]
-    exact mul_nonneg (Nat.cast_nonneg _) (Base.wiError_nonneg δ _)
+    exact mul_nonneg (Nat.cast_nonneg _) (SPBCS.wiError_nonneg δ _)
   rw [← map_wiRun_replay pubOf _ (hS := hS) (hc₀ := hc₀) (hF := hF),
     ← map_wiRun_replay pubOf _ (hS := hS) (hc₀ := hc₀) (hF := hF)]
-  have hadv := SPBCS.witnessIndistinguishable Rv (Base.obsClose_of_causalHVZK Rv h) Q S.card
+  have hadv := SPBCS.witnessIndistinguishable Rv (SPBCS.obsClose_of_causalHVZK Rv h) Q S.card
     (F.toWIAdversary pubOf S hS hc₀ hF) le_rfl (fun h πs => D h (replay pubOf F Q le_rfl h πs))
-  unfold SPBCS.wiAdvantage Base.wiAdvantageWith Base.wiGameWith at hadv
+  unfold SPBCS.wiAdvantage SPBCS.wiAdvantageWith SPBCS.wiGameWith at hadv
   unfold GordieHowe.gameAdvantage at hadv ⊢
   simp only [PMF.toOuterMeasure_map_apply] at ⊢
   exact hadv
@@ -798,7 +798,7 @@ theorem abs_condProb_sub_le (H : S.Orc) (keys : Fin n → S.KeyCoins) (hS : A.Si
       simp only [f, hyb, run, A.selector_false_eq H keys T]
       rfl
     rw [hf]
-    refine hadv.trans (mul_le_mul_of_nonneg_left (Base.wiError_mono δ ?_) (Nat.cast_nonneg _))
+    refine hadv.trans (mul_le_mul_of_nonneg_left (SPBCS.wiError_mono δ ?_) (Nat.cast_nonneg _))
     exact (A.card_hybridSet_le H keys T).trans (Nat.mul_le_mul_left _ hC)
   -- the hybrid at the witnesses of user `1` and the experiment `1`
   have hbad : ∀ T, |(g T).toReal - (f true T).toReal| ≤
@@ -911,7 +911,7 @@ theorem advantage_le (Rv : ∀ H, M.Reveal E (Qs H)) {PubZ : Type}
   change |((A.game E Qs honest false).toOuterMeasure {o | D o.1 o.2.1 o.2.2.1 o.2.2.2}).toReal -
     ((A.game E Qs honest true).toOuterMeasure {o | D o.1 o.2.1 o.2.2.1 o.2.2.2}).toReal| ≤ _
   rw [toOuterMeasure_game_eq, toOuterMeasure_game_eq]
-  have hwi0 : 0 ≤ M.wiError δ (Q * C) := Base.wiError_nonneg δ (Q * C)
+  have hwi0 : 0 ≤ M.wiError δ (Q * C) := SPBCS.wiError_nonneg δ (Q * C)
   have hle : ∀ (p : PMF ((Query k kN kS L → Out k e) × PubHist S.Pub M.NIProof Q)) (s : Set _),
       p.toOuterMeasure s ≤ 1 := fun p s => PMF.toOuterMeasure_apply_le_one _ _
   have hle2 : ∀ b (keys : Fin n → S.KeyCoins), ∑ H, PMF.uniformOfFintype S.Orc H *

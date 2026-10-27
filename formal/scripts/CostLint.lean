@@ -88,8 +88,7 @@ def costTypes : List Name :=
 `costTypes` (they return a `Multiset`, an `Option`, a witness), checked like the cost types: a
 "Running time" docstring paragraph, and compiled code unless listed in `knownNoncomputable`. -/
 def extractorFunctions : List Name :=
-  [``GordieHowe.SPBCS.Base.dbExtract, ``GordieHowe.SPBCS.Base.targetedExtract,
-    ``GordieHowe.SPBCS.dbExtract, ``GordieHowe.SPBCS.dbExtractBits,
+  [``GordieHowe.SPBCS.targetedExtract, ``GordieHowe.SPBCS.dbExtract, ``GordieHowe.SPBCS.dbExtractBits,
     ``GordieHowe.SPBCS.targetedExtractor, ``GordieHowe.SPBCS.targetedExtractorOf,
     ``GordieHowe.SPBCS.targetedExtractorAt,
     ``GordieHowe.SPBCS.extractLabel, ``GordieHowe.SPBCS.extractLabelR]
@@ -127,8 +126,8 @@ them is a reduction (`reductionDefs`). -/
 def adversaryTypes : List Name :=
   [``GordieHowe.Quantum.Alg, ``GordieHowe.Quantum.IAlg, ``GordieHowe.Quantum.KindAlg, ``GordieHowe.Quantum.AdaptiveIAlg,
     ``GordieHowe.Quantum.QueryAlg, ``GordieHowe.Quantum.Distinguisher,
-    ``GordieHowe.Quantum.OracleAlg, ``GordieHowe.Quantum.MixedAlg, ``GordieHowe.SPBCS.Base.SimExtractionAdversary,
-    ``GordieHowe.SPBCS.Base.WIAdversary, ``GordieHowe.ROM.Alg, ``GordieHowe.ROM.Adversary,
+    ``GordieHowe.Quantum.OracleAlg, ``GordieHowe.Quantum.MixedAlg, ``GordieHowe.SPBCS.SimExtractionAdversary,
+    ``GordieHowe.SPBCS.WIAdversary, ``GordieHowe.ROM.Alg, ``GordieHowe.ROM.Adversary,
     ``GordieHowe.Ring.ExtractionForger, ``GordieHowe.Ring.RingAdversary, ``GordieHowe.Ring.AnonAdversary,
     ``GordieHowe.Ring.KeyedAnonAdversary]
 
@@ -434,7 +433,7 @@ def knownNoncomputable : List (Name × String) :=
       `SPModel.pureWithTest`, fields of a structure defined over Mathlib's complex matrices; it \
       changes no outcome of the measurement"),
     (`GordieHowe.Quantum.AdaptiveIAlg.withTest, quantumReduction),
-    (`GordieHowe.SPBCS.Base.pureWithTest, quantumReduction),
+    (`GordieHowe.SPBCS.pureWithTest, quantumReduction),
     (`GordieHowe.SPBCS.extAt, quantumReduction),
     (`GordieHowe.SPBCS.extAdv, quantumReduction),
     (`GordieHowe.SPBCS.extRun, quantumReduction),
@@ -445,7 +444,7 @@ def knownNoncomputable : List (Name × String) :=
     (`GordieHowe.QROM.expandAt, quantumReduction),
     (`GordieHowe.NARG.QROM.Verifier.expandedOpt, quantumReduction),
     (`GordieHowe.SPBCS.QROM.extAdvVia, quantumReduction),
-    (`GordieHowe.SPBCS.Base.SimExtractionAdversary.withTest, quantumReduction)]
+    (`GordieHowe.SPBCS.SimExtractionAdversary.withTest, quantumReduction)]
 
 /-! ### Classical decisions passed to extractors
 

@@ -273,8 +273,8 @@ theorem keyExtractor_eq (C : R.Compiled) :
 
 /-- **The decoding of the database extractor's queries**: the decoder of the chain inputs of the
 setting (`SPBCS.MergeEncoding.decode` of the spBCS compiler's encoding), which the database
-extractor applies to every transcript query of the database (`SPBCS.φ`) and to every input it
-reads behind a final digest (`SPBCS.resolveSink`). It parses the label, the salt, the statement
+extractor applies to every transcript query of the database (`SPBCS.candidate`) and to every input
+it reads behind a final digest (`SPBCS.resolveSink`). It parses the label, the salt, the statement
 writes by the transcript's statement codec, and the chain contents by the write codecs.
 
 Running time: one pass over the input's bytes, with one parse of each write by its codec, the
@@ -829,7 +829,7 @@ theorem zero_knowledge_rom (C : R.Compiled) (TA : R.TA C) {Inp : Type}
     congr 1
     ring
   have hQ : (0 : ℝ) ≤ Q := Nat.cast_nonneg Q
-  rw [Base.zkErrorROMQuery, hU, hN]
+  rw [SPBCS.zkErrorROMQuery, hU, hN]
   exact add_le_add (add_le_add (add_le_add (add_le_add le_rfl le_rfl)
     (mul_le_mul_of_nonneg_left hkc hQ)) le_rfl)
     (mul_le_mul_of_nonneg_left (add_le_add hov le_rfl) hQ)
@@ -891,7 +891,7 @@ theorem zero_knowledge_qrom (C : R.Compiled) (TA : R.TA C) {Inp : Type}
     congr 1
     ring
   have hQ : (0 : ℝ) ≤ Q := Nat.cast_nonneg Q
-  rw [Base.zkErrorQuery, hU, h4, h8]
+  rw [SPBCS.zkErrorQuery, hU, h4, h8]
   exact add_le_add (add_le_add (add_le_add (add_le_add le_rfl le_rfl)
     (mul_le_mul_of_nonneg_left hkc hQ)) le_rfl)
     (mul_le_mul_of_nonneg_left (add_le_add hov le_rfl) hQ)

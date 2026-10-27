@@ -254,8 +254,8 @@ end TranscriptView
 on what it reads. `reads` only requires the view to suffice for the decision, so a view could report
 less than the verifier receives and make `HVZK` weaker. Each concrete IOP carries the obligation
 that its views are what the C++ verifier reads; for the BCS transformation the compiled proof's
-revealed data is a function of the view (`SPBCS.Base.Reveal.write_congr`,
-`SPBCS.Base.Reveal.col_congr`). -/
+revealed data is a function of the view (`SPBCS.Reveal.write_congr`,
+`SPBCS.Reveal.col_congr`). -/
 structure IOP (P : ProtocolSpec n) (Stmt : Type) where
   V : Verifier P Stmt
   /-- The positions of each prover message. -/
