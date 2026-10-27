@@ -171,7 +171,9 @@ struct HostWitness {
     for (uint64_t v : s1) mag1.push_back(mag(v));
     for (uint64_t a : mag1) norm += a * a;
     for (uint64_t v : s2) norm += mag(v) * mag(v);
-    const uint64_t Bp = S::kBias;
+    // A multiple of q at least n (q - 1) q + q + 65535, so that dq >= 0 for
+    // c < 2^16, h and s2 below q and s1 at most q.
+    const uint64_t Bp = ((n * (Q - 1) * Q + Q + 65535 + Q - 1) / Q) * Q;
     auto hs2 = emulated_ntt::integer_convolution(in.hcoeff, s2);
     dq.resize(n);
     for (size_t j = 0; j < n; ++j) {

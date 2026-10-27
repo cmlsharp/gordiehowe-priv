@@ -16,6 +16,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "params/param_sets.h"
@@ -264,6 +265,20 @@ void tamper_rejected() {
   // A broken MAC: H's copy of mu, of w1, off A's.
   EXPECT_TRUE(f.rejects(flip_h("mu", 7))) << Arm::kName << " MAC mu";
   EXPECT_TRUE(f.rejects(flip_h("w1", 100))) << Arm::kName << " MAC w1";
+  // The carrier's relation quotient plus one (its first digit when the
+  // range planner commits digits).
+  if constexpr (std::string_view(Arm::kName) == "carrier") {
+    using AV = std::vector<typename Arm::AF::Elt>;
+    const auto &af = f.env.af;
+    const bool digits = f.c->realization("signature.relation.q").k > 0;
+    const size_t d = f.id(digits ? "range.signature.relation.q.d0"
+                                 : "signature.relation.q");
+    EXPECT_TRUE(f.rejects([&af, d](size_t at, Value &x) {
+      if (at != d) return;
+      auto &v = std::get<AV>(x).at(3);
+      v = af.addf(v, af.one());
+    })) << Arm::kName << " quotient";
+  }
 }
 
 
@@ -300,9 +315,9 @@ void native_matches_host_witness(size_t R = 64) {
 }
 
 // The carrier arm's generated values on a ring of R members equal the host
-// witness's (ml_dsa_fp::advice and the relation's quotient dq), and so do
-// the digits the planner commits for w', dq, the shifted z and its
-// complement.
+// witness's (ml_dsa_fp::advice and the relation's quotient), and so do
+// the digits the planner commits for w', the quotient, the shifted z and
+// its complement.
 template <class Arm>
 void carrier_matches_host_witness(size_t R = 64) {
   using S = typename Arm::S;
@@ -321,7 +336,24 @@ void carrier_matches_host_witness(size_t R = 64) {
   const auto &adv = ce.adv;
   EXPECT_EQ(av("challenge.c"), f.rc.old.c_bits());
   EXPECT_EQ(av("signature.w"), adv.wp);
-  EXPECT_EQ(av("signature.dq"), ce.dq);
+  // The relation's committed quotient Q of w' - (A z - c 2^d t1) =
+  // q (qlo + Q), qlo the lowering's: Q = wu - qlo for the host's wu.
+  SignedInt qlo = 0;
+  bool found = false;
+  for (const auto &e : f.c->records().product_mod_equalities)
+    if (e.name == "signature.relation") {
+      qlo = e.qlo;
+      found = true;
+    }
+  ASSERT_TRUE(found);
+  ASSERT_TRUE(qlo < SignedInt(0));
+  std::vector<uint64_t> quot;
+  for (int64_t d : ce.wu) {
+    const SignedInt x = SignedInt(d) - qlo;
+    ASSERT_FALSE(x.negative());
+    quot.push_back(uint64_t(x));
+  }
+  EXPECT_EQ(av("signature.relation.q"), quot);
   EXPECT_EQ(av("hint.w1"), f.rc.old.w1_bits());
   EXPECT_EQ(av("hint.nonpositive"), adv.sgn);
   EXPECT_EQ(av("hint.offset"), adv.vmag);
@@ -342,7 +374,7 @@ void carrier_matches_host_witness(size_t R = 64) {
     EXPECT_EQ(digits(stem, r.k), limbs(x, uint64_t(r.table), r.k)) << req;
   };
   planned("signature.w", "range.signature.w.d", adv.wp);
-  planned("signature.dq", "range.signature.dq.d", ce.dq);
+  planned("signature.relation.q", "range.signature.relation.q.d", quot);
   std::vector<uint64_t> zc;
   for (uint64_t v : adv.zsh) zc.push_back(2 * S::kBound - 2 - v);
   planned("norm.z", "range.norm.z.d", adv.zsh);

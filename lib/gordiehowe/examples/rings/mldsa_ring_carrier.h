@@ -10,8 +10,9 @@
 // the signature relation is bilinear, so it holds in the spectrum of a
 // carrier transform: p - 1 = 2^32 (2^32 - 1) gives a 2N-th root of unity
 // in F_p, and the integer products stay below p, so the transform is exact.
-// The relation is w' + q dq = bias + A z - c 2^d t1 over the integers, w'
-// and dq committed and range-checked. A member's key row is A's
+// The relation is w' = A z - c 2^d t1 (mod q) over the integers, w'
+// committed and range-checked, the quotient the assert_mod lowering's. A
+// member's key row is A's
 // coefficients, then 2^d t1, and the record holds their carrier spectra.
 // The norm, UseHint (with its wrap quotient) and hint-weight checks are
 // the proof of possession's. Domain H recomputes the challenge from the
@@ -27,6 +28,7 @@
 #include <vector>
 
 #include "gordiehowe/core.h"
+#include "gordiehowe/ct.h"
 #include "gordiehowe/examples/mldsa/mldsa_gadgets.h"
 #include "gordiehowe/examples/mldsa/mldsa_hash.h"
 #include "gordiehowe/examples/mldsa/mldsa_params.h"
@@ -40,17 +42,15 @@
 
 namespace proofs::gordiehowe::examples::mldsa {
 
-// The carrier relation's bias keeps dq nonnegative: a multiple of q, so
-// that w' = u mod q, at least L N (q - 1)(bound - 1) + tau (q - 1) + q
-// (the certify note relation.bias). The smallest such multiple at every
-// set but ML-DSA-44, whose bias is q 2^30 (its relation is fixed).
+// A multiple of q at least u's bound L N (q - 1)(bound - 1) + tau (q - 1),
+// for u = A z - c 2^d t1: u + kResidueShift is a nonnegative integer below
+// p (and below 2^64) whose residue mod q is u's, which the generator of w'
+// reads.
 template <class S>
-inline constexpr uint64_t kCarrierBias =
+inline constexpr uint64_t kResidueShift =
     kQ * ((S::kL * kN * (kQ - 1) * (S::kBound - 1) + S::kTau * (kQ - 1) +
-           kQ + kQ - 1) /
+           kQ - 1) /
           kQ);
-template <>
-inline constexpr uint64_t kCarrierBias<MLDSA44> = kQ << 30;
 
 // --------------------------------------------------------------- gadgets --
 
@@ -62,13 +62,17 @@ Op<AF> carrier_ntt(const AF &af) {
                   ops::Stages::every(4), ops::NttOrder::kScheme);
 }
 
-// w' + q dq = bias + A z - c 2^d t1 over the integers (FIPS 204 Algorithm
-// 8, line 9, with the key committed): the advice w' (canonical) and dq,
-// their range requests, and one circuit of K rows over the L + 1 shared
+// w' = A z - c 2^d t1 (mod q) over the integers (FIPS 204 Algorithm 8,
+// line 9, with the key committed): the advice w' (canonical), its range
+// request, and one assert_mod of K spectral rows over the L + 1 shared
 // operands z_j and c = support - 2 sign:
-//   Ntt(w'_i + q dq_i - bias) = sum_j A_hat[i][j] Ntt(z_j) - t1_hat[i] Ntt(c).
-// The generator computes u_i = bias + A z - c t1 in the same spectrum and
-// takes w' = u mod q, dq = u div q. Returns w'.
+//   w'_i = sum_j A_hat[i][j] z_j - t1_hat[i] c  (mod q).
+// The ring's table selects A_hat and t1_hat, so A's and 2^d t1's
+// coefficients lie in the hull of the ring's bounded keys; the lowering
+// reads that interval, z's norm request and c's bits, derives the
+// quotient's interval and commits it, and states the rows as one spectral
+// circuit. The generator computes u_i = A z - c t1 in the same spectrum
+// and takes w' = u mod q. Returns w'.
 template <class S, class D, class AF, class PZ>
 Ref<AF, Subfield<>, Committed> carrier_relation(
     const Scope &s, D &A, const Member<AF> &m,
@@ -76,35 +80,17 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
     uint64_t B) {
   using Elt = typename AF::Elt;
   constexpr size_t kK = S::kK, kL = S::kL;
-  constexpr uint64_t kBias = kCarrierBias<S>, kBound = S::kBound;
+  constexpr uint64_t kShift = kResidueShift<S>;
   const AF *pa = &A.field();
   const auto ntt = carrier_ntt(A.field());
   const auto staged = ntt.spec->staged;
-  // Both operands stay below p: the left below q B^3 + B^2, the right below
-  // bias + L N (q - 1)(bound - 1) + tau (q - 1).
-  const Bound lhs_max = Bound(kQ) * B * B * B + Bound(B) * B;
-  const Bound rhs_max = Bound(kBias) +
-                        Bound(kL) * kN * (kQ - 1) * (kBound - 1) +
-                        Bound(S::kTau) * (kQ - 1);
-  s.note("certify", "relation.nowrap", term("q B^3 + B^2 + bias + L N (q-1)(bound-1) + tau (q-1)",
-                 lhs_max + rhs_max) < term("p", field_characteristic(*pa)), A);
-  s.note("certify", "relation.bias", term("L N (q-1)(bound-1) + tau (q-1) + q",
-                 rhs_max - kBias + kQ) <= term("bias", kBias), A);
-  // w' = u mod q needs a bias that is a multiple of q; the honest w' (below
-  // q) and dq (u / q, u below rhs_max) fit their range requests below B^2
-  // and B^3.
-  s.note("certify", "relation.biasMultiple",
-         term("bias mod q", kBias % kQ) == term("0", 0), A);
+  // The honest w' (below q) fits its range request below B^2.
   s.note("certify", "relation.wRange",
          term("q", kQ) <= term("B^2", Bound(B) * B), A);
-  s.note("certify", "relation.dqRange",
-         term("rhs_max / q", rhs_max / Bound(kQ)) < term("B^3", Bound(B) * B * B),
-         A);
-  auto [w, dq] = s.advice_record(
-      depends_on(m.a_hat, m.t1, z, c),
-      [pa, staged](const Tensor<Elt> &a_hat, const Tensor<Elt> &t1,
-                   const Tensor<Elt> &zv, const Tensor<Elt> &cv,
-                   std::vector<NatInt> &wo, std::vector<NatInt> &qo) {
+  const auto w = s[A].priv(
+      Subfield{}, "w", Shape{kK, kN}, depends_on(m.a_hat, m.t1, z, c),
+      [pa, staged](const std::vector<Elt> &a_hat, const std::vector<Elt> &t1,
+                   const std::vector<Elt> &zv, const std::vector<Elt> &cv) {
         const AF &f = *pa;
         const ops::NegacyclicNtt<AF> nt(f, kN, staged->psi);
         std::vector<std::vector<Elt>> zh(kL);
@@ -117,6 +103,8 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
           ch[k] = f.subf(cv[2 * k], f.addf(cv[2 * k + 1], cv[2 * k + 1]));
         nt.forward(ch);
         uint64_t ok = 1;
+        const ct::Divisor64 dq(kQ);
+        std::vector<Elt> wo(kK * kN);
         for (size_t i = 0; i < kK; ++i) {
           std::vector<Elt> u(kN);
           for (size_t k = 0; k < kN; ++k) {
@@ -128,26 +116,23 @@ Ref<AF, Subfield<>, Committed> carrier_relation(
           nt.inverse(u);
           for (size_t k = 0; k < kN; ++k) {
             const NatInt v =
-                nat_of_ct(f, f.addf(u[k], f.of_scalar(kBias)), ok);
-            wo[i * kN + k] = v % kQ;
-            qo[i * kN + k] = v / kQ;
+                nat_of_ct(f, f.addf(u[k], f.of_scalar(kShift)), ok);
+            ok &= ct::is_zero(uint64_t(v >> 64));
+            wo[i * kN + k] =
+                f.of_scalar(uint64_t(dq.divmod(uint64_t(v)).r));
           }
         }
         if (!ok) throw std::runtime_error("carrier relation: u outside F_p");
-      },
-      s[A].nat_slot(Subfield{}, "w", Shape{kK, kN}),
-      s[A].nat_slot(Subfield{}, "dq", Shape{kK, kN}));
+        return wo;
+      });
   assert_range(w, B * B, s.name("w"));
-  assert_range(dq, B * B * B, s.name("dq"));
   const auto cpoly = challenge_poly(s, c);
-  // Planned change 6 (docs/planned-changes.md): assert_mod, spectral side.
   std::vector<ops::SpectralRow<AF>> rows;
   for (size_t i = 0; i < kK; ++i)
     rows.push_back(ops::spectral_row(
-        w[i] + kQ * dq[i] - kBias,
-        ops::SpectralMatVec(m.a_hat[i], z, ntt) -
-            ops::SpectralProduct(m.t1[i], cpoly, ntt)));
-  ops::assert_spectral(s, "relation", rows);
+        w[i], ops::SpectralMatVec(m.a_hat[i], z, ntt) -
+                  ops::SpectralProduct(m.t1[i], cpoly, ntt)));
+  assert_mod(rows, kQ, s.name("relation"));
   return w;
 }
 
@@ -169,6 +154,9 @@ void mldsa_ring_carrier_relation(
                    computes(std::string(S::kId) + "_carrier_key_row",
                             {kKeyCells<S>}),
                    ring_host::carrier_key_row<S>);
+  // The keys' statement bound: A's coefficients and 2^d t1's lie below q,
+  // and the relation's intervals read the selected member's from it.
+  rows.keys.bounded(kQ);
   const auto psi = ops::FieldNtt<AF>::root(env.af, 2 * kN).value();
   const auto member = select_member<S>(
       cs.scope("member"), A, w, rows,

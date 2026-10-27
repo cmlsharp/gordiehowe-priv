@@ -11,7 +11,8 @@
 //   MatchesHostWitness            every generated value equals the host
 //                                 witness's
 //   TamperRejected                a wrong index, a key off the ring, a bad
-//                                 signature, a wrong mu, a broken MAC
+//                                 signature, a wrong mu, a broken MAC, and
+//                                 (carrier) the relation's quotient
 //   SetupModesAgree               the ring setup and the proofs agree
 //                                 across the threading knob's modes
 //   RingHost.BoundedExpandA       the ring's bounded ExpandA (6 SHAKE128

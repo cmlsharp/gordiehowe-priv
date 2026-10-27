@@ -47,7 +47,6 @@ namespace proofs::gordiehowe::examples::falcon::ring {
 using examples::falcon::Falcon1024;
 using examples::falcon::Falcon512;
 using examples::falcon::emulated::CommittedKey;
-using examples::falcon::emulated::FalconBounds;
 using examples::falcon::emulated::kQ;
 
 // The native arm's transform root of order 2n in F_q: the one
@@ -206,43 +205,33 @@ Ref<F, Subfield<>, Committed> native_signature_relation(
 // ---------------------------------------------------------------- systems --
 
 // The carrier arm's relation of set S over the statement ST and the
-// witness W. It certifies the committed-key relation's bias
-// (bias + c - h s2 - s1 >= 0 for every honest h s2, whose coefficients are
-// at most n (q - 1)^2) and that the relation's honest sides stay below the
-// characteristic.
+// witness W. The ring's keys and c carry the statement bound q, which the
+// committed-key relation's intervals read (the selected key's coefficients
+// from the ring's hull, and c's); its assert_mod lowering certifies that
+// the relation's sides stay below the characteristic.
 template <class P, class S>
 void ring_carrier_relation(typename CarrierEnv<P>::Sys &cs,
                            const CarrierEnv<P> &env, RingStatement<S, In> st,
                            RingWitness<S, In> w) {
   using AF = typename CarrierEnv<P>::AF;
-  using RP = FalconRingParams<P, S>;
   using examples::falcon::emulated::assert_encoding_budget;
   using examples::falcon::emulated::assert_norm;
   using examples::falcon::emulated::magnitudes;
   using examples::falcon::emulated::signature_relation;
   const AF &f = env.af;
   auto &A = cs.domain(domain_profile<P>(env.af, env.rsa.factory()), "A");
-  cs.note("certify", "signature.bias",
-          term("n (q - 1)^2 + q", Bound(RP::kConvBound) + kQ) <=
-              term("bias", Bound(RP::kBias)),
-          A);
-  cs.note("certify", "signature.noWrap",
-          term("bias + q + n (q - 1)^2",
-               Bound(RP::kBias) + kQ + Bound(RP::kConvBound)) <
-              term("p", field_characteristic(f)),
-          A);
   const auto psi = ops::FieldNtt<AF>::root(f, 2 * S::kN).value();
   const auto ntt =
       ops::Ntt(f, S::kN, psi, ops::Stages::every(2), ops::NttOrder::kNatural);
-  const FalconBounds bounds =
-      FalconBounds::derive(field_characteristic(f), Bound(RP::kBias));
   const auto ring = ring_values<S>(A, st);
+  ring.keys.bounded(kQ);
+  ring.c.bounded(kQ);
   const auto spectrum = key_spectrum(A, w.key, ntt.spec->staged);
   membership(cs.scope("member"), A, ring.keys, spectrum, w.signer, psi);
   const auto s2 = A.priv(Subfield{}, w.s2);
   const auto s1 = signature_relation<S>(cs.scope("signature"), A,
                                         CommittedKey<AF>{spectrum, ntt},
-                                        ring.c, s2, bounds);
+                                        ring.c, s2);
   const auto mag = magnitudes(cs.scope("magnitudes"), A, s1, s2);
   assert_encoding_budget<S>(cs.scope("encoding"), A, mag.mag2);
   assert_norm<S>(cs.scope("norm"), A, mag.mag1, mag.mag2);

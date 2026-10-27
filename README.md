@@ -54,7 +54,6 @@ were measured on a 128-core AMD EPYC 9754 with no other large jobs running;
 - `benchmarks/`, `analysis/`: the benchmark driver, comparisons and table
   scripts.
 - `formal/`: the Lean library (`formal/README.md`).
-- `docs/planned-changes.md`: program changes held for a later release.
 
 ## License
 

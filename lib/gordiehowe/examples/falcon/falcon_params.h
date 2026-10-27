@@ -180,11 +180,6 @@ struct FalconSet : Spec {
   static constexpr uint64_t kSlenBits = 8 * kSigBytes - 8 * (1 + kNonceBytes);
   static constexpr uint64_t kHighBudget =
       falcon_encoding_high_budget(kN, kSlenBits);
-  // The emulated arm's default committed-key bias: the least multiple of
-  // q at least n (q - 1) q + q + 65535, so that bias + c - h s2 - s1 >= 0
-  // for c < 2^16, h and s2 below q and s1 at most q.
-  static constexpr uint64_t kBias =
-      ((kN * (kQ - 1) * kQ + kQ + 65535 + kQ - 1) / kQ) * kQ;
   // The emulated norm sum mag1^2 + mag2^2 over the 2n magnitudes, mag1 at
   // most q / 2 and mag2 below b, at its largest.
   static constexpr uint64_t kNormMax =
@@ -210,7 +205,6 @@ using Falcon1024 = FalconSet<FalconSpec1024>;
 // 2^-254.85 at 1310 for n = 1024).
 static_assert(Falcon512::kSamples == 717 && Falcon1024::kSamples == 1311);
 static_assert(Falcon512::kHighBudget == 392 && Falcon1024::kHighBudget == 696);
-static_assert(Falcon512::kBias == 77315788807ull);
 
 // The native norm's parameters of profile P for set S (FalconNativeArm
 // without G, which the MAC lowering derives), shared by the native proof

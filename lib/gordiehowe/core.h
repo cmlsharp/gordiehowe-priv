@@ -1265,6 +1265,25 @@ struct PlanRecords {
     bool integer = false;
     Bound span = 0;
   };
+  // An assert_mod of modulus M >= 2 whose sides are not affine (mod.h's
+  // product form): lhs - rhs - m (qlo + q) = 0 in DOMAIN as the predicate
+  // NAME, for SPECTRAL rows the ROWS spectral equations
+  // Ntt(lhs_i - shift - m q_i) == rhs_i concatenated, with the
+  // sides' integer intervals, the quotient node QUOTIENT ([rows][n] for
+  // the spectral form; none when QMAX = 0) committed below QMAX + 1 with
+  // the sound bound DMAX; the predicate subtracts m qlo as a constant. The
+  // certificates <name>.leftSpan, .rightSpan and .cap are
+  // the committed quotient's (mod.h's committed_digits).
+  struct ProductModEq {
+    std::string name, domain;
+    Bound m = 0;
+    bool spectral = false;
+    size_t rows = 1;
+    SignedInt lhs_lo = 0, lhs_hi = 0, rhs_lo = 0, rhs_hi = 0, qlo = 0;
+    Bound qmax = 0, dmax = 0;
+    size_t quotient = SIZE_MAX;
+  };
+  std::vector<ProductModEq> product_mod_equalities;
   // The excluded set U of a challenge drawn uniform in K minus U
   // (Domain::challenge_outside): [0, RANGE), the union of the domain's range
   // tables. CHALLENGE is the domain's alpha:<D>.

@@ -599,6 +599,16 @@ struct StagedNtt {
       fail("staged NTT: no host transform over this field");
     }
   }
+  // Host inverse transform: the coefficients whose transform, in this
+  // transform's order, is A.
+  void inverse(std::vector<Elt> &a) const {
+    if constexpr (kFieldNtt<F>) {
+      if (order == NttOrder::kNatural) permute(a);
+      NegacyclicNtt<F>(*f, n, psi).inverse(a);
+    } else {
+      fail("staged NTT: no host transform over this field");
+    }
+  }
   // x = M^T y for M the transform matrix, M[k][i] = z_k^i (z_k the k-th
   // evaluation point): x_0 = n (M^-1 y)_0 and x_i = -n (M^-1 y)_(n-i), since
   // z_k^n = -1.

@@ -10,6 +10,8 @@
 //     and block maps: honest proofs, a wrong index, a record off the table;
 //   - lookup over a small public table: honest, a record off the table, a
 //     wrong multiplicity; with a range check in the same domain, one alpha;
+//   - the intervals of selected and looked-up records (table hulls), and
+//     assert_mod over a selected spectrum;
 //   - compile errors for misuse.
 
 #include <algorithm>
@@ -32,6 +34,7 @@
 #include "gordiehowe/system.h"
 #include "gordiehowe/lib/permutation.h"
 #include "gordiehowe/lib/table.h"
+#include "gordiehowe/ops/spectral.h"
 #include "gtest/gtest.h"
 #include "random/secure_random_engine.h"
 
@@ -835,6 +838,165 @@ TEST(GordieHoweTable, LookupWideAndMappedRecords) {
 }
 
 // ------------------------------------------------------- compile errors --
+
+// --------------------------------------------------------- table hulls --
+
+// Interval propagation reads public-table records (range_internal's
+// table_hull and table_preimage_hull): a looked-up or selected identity
+// cell lies in the hull of its column's bounded entries, a selected
+// spectrum's polynomial in the hull of its leaf's columns under the same
+// transform only, and an unbounded block bounds nothing. The staged
+// transform agrees with the row map in both orders, so the preimage is
+// the row the selection names.
+TEST(GordieHoweTable, TableHulls) {
+  using I = compiler::range_internal::Interval;
+  namespace ri = compiler::range_internal;
+  const size_t n = 16, R = 8;
+  Sys cs("gh-table-hulls");
+  auto &A = cs.domain(env().a_profile(), "A");
+  const Bound p = field_characteristic(af());
+  const Graph &g = cs.graph();
+  // An identity table of bounded rows: a lookup's records and a selected
+  // record lie in [0, 99]; the free value has no interval.
+  auto rows = A.pub(Subfield{}, "rows", Shape{R, 2}).bounded(100);
+  auto recs = A.priv(Subfield{}, "recs", Shape{3, 2});
+  auto pick = A.priv(Subfield{}, "pick", 2);
+  auto free_v = A.priv(Subfield{}, "free", 2);
+  const auto t = lib::table::public_table(
+      cs, A, "t", rows, lib::table::RowMap<AF>::identity(2));
+  lib::table::lookup_rows(cs, t, "attrs", recs);
+  lib::table::select_row(cs, t, "one", pick);
+  EXPECT_EQ(ri::table_hull(A, g, p, recs.id), (I{0, 99}));
+  EXPECT_EQ(ri::table_hull(A, g, p, pick.id), (I{0, 99}));
+  EXPECT_EQ(ri::table_hull(A, g, p, recs[1].id), (I{0, 99}));
+  EXPECT_FALSE(ri::table_hull(A, g, p, free_v.id));
+  // A ring of keys below 12289 selected as spectra in natural order.
+  auto keys = A.pub(Subfield{}, "keys", Shape{R, n}).bounded(12289);
+  auto spec = A.priv(Subfield{}, "spec", n);
+  const auto ring = lib::table::public_table(
+      cs, A, "ring", keys,
+      lib::table::RowMap<AF>::negacyclic(af(), n, psi_of(n),
+                                         ops::NttOrder::kNatural));
+  lib::table::select_row(cs, ring, "signer", spec);
+  EXPECT_EQ(ri::table_preimage_hull(A, g, p, spec.id, 0, n, psi_of(n), true),
+            (I{0, 12288}));
+  // Another order, another root, a partial slice: no interval; nor does a
+  // spectrum have a coefficient interval of its own.
+  EXPECT_FALSE(ri::table_preimage_hull(A, g, p, spec.id, 0, n, psi_of(n), false));
+  EXPECT_FALSE(ri::table_preimage_hull(A, g, p, spec.id, 0, n,
+                                       af().negf(psi_of(n)), true));
+  EXPECT_FALSE(ri::table_preimage_hull(A, g, p, spec.id, 0, n / 2, psi_of(n),
+                                       true));
+  EXPECT_FALSE(ri::table_hull(A, g, p, spec.id));
+  // Unbounded rows bound nothing.
+  auto open_rows = A.pub(Subfield{}, "open", Shape{R, 2});
+  auto open_rec = A.priv(Subfield{}, "open_rec", 2);
+  const auto t2 = lib::table::public_table(
+      cs, A, "t2", open_rows, lib::table::RowMap<AF>::identity(2));
+  lib::table::select_row(cs, t2, "two", open_rec);
+  EXPECT_FALSE(ri::table_hull(A, g, p, open_rec.id));
+  // The staged transform is the row map's, in either order.
+  const AV row = lift(af(), random_mod(n, 12289, 11));
+  for (auto order : {ops::NttOrder::kNatural, ops::NttOrder::kScheme}) {
+    const auto op = ops::Ntt(af(), n, psi_of(n), ops::Stages::every(2), order);
+    AV a = row;
+    op.spec->staged->apply(a);
+    EXPECT_EQ(a, lib::table::RowMap<AF>::negacyclic(af(), n, psi_of(n), order)
+                     .apply(af(), row));
+    op.spec->staged->inverse(a);
+    EXPECT_EQ(a, row);
+  }
+}
+
+// assert_mod(w, SpectralProduct(spec, s), q) over a selected spectrum
+// (ops/spectral.h): the key's coefficients lie in the ring's hull [0,
+// 12288] and s below 50, so the relation's right side lies in [-15 P, 16 P]
+// for P = 12288 * 49; the lowering commits the quotient and states one
+// spectral predicate in the circuit. An honest proof verifies; a wrong
+// residue, a wrong quotient and a key off the ring are rejected.
+TEST(GordieHoweTable, SpectralMod) {
+  const size_t n = 16, R = 8;
+  const uint64_t q = 12289;
+  Sys cs("gh-table-spectral-mod");
+  auto &A = cs.domain(env().a_profile(), "A");
+  auto keys = A.pub(Subfield{}, "keys", Shape{R, n}).bounded(q);
+  auto spec = A.priv(Subfield{}, "spec", n);
+  auto sv = A.priv(Subfield{}, "s", n);
+  auto w = A.priv(Subfield{}, "w", n);
+  assert_range(sv, 50, "s");
+  assert_range(w, q, "w");
+  const auto ntt = ops::Ntt(af(), n, psi_of(n), ops::Stages::every(2),
+                            ops::NttOrder::kNatural);
+  const auto map = lib::table::RowMap<AF>::negacyclic(
+      af(), n, psi_of(n), ops::NttOrder::kNatural);
+  const auto ring = lib::table::public_table(cs, A, "ring", keys, map);
+  const auto sel = lib::table::select_row(cs, ring, "signer", spec);
+  assert_mod(w, ops::SpectralProduct(spec, sv, ntt), q, "rel");
+  auto c = compile(cs);
+  const Bound P = 12288 * 49;
+  const std::string want = "assert_mod 'rel': lhs in [0, 12288], rhs in [-" +
+                           bound_str(15 * P) + ", " + bound_str(16 * P) + "]";
+  EXPECT_NE(c->report().find(want), std::string::npos) << c->report();
+  ASSERT_EQ(c->records().product_mod_equalities.size(), 1u);
+  EXPECT_TRUE(c->records().product_mod_equalities[0].spectral);
+  // The ring, the signer's key, s and w = h s mod q (negacyclic).
+  const auto kv = random_mod(R * n, q, 21);
+  const auto s = random_mod(n, 50, 22);
+  const size_t signer = 5;
+  auto residue = [&](const std::vector<uint64_t> &h) {
+    std::vector<uint64_t> out(n);
+    for (size_t k = 0; k < n; ++k) {
+      __int128 acc = 0;
+      for (size_t i = 0; i < n; ++i) {
+        const size_t j = (k + n - i) % n;
+        const __int128 t = __int128(h[i]) * s[j];
+        acc += i <= k ? t : -t;
+      }
+      out[k] = uint64_t(((acc % q) + q) % q);
+    }
+    return out;
+  };
+  const std::vector<uint64_t> h(kv.begin() + long(signer * n),
+                                kv.begin() + long((signer + 1) * n));
+  Assignment st;
+  st.set(keys, lift(af(), kv));
+  auto witness = [&](const std::vector<uint64_t> &key) {
+    Assignment wi;
+    wi.set(spec, map.apply(af(), lift(af(), key)));
+    wi.set(sv, lift(af(), s));
+    wi.set(w, lift(af(), residue(key)));
+    wi.set(sel.index, bits_of(signer, 3));
+    return wi;
+  };
+  EXPECT_TRUE(honest(*c, st, witness(h)));
+  // A wrong residue.
+  {
+    Assignment wi = witness(h);
+    auto r = residue(h);
+    r[3] = (r[3] + 1) % q;
+    wi.set(w, lift(af(), r));
+    EXPECT_TRUE(verifier_rejects_witness(*c, st, wi));
+  }
+  // A wrong quotient: one more in the quotient and its digits.
+  {
+    std::vector<size_t> ids;
+    for (size_t id = 0; id < cs.graph().nodes.size(); ++id) {
+      const std::string &nm = cs.graph().nodes[id].name;
+      if (nm == "rel.q" || nm.rfind("range.rel.q.", 0) == 0) ids.push_back(id);
+    }
+    ASSERT_FALSE(ids.empty());
+    EXPECT_TRUE(verifier_rejects(*c, st, witness(h), [ids](size_t at, SysValue &x) {
+      for (size_t id : ids)
+        if (at == id) af().add(std::get<AV>(x).at(2), af().one());
+    }));
+  }
+  // A key off the ring, with its own residue.
+  {
+    auto off = h;
+    off[0] = (off[0] + 1) % q;
+    EXPECT_TRUE(verifier_rejects_witness(*c, st, witness(off)));
+  }
+}
 
 TEST(GordieHoweTable, MisuseIsACompileError) {
   // Rows computed from a challenge: the digests would not depend on the

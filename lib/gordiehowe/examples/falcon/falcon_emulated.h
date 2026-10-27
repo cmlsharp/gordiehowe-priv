@@ -14,8 +14,8 @@
 // integer equations with range requests.
 //
 // The relation and magnitude gadgets also serve the Falcon rings, with a
-// committed key (CommittedKey, FalconBounds). The generators' host code is
-// in falcon_emulated_witness.h.
+// committed key (CommittedKey). The generators' host code is in
+// falcon_emulated_witness.h.
 
 #ifndef PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_EXAMPLES_FALCON_FALCON_EMULATED_H_
 #define PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_EXAMPLES_FALCON_FALCON_EMULATED_H_
@@ -50,27 +50,6 @@ using examples::falcon::kLowRadix;
 using examples::falcon::kMagnitudeLimit;
 using examples::falcon::kNonceBytes;
 using examples::falcon::kQ;
-
-// The committed-key relation's bias and its quotient's honest bound n and
-// maximum m, for the field characteristic p, with checked 128-bit
-// integers. The range lowering selects N in [n, m]. The bias is the set's
-// kBias (falcon_params.h) or a ring's own (FalconRingParams::kBias), whose
-// c is reduced below q.
-struct Interval {
-  Bound honest;
-  Bound max;
-};
-struct FalconBounds {
-  Bound bias = 0;
-  Interval quot;
-  static FalconBounds derive(Bound p, Bound bias) {
-    const Bound q = kQ;
-    FalconBounds r;
-    r.bias = bias;
-    r.quot = {(2 * bias + q - 1) / q, (p - 1) / q + 1};
-    return r;
-  }
-};
 
 // --------------------------------------------------------------- gadgets --
 
@@ -173,19 +152,22 @@ Ref<AF, Subfield<>, Committed> signature_relation(
 }
 
 // The signature relation of a committed key (a ring's selected member):
-// s1 = c - s2 h mod q and the quotient, with
-//   bias + c - h s2 - s1 - q quot = 0
-// over the integers (FalconBounds' bias and quotient interval), h s2 as a
-// spectral circuit. s1 has no range request: the magnitudes bound it.
-// Returns s1.
+// s1 = c - s2 h mod q, stated as
+//   c - s1 = h s2 (mod q)
+// over the integers, h s2 a spectral product of the key's spectrum. The
+// ring's table selects the spectrum, so h's coefficients lie in the hull
+// of the ring's bounded keys; the assert_mod lowering reads that interval,
+// c's statement bound and s1 and s2 in [0, q] (the magnitudes' roots),
+// derives the quotient's interval and commits it, and states the relation
+// as one spectral circuit. s1 has no range request: the magnitudes bound
+// it. Returns s1.
 template <class S, class D, class AF, class C>
 Ref<AF, Subfield<>, Committed> signature_relation(
     const Scope &s, D &A, const CommittedKey<AF> &key, const C &c,
-    const Ref<AF, Subfield<>, Committed> &s2, const FalconBounds &b) {
+    const Ref<AF, Subfield<>, Committed> &s2) {
   using U64s = std::vector<uint64_t>;
   using Elt = typename AF::Elt;
   const U64s z = falcon_ntt_zetas(S::kN, kQ);
-  const uint64_t bias = uint64_t(b.bias);
   const AF *pa = &A.field();
   const auto t = key.ntt.spec->staged;
   const std::vector<size_t> cdims = c.dims();
@@ -215,18 +197,9 @@ Ref<AF, Subfield<>, Committed> signature_relation(
         falcon_ntt_ref<kQ>(hhat, z);
         return elts(host::s1_of(hhat, c_ints(cv), ints(s2v), z));
       });
-  const auto quot = s[A].priv(
-      Subfield{}, "quot", S::kN, depends_on(key.spectrum, c, s2, s1),
-      [=](const std::vector<Elt> &spec, const std::vector<Elt> &cv,
-          const std::vector<Elt> &s2v, const std::vector<Elt> &s1v) {
-        return elts(host::quot_of(host::key_coefficients(*pa, *t, spec),
-                                  c_ints(cv), ints(s2v), ints(s1v), bias));
-      });
-  // Planned change 5 (docs/planned-changes.md): assert_mod, spectral side.
-  ops::assert_spectral(s, "equation",
-                       bias + challenge_value(c) - s1 - kQ * quot,
-                       ops::SpectralProduct(key.spectrum, s2, key.ntt));
-  assert_range(quot, b.quot.honest, MaxBound{b.quot.max}, s.name("quot"));
+  assert_mod(challenge_value(c) - s1,
+             ops::SpectralProduct(key.spectrum, s2, key.ntt), kQ,
+             s.name("equation"));
   return s1;
 }
 

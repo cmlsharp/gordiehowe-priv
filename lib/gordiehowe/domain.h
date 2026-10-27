@@ -1277,6 +1277,29 @@ class Domain : public virtual DomainCore {
     auto it = wiring_.find(id);
     return it == wiring_.end() ? nullptr : &it->second;
   }
+  // A record that a public-table selection or lookup (lib/table.h) proves
+  // equal to the image M(row) of some row of the table under its row map:
+  // the handle NODE holds the record's coordinates [AT, AT + node's length)
+  // of a record of WIDTH coordinates, records repeating every WIDTH
+  // coordinates of NODE (a lookup's m records); LEAVES are the map's leaves
+  // and BLOCKS the rows' column blocks (a public node and its width), in
+  // column order. Interval propagation reads it (compiler/range.h,
+  // table_hull and table_preimage_hull): a recorded coordinate lies in the
+  // hull of its column's public entries.
+  struct TableLeaf {
+    size_t offset = 0, n = 0;
+    bool ntt = false, natural = false;
+    Elt psi{};
+  };
+  struct TableRecord {
+    size_t node = SIZE_MAX, at = 0, width = 0;
+    std::vector<TableLeaf> leaves;
+    std::vector<std::pair<size_t, size_t>> blocks;
+  };
+  void note_table_record(TableRecord r) { table_records_.push_back(std::move(r)); }
+  const std::vector<TableRecord> &table_records() const {
+    return table_records_;
+  }
   // B2 of a binding: X is no batch table, bit-view source or quadratic
   // operand, and is not bound yet.
   bool bindable_shape(size_t x) const {
@@ -2849,6 +2872,8 @@ class Domain : public virtual DomainCore {
   std::set<size_t> packed_views_;
   // Wiring views (concat, gather): each coordinate's (node, index).
   std::map<size_t, std::vector<std::pair<size_t, size_t>>> wiring_;
+  // The records of public-table selections and lookups (note_table_record).
+  std::vector<TableRecord> table_records_;
   std::vector<RangeRequest<F>> requests_;
   std::map<size_t, Lin<F>> bound_;            // bound node -> its view
   std::map<size_t, std::string> bound_note_;  // report line of a binding

@@ -16,8 +16,12 @@
 //                                      Goldilocks^4 fails compilation
 //   GordieHoweIntEqual.ModZero         assert_mod(l, r, 0) is the same
 //                                      system as assert_int_equal(l, r),
-//                                      takes a pin, and a modulus m >= 2
-//                                      refuses a product side
+//                                      and takes a pin
+//   GordieHoweIntEqual.ProductMod      assert_mod over a product side,
+//                                      m >= 2: its committed quotient,
+//                                      certificates and plan record, an
+//                                      honest proof, a wrong quotient and
+//                                      a wrong residue rejected
 //   GordieHoweIntEqual.SlackDerived    Slack requests: the maximum the
 //                                      integer equality derives, an honest
 //                                      proof, a negative value rejected,
@@ -322,8 +326,7 @@ TEST(GordieHoweIntEqual, ProveVerify) {
 }
 
 // assert_int_equal(l, r) is assert_mod(l, r, 0): the same system digest
-// and report, a pin fixes the placement, and m >= 2 takes affine sides
-// only.
+// and report, and a pin fixes the placement.
 TEST(GordieHoweIntEqual, ModZero) {
   struct Built {
     std::unique_ptr<Sys> cs;
@@ -364,18 +367,54 @@ TEST(GordieHoweIntEqual, ModZero) {
   w.set(s3.b, values({5, 1023, 9, 100}));
   EXPECT_TRUE(honest(*c3, w));
   EXPECT_TRUE(rejected(*c3, w, add_one(s3.c.id, 1)));
-  // m >= 2 takes affine sides.
-  Sys cs("gh-int-mod-two");
+}
+
+// assert_mod(a b, c, 97) with a, b below 1024 and c below 97: the product
+// form commits the quotient below floor(1023^2 / 97) + 1, states one predicate,
+// and records its plan record; an honest proof verifies, and a wrong
+// quotient or a wrong residue is rejected.
+TEST(GordieHoweIntEqual, ProductMod) {
+  Sys cs("gh-int-mod-product");
   auto &A = cs.domain(env().a_profile(), "A");
   const auto a = A.priv(Subfield{}, "a", 4);
-  const auto c = A.priv(Subfield{}, "c", 4);
-  std::string err;
-  try {
-    assert_mod(a * a, c, 2, "square");
-  } catch (const CompileError &e) {
-    err = e.what();
-  }
-  has(err, "assert_mod 'square': a modulus m >= 2 takes affine sides");
+  const auto b = A.priv(Subfield{}, "b", 4);
+  const auto c = A.priv(Subfield{}, "c", 4, depends_on(a, b),
+                        [](const AElt &x, const AElt &y) {
+                          uint64_t ok = 1;
+                          const Bound v = nat_of_ct(af(), af().mulf(x, y), ok);
+                          return af().of_scalar(uint64_t(v % 97));
+                        });
+  assert_range(a, 1024, "a");
+  assert_range(b, 1024, "b");
+  assert_range(c, 97, "c");
+  assert_mod(a * b, c, 97, "product");
+  auto comp = compile(cs, table_profile());
+  const std::string r = comp->report();
+  has(r, "assert_mod 'product': lhs in [0, 1046529], rhs in [0, 96], m = 97, "
+         "quotient in [0, 10788]; a committed quotient 'product.q' below "
+         "10789");
+  has(r, "certify:product.leftSpan");
+  has(r, "certify:product.rightSpan");
+  has(r, "certify:product.cap");
+  ASSERT_EQ(comp->records().product_mod_equalities.size(), 1u);
+  const auto &e = comp->records().product_mod_equalities[0];
+  EXPECT_EQ(e.qmax, Bound(10788));
+  EXPECT_FALSE(e.spectral);
+  Assignment w;
+  w.set(a, values({3, 1023, 0, 77}));
+  w.set(b, values({5, 1023, 9, 100}));
+  EXPECT_TRUE(honest(*comp, w));
+  EXPECT_TRUE(rejected(*comp, w, add_one(id_of(cs, "product.q"), 1)));
+  EXPECT_TRUE(rejected(*comp, w, add_one(c.id, 2)));
+  // The plan export carries the record; the realized program states the
+  // predicate, its quotient owned by it.
+  const compiler::ExportMeta meta{"product", "wide", "c0ffee", "run-0", 0};
+  const std::string plan = compiler::export_lean_plan(*comp, meta);
+  has(plan, "productModEqualities");
+  has(plan, "form := .expression");
+  const auto prog = compiler::build_program(*comp, meta);
+  for (const auto &x : compiler::program_errors(prog)) ADD_FAILURE() << x;
+  for (const auto &x : compiler::module_errors(prog)) ADD_FAILURE() << x;
 }
 
 // x and y nonnegative below 100 honestly (Slack), c = x + y below 200:

@@ -65,6 +65,7 @@
 #include "gordiehowe/expr.h"
 #include "gordiehowe/ops/operators.h"
 #include "gordiehowe/compiler/derivation.h"
+#include "gordiehowe/ops/spectral.h"
 #include "gordiehowe/compiler/range.h"
 #include "gordiehowe/system.h"
 
@@ -99,6 +100,14 @@ struct ModSpec {
   // declaration's pin (the other fields are unused).
   ExprPtr<F> l, r;
   std::shared_ptr<Placement> pin;
+  // M >= 2 over sides that are not affine: L and R, or the spectral rows
+  // SPECTRAL (the product form, product_sides).
+  bool product = false;
+  std::vector<ops::SpectralRow<F>> spectral;
+  // The product form's quotient, declared with the program, and the lower
+  // end its generator reads.
+  std::optional<Ref<F>> q;
+  std::shared_ptr<SignedInt> qlo;
 };
 
 template <class F, class S>
@@ -124,6 +133,10 @@ class ModLoweringImpl : Lowering {
       p_ = field_characteristic(f_);
       if (sp_.m == 0) {
         integer_equality();
+        return;
+      }
+      if (sp_.product) {
+        product_sides();
         return;
       }
       if (!sp_.units.empty()) units_from_terms();
@@ -1168,6 +1181,243 @@ class ModLoweringImpl : Lowering {
     put_bound(sum.descr, dmax);
   }
 
+  // ---------------------------------------------------- the product form --
+
+  // The integer interval of the spectral sum S (one row's right side):
+  // sum_t scale_t (h_t * x_t) in Z[X]/(X^n + 1), h_t the polynomial whose
+  // spectrum is spec_t, its coefficients in the hull of the public table
+  // that selects it (range_internal::table_preimage_hull), x_t's
+  // coordinates in expr_interval's hull. Coefficient i of h * x sums the
+  // n products h_j x_(i-j), those with j > i negated (X^n = -1), so with
+  // products in [Pmin, Pmax] it lies in [min(n Pmin, Pmin - (n - 1) Pmax),
+  // max(n Pmax, Pmax - (n - 1) Pmin)] (i = n - 1 and i = 0 are the
+  // extremes).
+  Interval spectral_interval(const ops::SpectralSum<F> &sum) const {
+    const Graph &g = b_.system().graph();
+    const auto &t = *sum.ntt;
+    const SignedInt n = SignedInt(uint64_t(t.n));
+    const SignedInt cap = SignedInt::pow2(range_internal::kIntervalCapBits);
+    auto checked = [&](const SignedInt &x) {
+      if (x >= cap || x <= -cap)
+        fail(what() + ": the spectral side's interval exceeds 2^" +
+             std::to_string(range_internal::kIntervalCapBits));
+      return x;
+    };
+    SignedInt lo = 0, hi = 0;
+    for (const auto &tm : sum.terms) {
+      const auto h = range_internal::table_preimage_hull(
+          d_, g, p_, tm.spec.id, tm.spec_at, t.n, t.psi,
+          t.order == ops::NttOrder::kNatural);
+      if (!h)
+        fail(what() + ": the spectrum '" + g.nodes.at(tm.spec.id).name +
+             "' has no coefficient interval: select it from a public table "
+             "of bounded rows under the same transform (lib/table.h)");
+      std::string why;
+      const auto x = expr_interval(tm.x, why);
+      if (!x) fail(what() + ": an operand of the spectral side: " + why);
+      SignedInt pmin = 0, pmax = 0;
+      bool first = true;
+      for (const SignedInt &u : {h->first, h->second})
+        for (const SignedInt &v : {x->first, x->second}) {
+          const SignedInt w = checked(checked(u) * checked(v));
+          pmin = first ? w : std::min(pmin, w);
+          pmax = first ? w : std::max(pmax, w);
+          first = false;
+        }
+      const SignedInt clo =
+          checked(std::min(n * pmin, pmin - (n - 1) * pmax));
+      const SignedInt chi =
+          checked(std::max(n * pmax, pmax - (n - 1) * pmin));
+      const auto a = range_internal::signed_rep(f_, p_,
+                                                d_.prime == Space::kField,
+                                                tm.scale);
+      if (!a || a->second >= Bound::pow2(range_internal::kIntervalCapBits))
+        fail(what() + ": a spectral term's scale lies outside the prime "
+             "field");
+      const SignedInt k = a->first ? -SignedInt(a->second) : SignedInt(a->second);
+      const SignedInt l1 = checked(k * clo), h1 = checked(k * chi);
+      lo = checked(lo + std::min(l1, h1));
+      hi = checked(hi + std::max(l1, h1));
+    }
+    return range_internal::ordered_interval(lo, hi, what() + "'s spectral side");
+  }
+  // The interval of expression E, a side of the product form.
+  Interval product_interval(const ExprPtr<F> &e, const std::string &side) const {
+    std::string why;
+    const auto iv = expr_interval(e, why);
+    if (!iv) fail(what() + ": " + side + " has no integer interval: " + why);
+    if (iv->first > iv->second)
+      fail(what() + ": " + side + " has the inverted interval [" +
+           int_str(iv->first) + ", " + int_str(iv->second) + "]");
+    return *iv;
+  }
+
+  // M >= 2 over sides that are not affine (committed_digits' committed
+  // quotient): the sides' intervals (expr_interval, and for
+  // spectral rows spectral_interval over every row), the quotient's
+  // interval [qlo, qhi] and sound bound Dmax as committed_digits derives
+  // them, with its certificates leftSpan, rightSpan and cap; the quotient
+  // q committed as NAME.q ([rows][n] for spectral rows) below Qmax + 1
+  // (MaxBound Dmax), and the integer equation
+  //   lhs - rhs - m qlo - m q = 0
+  // stated as one predicate NAME under the declaration's pin, or for
+  // spectral rows as Ntt(lhs_i - m qlo - m q_i) == rhs_i (spectral.h's
+  // sides), the rows concatenated into the one predicate NAME, pinned to
+  // the circuit. M = p is the field equation without a quotient.
+  void product_sides() {
+    const Graph &g = b_.system().graph();
+    in_prime_ = range_internal::prime_node(d_, g);
+    const bool spectral = !sp_.spectral.empty();
+    const Bound m = sp_.m, p = p_;
+    if (m < 2) fail(what() + ": the modulus is below 2");
+    const size_t rows = spectral ? sp_.spectral.size() : 1;
+    const size_t n = spectral ? sp_.spectral[0].lhs->n : sp_.l->n;
+    Shape shape = spectral ? Shape{rows, n} : Shape(sp_.l->dims());
+    auto hull = [](const std::optional<Interval> &a, const Interval &b) {
+      return a ? Interval{std::min(a->first, b.first),
+                          std::max(a->second, b.second)}
+               : b;
+    };
+    // The integer equation's predicates: the left side minus the quotient
+    // term MQ(i) (row i's m q, when given) and the scalar m qlo (MQLO,
+    // when given). An affine left side and an affine quotient term stay
+    // one affine expression, which a circuit reads without intermediate
+    // wires.
+    auto state = [&](const std::optional<Elt> &mqlo,
+                     const std::function<Expr<F>(size_t)> &mq) {
+      auto shifted = [&](const ExprPtr<F> &e0, size_t i) {
+        Expr<F> e(e0);
+        if (mq) {
+          const Expr<F> t = mq(i);
+          if (e0->op == ExprOp::kLin && t.node->op == ExprOp::kLin)
+            e = Expr<F>(expr_node(e0->lin - t.node->lin));
+          else
+            e = e - t;
+        }
+        if (mqlo) e = e - *mqlo;
+        return e;
+      };
+      if (!spectral) {
+        add_predicate(d_, sp_.name,
+                      shifted((Expr<F>(sp_.l) - Expr<F>(sp_.r)).node, 0).node,
+                      sp_.pin);
+        return;
+      }
+      std::vector<ops::SpectralRow<F>> stated;
+      for (size_t i = 0; i < rows; ++i)
+        stated.push_back(ops::SpectralRow<F>{
+            shifted(sp_.spectral[i].lhs, i).node, sp_.spectral[i].rhs});
+      const auto sides = ops::spectral_sides(stated, what());
+      const auto &t = *stated[0].rhs.ntt;
+      size_t terms = 0;
+      for (const auto &r : stated) terms += r.rhs.terms.size();
+      NoteValues ps = {{"n", __int128(t.n)},
+                       {"order", __int128(int(t.order))},
+                       {"stageMask", __int128(t.mask)},
+                       {"rows", __int128(rows)},
+                       {"terms", __int128(terms)}};
+      if (subfield_contains(f_, t.psi))
+        ps.push_back({"root", __int128(nat_of(f_, t.psi))});
+      b_.system().note("spectral", sp_.name, std::move(ps), d_);
+      Expr<F> e = sides[0].first - sides[0].second;
+      for (size_t i = 1; i < rows; ++i)
+        e = e.concat(sides[i].first - sides[i].second);
+      add_predicate(d_, sp_.name, e.node, sp_.pin);
+    };
+    PlanRecords::ProductModEq eq;
+    eq.name = sp_.name;
+    eq.domain = d_.name;
+    eq.m = m;
+    eq.spectral = spectral;
+    eq.rows = rows;
+    auto &sum = b_.summary();
+    if (m == p) {
+      state(std::nullopt, nullptr);
+      b_.records().product_mod_equalities.push_back(eq);
+      sum.report.push_back(what() + ": m = p = " + bound_str(p) +
+                           ", the field equation");
+      put_str(sum.descr, sp_.name);
+      put_u64(sum.descr, 0);
+      return;
+    }
+    // The quotient's arithmetic multiplies m by quotients within interval
+    // propagation's cap: m below the cap keeps every product m q within a
+    // SignedInt.
+    if (m >= Bound::pow2(range_internal::kIntervalCapBits))
+      fail(what() + ": the modulus " + bound_str(m) + " is at least 2^" +
+           std::to_string(range_internal::kIntervalCapBits) + " and not p");
+    std::optional<Interval> L, R;
+    if (spectral) {
+      for (const auto &row : sp_.spectral) {
+        L = hull(L, product_interval(row.lhs, "the left side"));
+        R = hull(R, spectral_interval(row.rhs));
+      }
+    } else {
+      L = product_interval(sp_.l, "the left side");
+      R = product_interval(sp_.r, "the right side");
+    }
+    R_ = *R;
+    const Shape1 s = quotient_shape(*L);
+    eq.lhs_lo = L->first;
+    eq.lhs_hi = L->second;
+    eq.rhs_lo = R_.first;
+    eq.rhs_hi = R_.second;
+    eq.qlo = s.qlo;
+    eq.qmax = s.qmax;
+    const std::string nm = sp_.name;
+    certify(nm + ".leftSpan", term("lhs span + a0", s.a_side) < term("p", p));
+    std::string line = what() + ": lhs in [" + int_str(L->first) + ", " +
+                       int_str(L->second) + "], rhs in [" + int_str(R_.first) +
+                       ", " + int_str(R_.second) + "], m = " + bound_str(m) +
+                       ", quotient in [" + int_str(s.qlo) + ", " +
+                       int_str(s.qhi) + "]; ";
+    put_str(sum.descr, nm);
+    put_bound(sum.descr, m);
+    put_bound(sum.descr, Bound(s.qlo.negative() ? -s.qlo : s.qlo));
+    put_u64(sum.descr, s.qlo.negative() ? 1 : 0);
+    put_bound(sum.descr, s.qmax);
+    put_u64(sum.descr, spectral ? rows : 0);
+    const Bound nq = s.qmax + 1;
+    const Bound dmax = (p - 1 - s.w) / m + 1;
+    certify(nm + ".rightSpan",
+            term("W + m (Dmax - 1)", bound_add(s.w, bound_mul(m, dmax - 1))) <
+                term("p", p));
+    certify(nm + ".cap", term("Qmax + 1", nq) <= term("Dmax", dmax));
+    eq.dmax = dmax;
+    // The quotient the declaration commits (system_core.h's product_mod),
+    // its generator reading qlo.
+    if (!sp_.q || sp_.qlo == nullptr)
+      fail(what() + ": the declaration committed no quotient");
+    // The generator's dividend, below m (Qmax + 1) honestly, is a NatInt.
+    if (!bound_mul(m, nq).fits128())
+      fail(what() + ": the quotient's dividend reaches " +
+           bound_str(bound_mul(m, nq)) +
+           ", beyond the 128-bit integers witness generation reads");
+    *sp_.qlo = s.qlo;
+    const Ref<F> q = *sp_.q;
+    eq.quotient = q.id;
+    d_.assert_range(q, nq, MaxBound{dmax}, nm + ".q");
+    const Elt me = elt_of_nat(f_, m);
+    std::optional<Elt> mqlo;
+    if (!s.qlo.is_zero()) mqlo = elt_of_int(SignedInt(m) * s.qlo);
+    // m q for row i: an affine expression of q for one row or expression
+    // sides, a slice of q for several spectral rows.
+    state(mqlo, [&](size_t i) -> Expr<F> {
+      if (spectral && rows > 1)
+        return me * Expr<F>(q).flat().slice(i * n, (i + 1) * n);
+      return Expr<F>(expr_node(me * (spectral ? q.flat() : q)));
+    });
+    b_.records().product_mod_equalities.push_back(eq);
+    sum.report.push_back(line + "a committed quotient '" + nm + ".q' below " +
+                         bound_str(nq) + " (MaxBound " + bound_str(dmax) +
+                         ")" + (spectral ? ", " + std::to_string(rows) +
+                                                " spectral rows in one predicate"
+                                          : std::string()));
+    put_u64(sum.descr, 6);
+    put_bound(sum.descr, nq);
+    put_bound(sum.descr, dmax);
+  }
+
   // ------------------------------------------------------ accumulators --
 
   // The committed accumulators of RANGES (SUMS their sums), by the spec's
@@ -1532,6 +1782,17 @@ void lower_assert_mod(ConstraintSystemBuilder<S> &b, int domain,
     sp.l = decl.l;
     sp.r = decl.r;
     sp.pin = decl.pin;
+    lower_mod(*d, b, std::move(sp));
+    return;
+  }
+  if (decl.l != nullptr) {
+    sp.product = true;
+    sp.l = decl.l;
+    sp.r = decl.r;
+    sp.spectral = decl.spectral;
+    sp.pin = decl.pin;
+    sp.q = decl.q;
+    sp.qlo = decl.qlo;
     lower_mod(*d, b, std::move(sp));
     return;
   }

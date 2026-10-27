@@ -35,8 +35,10 @@
 
 #include "gordiehowe/certify.h"
 #include "gordiehowe/core.h"
+#include "gordiehowe/ct.h"
 #include "gordiehowe/expr.h"
 #include "gordiehowe/ops/operators.h"
+#include "gordiehowe/ops/spectral_sum.h"
 
 namespace proofs::gordiehowe {
 
@@ -128,17 +130,26 @@ class DomainCore {
 };
 
 // An assert_mod declaration of a domain of field F (Scope::assert_mod),
-// lowered at compile by mod.h. For M >= 2 the sides are the affine LHS and
-// RHS. For M = 0, the integer equality, they are any expressions L and R
-// (products and conv included), lowered to assert_zero(l - r) under PIN
-// once interval propagation keeps both sides in [0, p).
+// lowered at compile by mod.h. For M >= 2 with affine sides they are LHS
+// and RHS. For M = 0, the integer equality, they are any expressions L and
+// R (products and conv included), lowered to assert_zero(l - r) under PIN
+// once interval propagation keeps both sides in [0, p). For M >= 2 with a
+// side that is not affine they are L and R, or the spectral rows SPECTRAL
+// (each rows[i].lhs = rows[i].rhs (mod M), the right side a spectral sum,
+// ops/spectral.h), lowered with a committed quotient to one predicate (one
+// per spectral row) under PIN.
 template <class F>
 struct ModDecl {
   Lin<F> lhs, rhs;
   Bound m = 0;
   std::string name;
   ExprPtr<F> l, r;
+  std::vector<ops::SpectralRow<F>> spectral;
   std::shared_ptr<Placement> pin;
+  // The product form's quotient Q (a value of the program), and the lower
+  // end qlo its generator reads, which the lowering sets.
+  std::optional<Ref<F>> q;
+  std::shared_ptr<SignedInt> qlo;
 };
 
 class LoweringContext;
@@ -404,12 +415,15 @@ class Scope {
   // products and convolutions included, lowered to assert_zero(lhs - rhs),
   // placed as usual (pin() on the returned predicate fixes it), once interval
   // propagation shows that both sides lie in [0, p) after one common shift;
-  // otherwise compilation fails naming the widest term. M >= 2 takes affine
+  // otherwise compilation fails naming the widest term. M >= 2 over affine
   // sides: the field equality when M is the domain's characteristic, otherwise
   // a quotient with its range requests and no-wrap condition, grouped when LHS
   // is a sum of nonnegative terms whose total reaches p; its lowering realizes
-  // it, so the returned predicate has no placement. NM names it (assert_mod.<k>
-  // by default).
+  // it, so the returned predicate has no placement. M >= 2 over sides with
+  // products or conv: a committed quotient with its range request and
+  // no-wrap conditions, and one predicate lhs - rhs - m (qlo + q) = 0,
+  // placed as usual (pin() fixes it). NM names it (assert_mod.<k> by
+  // default).
   template <class X, class Y,
             class = std::enable_if_t<kIsPoly<X> && kIsPoly<Y>>>
   Predicate assert_mod(const X &lhs, const Y &rhs, Bound m,
@@ -444,9 +458,127 @@ class Scope {
       sys_->mods_.push_back(std::move(pm));
       return Predicate::unplaced("assert_mod (lowered to its own rows)");
     } else {
-      fail("assert_mod '" + scoped(label) + "': a modulus m >= 2 takes affine "
-           "sides; only m = 0 (the integer equality) takes products");
+      const ExprPtr<F> l = expr_node(lhs), r = expr_node(rhs);
+      return product_mod<F>(l, r, {}, (Expr<F>(l) - Expr<F>(r)).node, nullptr,
+                            m, label);
     }
+  }
+  // rows[i].lhs = rows[i].rhs (mod M) as integers for every spectral row
+  // (ops/spectral.h's assert_mod), M >= 2: the rows' integer intervals
+  // read each spectrum's coefficients from the public table that selects
+  // it (range_internal::table_preimage_hull), and the lowering commits one
+  // quotient for all rows and states them as one spectral predicate in the
+  // circuit (mod.h). DIFF is the rows' Ntt(lhs_i) - rhs_i, concatenated,
+  // which the quotient's generator reads through the inverse of NTT. NM
+  // names it (assert_mod.<k> by default).
+  template <class F>
+  Predicate assert_mod_spectral(const std::vector<ops::SpectralRow<F>> &rows,
+                                const ExprPtr<F> &diff, Bound m,
+                                const std::string &nm = "") const {
+    static_assert(!F::kCharacteristicTwo,
+                  "assert_mod: integers mod m exist in odd characteristic");
+    const std::string label =
+        nm.empty() ? "assert_mod." + std::to_string(sys_->mods_.size()) : nm;
+    if (rows.empty()) fail("assert_mod '" + scoped(label) + "': no rows");
+    if (m < 2)
+      fail("assert_mod '" + scoped(label) + "': a spectral side takes a "
+           "modulus m >= 2");
+    return product_mod<F>(rows[0].lhs, ExprPtr<F>(), rows, diff,
+                          rows[0].rhs.ntt, m, label);
+  }
+  // assert_mod(l, r, m) for M >= 2 over sides that are not affine (L and
+  // R, or the spectral ROWS): the declaration under LABEL, its pin, and
+  // the quotient LABEL.q of the left side's shape ([rows][n] for spectral
+  // rows), unless M is the characteristic. The quotient is a value of the
+  // program, which the lowering ranges: its generator computes
+  // (DIFF - m qlo) / m from DIFF = lhs - rhs (for spectral rows, NTT's
+  // inverse of each row of DIFF), qlo the lowering's.
+  template <class F>
+  Predicate product_mod(const ExprPtr<F> &l, const ExprPtr<F> &r,
+                        const std::vector<ops::SpectralRow<F>> &rows,
+                        const ExprPtr<F> &diff,
+                        std::shared_ptr<const ops::StagedNtt<F>> ntt,
+                        Bound m, const std::string &label) const {
+    std::vector<size_t> ids;
+    auto add = [&ids](const ExprPtr<F> &e) {
+      const auto d = expr_deps(e);
+      ids.insert(ids.end(), d.begin(), d.end());
+    };
+    if (rows.empty()) {
+      add(l);
+      add(r);
+      if (l->n != r->n)
+        fail("assert_mod '" + scoped(label) + "': the sides' lengths differ");
+    }
+    for (const auto &row : rows) {
+      add(row.lhs);
+      for (const auto &t : row.rhs.terms) {
+        ids.push_back(t.spec.id);
+        add(t.x);
+      }
+    }
+    auto &d = infer<F>(ids, label);
+    if (sys_->profile_)
+      fail("assert_mod '" + scoped(label) + "' declared after the system "
+           "was lowered");
+    auto pin = std::make_shared<Placement>(
+        rows.empty() ? Placement::kAuto : Placement::kCircuit);
+    SystemCore::PendingMod pm;
+    pm.domain = d.index;
+    ModDecl<F> decl;
+    decl.m = m;
+    decl.name = scoped(label);
+    decl.l = l;
+    decl.r = r;
+    decl.spectral = rows;
+    decl.pin = pin;
+    const F *pf = l->f;
+    if (m != field_characteristic(*pf)) {
+      using Elt = typename F::Elt;
+      const size_t n = l->n;
+      const Shape shape =
+          rows.empty() ? Shape(l->dims()) : Shape{rows.size(), n};
+      auto qlo = std::make_shared<SignedInt>(0);
+      const bool small = field_characteristic(*pf) <= Bound::pow2(64);
+      const ct::Divisor64 dm(small ? uint64_t(m) : 1);
+      // The lowering refuses an m (Qmax + 1) beyond 128 bits, so the
+      // generator's dividends and m are NatInts.
+      const NatInt mn = m.fits128() ? static_cast<NatInt>(m) : NatInt(1);
+      auto gen = [pf, ntt, n, qlo, m, mn, small, dm](const std::vector<Elt> &v) {
+        std::vector<Elt> z = v;
+        if (ntt != nullptr)
+          for (size_t a = 0; a < z.size(); a += n) {
+            std::vector<Elt> row(z.begin() + long(a), z.begin() + long(a + n));
+            ntt->inverse(row);
+            std::copy(row.begin(), row.end(), z.begin() + long(a));
+          }
+        const SignedInt mq = SignedInt(m) * *qlo;
+        const Elt mqlo = mq.negative() ? pf->negf(elt_of_nat(*pf, Bound(-mq)))
+                                       : elt_of_nat(*pf, Bound(mq));
+        std::vector<Elt> out(z.size());
+        for (size_t i = 0; i < z.size(); ++i) {
+          uint64_t ok = 1;
+          const NatInt x = nat_of_ct(*pf, pf->subf(z[i], mqlo), ok);
+          const NatInt q = small ? NatInt(dm.divmod(uint64_t(x)).q)
+                                 : NatInt(ct::divmod(x, mn).q);
+          out[i] = elt_of_nat(*pf, q);
+        }
+        return out;
+      };
+      const Expr<F> dep(diff);
+      if (d.prime == Space::kField)
+        decl.q = d.priv_in(*this, Field{}, label + ".q", shape, depends_on(dep),
+                           gen);
+      else
+        decl.q = d.priv_in(*this, Subfield{}, label + ".q", shape,
+                           depends_on(dep), gen);
+      decl.qlo = qlo;
+    }
+    pm.decl = std::make_shared<const ModDecl<F>>(std::move(decl));
+    sys_->mods_.push_back(std::move(pm));
+    if (!rows.empty())
+      return Predicate::unplaced("assert_mod (spectral rows in the circuit)");
+    return Predicate(pin);
   }
   // assert_mod(lhs, rhs, 0) under LABEL: the integer equality's
   // declaration, its sides as expressions and a pin.
@@ -1142,6 +1274,10 @@ struct Predicates {
   template <class... A>
   static Predicate mod(const Scope &sc, A &&...a) {
     return sc.assert_mod(std::forward<A>(a)...);
+  }
+  template <class... A>
+  static Predicate mod_spectral(const Scope &sc, A &&...a) {
+    return sc.assert_mod_spectral(std::forward<A>(a)...);
   }
   template <class... A>
   static void same_bits(const Scope &sc, A &&...a) {

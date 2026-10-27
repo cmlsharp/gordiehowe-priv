@@ -9,7 +9,8 @@
 //   MatchesHostWitness   every generated value equals the host witness's
 //                        (and the carrier arm's advice and quotient)
 //   TamperRejected       a wrong index, a key off the ring, a bad
-//                        signature, a wrong mu, a broken MAC
+//                        signature, a wrong mu, a broken MAC, and
+//                        (carrier) the relation's quotient
 // The host check:
 //   BoundedExpandA       the ring's bounded ExpandA (6 SHAKE128 blocks per
 //                        call) equals the unbounded reference on a

@@ -208,10 +208,14 @@ CarrierInstance carrier_instance(size_t R) {
   for (size_t i = 0; i < n; ++i)
     in.c[i] = uint64_t((((__int128_t)in.s1[i] + t[i]) % (__int128_t)kQ + kQ) %
                        kQ);
+  // The relation's quotient as the assert_mod lowering commits it:
+  // c - s1 - h s2 = q (qlo + dq) with qlo = -(1 + n (q - 1)), from the left
+  // side c - s1 >= -q and the negacyclic product h s2 <= n (q - 1) q.
+  const __int128_t shift = (__int128_t)kQ * (1 + (__int128_t)n * (kQ - 1));
   in.dq.resize(n);
   for (size_t i = 0; i < n; ++i) {
     const __int128_t num =
-        (__int128_t)in.c[i] - (__int128_t)in.s1[i] + RP::kBias - t[i];
+        (__int128_t)in.c[i] - (__int128_t)in.s1[i] + shift - t[i];
     if (num < 0 || num % kQ != 0)
       throw std::runtime_error("reduction quotient must be exact");
     in.dq[i] = uint64_t(num / kQ);

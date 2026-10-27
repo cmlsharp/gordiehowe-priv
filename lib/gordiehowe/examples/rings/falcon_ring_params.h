@@ -103,20 +103,19 @@ struct FalconRingParams {
   static_assert(kQ <= param_sets::power(kEmuB, kEmuLs1), "coefficientFits");
   static_assert(kQ / 2 < param_sets::power(kEmuB, kEmuLa), "magnitudeFits");
   static_assert(kBetaSq < param_sets::power(kEmuB, kEmuLsum), "normSumFits");
-  // The carrier relation prod = c - s1 + BIAS - q*dq == h*s2 over the
-  // integers: |h*s2| <= M = n(q-1)^2, and BIAS is the multiple of q above
-  // M + q that keeps dq nonnegative. The relation's soundness conditions
-  // are certify notes of ring_carrier_relation (signature.bias: BIAS >=
-  // M + q; signature.noWrap: BIAS + q + M < p), of the emulated gadgets
-  // (budget.noWrap, sum.noWrap) and of the range lowering, which chooses
-  // the circuit's digits. The static_asserts below check the profile's
-  // FalconEmuArm limbs (PQ/Params.lean's) against the set, constants the
-  // circuit does not read: dq fits L_dq limbs of T, and both sides and the
-  // norm stay below the field's integer bound in those limbs.
-  static constexpr uint64_t kConvBound = (uint64_t)kN * (kQ - 1) * (kQ - 1);
-  static constexpr uint64_t kBias = kQ * ((kConvBound + kQ) / kQ + 1);
-  static_assert((kQ - 1 + kBias + kConvBound) / kQ <
-                    param_sets::power(kEmuB, kEmuLdq),
+  // The carrier relation c - s1 - q (qlo + dq) = h s2 over the integers:
+  // the assert_mod lowering derives qlo = -(1 + n (q - 1)) and dq's honest
+  // bound (2n - 1)(q - 1) + 2 from c - s1 in [-q, q - 1] and h s2's
+  // coefficients in [-(n - 1)(q - 1) q, n (q - 1) q], and certifies that the
+  // sides stay below p (its leftSpan, rightSpan and cap certificates). The
+  // relation's other soundness conditions are certify notes of the emulated
+  // gadgets (budget.noWrap, sum.noWrap) and of the range lowering, which
+  // chooses the circuit's digits. The static_asserts below check the
+  // profile's FalconEmuArm limbs (PQ/Params.lean's) against the set,
+  // constants the circuit does not read: dq fits L_dq limbs of T, and both
+  // sides and the norm stay below the field's integer bound in those limbs.
+  static constexpr uint64_t kDqBound = (2 * (uint64_t)kN - 1) * (kQ - 1) + 2;
+  static_assert(kDqBound <= param_sets::power(kEmuB, kEmuLdq),
                 "carrier dq limbs");
   static_assert(2 * (unsigned __int128)kQ * param_sets::power(kEmuB, kEmuLdq) <
                     kFieldInt,

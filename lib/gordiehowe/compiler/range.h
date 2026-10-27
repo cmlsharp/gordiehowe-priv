@@ -1227,6 +1227,153 @@ std::optional<Interval> root_hull(const Domain<F> &d, const Graph &g, Bound p,
   return out;
 }
 
+// The hull of the public entries in columns [C0, C1) of the rows of a
+// table record R (Domain::TableRecord): over each column block that meets
+// those columns, a constant's values exactly, and otherwise the block's
+// interval by request_bound (a Bit, a statement bound). None when a block
+// has none.
+template <class F>
+std::optional<Interval> table_columns_hull(
+    const Domain<F> &d, const Graph &g, Bound p,
+    const typename Domain<F>::TableRecord &r, size_t c0, size_t c1) {
+  const F &f = d.field();
+  const bool prime_field = d.prime == Space::kField;
+  std::optional<Interval> out;
+  size_t off = 0;
+  for (const auto &[node, w] : r.blocks) {
+    const size_t b0 = off, b1 = off + w;
+    off = b1;
+    if (b1 <= c0 || b0 >= c1) continue;
+    std::optional<Interval> iv;
+    if (g.nodes.at(node).kind == Kind::kConstant) {
+      const auto v = g.system->template constant_values<F>(node);
+      for (size_t j = 0; j < v.size(); ++j) {
+        const auto c = signed_rep(f, p, prime_field, v[j]);
+        if (!c) return std::nullopt;
+        const auto m = int_below(c->second, kRequestCapBits);
+        if (!m) return std::nullopt;
+        const SignedInt cj = c->first ? -*m : *m;
+        iv = iv ? Interval{std::min(iv->first, cj), std::max(iv->second, cj)}
+                : Interval{cj, cj};
+      }
+    } else {
+      iv = request_bound(d, g, p, node);
+    }
+    if (!iv) return std::nullopt;
+    out = out ? Interval{std::min(out->first, iv->first),
+                         std::max(out->second, iv->second)}
+              : *iv;
+  }
+  return out;
+}
+
+// The coordinates (node, index) that coordinates [AT, AT + N) of node ID
+// read: a view's sources, or ID's own coordinates.
+template <class F>
+std::vector<std::pair<size_t, size_t>> table_sources(const Domain<F> &d,
+                                                     size_t id, size_t at,
+                                                     size_t n) {
+  std::vector<std::pair<size_t, size_t>> out;
+  const auto *src = d.view_sources(id);
+  for (size_t j = at; j < at + n; ++j)
+    out.push_back(src != nullptr ? src->at(j) : std::make_pair(id, j));
+  return out;
+}
+
+// The coordinate of table record R's node that reads coordinate K of node
+// S: K itself when R's node is S, the coordinate of R's node (a view) whose
+// source is (S, K), or none.
+template <class F>
+std::optional<size_t> record_coordinate(const Domain<F> &d,
+                                        const typename Domain<F>::TableRecord &r,
+                                        size_t s, size_t k) {
+  if (r.node == s) return k;
+  const auto *src = d.view_sources(r.node);
+  if (src == nullptr) return std::nullopt;
+  for (size_t j = 0; j < src->size(); ++j)
+    if ((*src)[j].first == s && (*src)[j].second == k) return j;
+  return std::nullopt;
+}
+
+// The interval node ID takes from public-table selections and lookups
+// (interval propagation's table hulls): a coordinate that a
+// table record (Domain::TableRecord) places in an identity leaf equals the
+// entry of its column in some row, so it lies in the hull of that
+// column's public entries (table_columns_hull). Coordinates are read
+// through views on either side (a view's coordinate is its source's, a
+// zero coordinate is [0, 0]). The narrowest of a coordinate's records
+// wins; ID's interval is the hull over its coordinates, none when some
+// coordinate has none.
+template <class F>
+std::optional<Interval> table_hull(const Domain<F> &d, const Graph &g,
+                                   Bound p, size_t id) {
+  const auto &recs = d.table_records();
+  if (recs.empty()) return std::nullopt;
+  std::optional<Interval> out;
+  for (const auto &[s, k] : table_sources(d, id, 0, g.nodes.at(id).n)) {
+    std::optional<Interval> best;
+    if (s == kZeroCoordinate) best = Interval{0, 0};
+    for (const auto &r : recs) {
+      if (s == kZeroCoordinate) break;
+      const auto j = record_coordinate(d, r, s, k);
+      if (!j) continue;
+      const size_t col = (r.at + *j) % r.width;
+      for (const auto &l : r.leaves) {
+        if (l.ntt || col < l.offset || col >= l.offset + l.n) continue;
+        const auto iv = table_columns_hull(d, g, p, r, col, col + 1);
+        if (iv && (!best || iv->second - iv->first < best->second - best->first))
+          best = iv;
+      }
+    }
+    if (!best) return std::nullopt;
+    out = out ? Interval{std::min(out->first, best->first),
+                         std::max(out->second, best->second)}
+              : *best;
+  }
+  return out;
+}
+
+// The interval of the coefficients of the polynomial whose spectrum under
+// the negacyclic transform of length N at root PSI (in natural order when
+// NATURAL, ntt.h's spectrum order otherwise) is coordinates [AT, AT + N)
+// of node ID: when those coordinates are, in order, one negacyclic leaf
+// of that transform in one table record (through views on either side),
+// the selection makes them the leaf's transform of some row, so the
+// polynomial is that row's slice and its coefficients lie in the hull of
+// the leaf's columns (table_columns_hull). None otherwise.
+template <class F>
+std::optional<Interval> table_preimage_hull(const Domain<F> &d,
+                                            const Graph &g, Bound p,
+                                            size_t id, size_t at, size_t n,
+                                            const typename F::Elt &psi,
+                                            bool natural) {
+  if (n == 0) return std::nullopt;
+  const auto src = table_sources(d, id, at, n);
+  for (const auto &[s, k] : src)
+    if (s == kZeroCoordinate) return std::nullopt;
+  std::optional<Interval> best;
+  for (const auto &r : d.table_records()) {
+    const auto j0 = record_coordinate(d, r, src[0].first, src[0].second);
+    if (!j0) continue;
+    bool in_order = true;
+    for (size_t t = 1; t < n && in_order; ++t) {
+      const auto j = record_coordinate(d, r, src[t].first, src[t].second);
+      in_order = j && *j == *j0 + t;
+    }
+    if (!in_order) continue;
+    const size_t col = (r.at + *j0) % r.width;
+    for (const auto &l : r.leaves) {
+      if (!l.ntt || l.offset != col || l.n != n || l.psi != psi ||
+          l.natural != natural)
+        continue;
+      const auto iv = table_columns_hull(d, g, p, r, col, col + n);
+      if (iv && (!best || iv->second - iv->first < best->second - best->first))
+        best = iv;
+    }
+  }
+  return best;
+}
+
 // E over the integers, for the plan export (PlanRecords::Affine): each
 // term's signed coefficient and operand, and the constants per coordinate
 // (a constant of one coordinate broadcasts).

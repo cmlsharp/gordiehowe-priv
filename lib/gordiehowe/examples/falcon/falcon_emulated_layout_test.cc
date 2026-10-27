@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Falcon-512 emulated tests (falcon_emulated_test binary): the
-// realizations, the bounds, A's inventory and compile report against the spec, the Ligero target,
-// the branch-free host helpers against their references, and the
-// fingerprint.
+// realizations, the norm's no-wrap bound, A's inventory and compile report
+// against the spec, the Ligero target, the branch-free host helpers
+// against their references, and the fingerprint.
 
 #include "gordiehowe/examples/falcon/falcon_emulated_fixture.h"
 #include "gordiehowe/examples/shared/ligero_testing.h"
@@ -18,7 +18,6 @@ constexpr uint64_t kGoldilocksP = 0xFFFFFFFF00000001ull;
 // Every test here is at Falcon-512.
 constexpr size_t kN = Falcon512::kN;
 constexpr size_t kSamples = Falcon512::kSamples;
-constexpr uint64_t kBias = Falcon512::kBias;
 
 template <class P>
 class FalconEmulated512 : public ::testing::Test {};
@@ -55,20 +54,10 @@ TYPED_TEST(FalconEmulated512, Realizations) {
   expect("norm.bound", RealizationKind::kTwoSided, 3, S::kBetaSq + 1, true);
 }
 
-// FalconBounds::derive reproduces the companion document's table (the
-// committed-key relation of the rings).
-TEST(FalconEmulated, BoundsMatchSpec) {
-  const FalconBounds r = FalconBounds::derive(kGoldilocksP, kBias);
-  EXPECT_EQ(uint64_t(r.bias), kBias);
-  EXPECT_EQ(uint64_t(r.quot.honest), 12582926u);
-  // The selected bound of the default profile lies in [n, m].
-  EXPECT_TRUE((Bound(1) << 33) <= r.quot.max);
-  // The maximum is the largest N with no wraparound.
+// The norm cannot wrap: 512 magnitudes below q / 2 + 1 and 512 below
+// 2048, squared.
+TEST(FalconEmulated, NormCannotWrap) {
   const Bound p = kGoldilocksP;
-  EXPECT_TRUE(kQ * (r.quot.max - 1) < p);
-  EXPECT_TRUE(kQ * r.quot.max >= p);
-  // The norm cannot wrap: 512 magnitudes below q / 2 + 1 and 512 below
-  // 2048, squared.
   EXPECT_TRUE(512 * Bound(kQ / 2) * (kQ / 2) + 512 * Bound(2047) * 2047 < p);
 }
 
@@ -231,21 +220,6 @@ std::vector<uint64_t> s1_of(const std::vector<uint64_t> &hhat,
   falcon_intt_ref(s1hat, zetas, kQ);
   return s1hat;
 }
-std::vector<uint64_t> quot_of(const std::vector<uint64_t> &h,
-                              const std::vector<uint64_t> &craw,
-                              const std::vector<uint64_t> &s2,
-                              const std::vector<uint64_t> &s1) {
-  const auto hs2 = emulated_ntt::integer_convolution(h, s2);
-  std::vector<uint64_t> dq(craw.size());
-  for (size_t j = 0; j < craw.size(); ++j) {
-    const __int128_t residual = (__int128_t)kBias + craw[j] - hs2[j] - s1[j];
-    if (residual < 0 || residual % kQ != 0)
-      throw std::runtime_error("falcon quotient: residual is not a "
-                               "nonnegative multiple of q");
-    dq[j] = uint64_t(residual / kQ);
-  }
-  return dq;
-}
 std::vector<uint64_t> words_of_bits(const Tensor<uint64_t> &bits) {
   std::vector<uint64_t> c;
   for (size_t j = 0; j < bits.rows(); ++j) {
@@ -293,7 +267,7 @@ TEST(FalconEmulated, HostHelpersMatchTheirReferences) {
   const auto z = falcon_ntt_zetas(kN, kQ);
   std::mt19937_64 g(23);
   for (int t = 0; t < 20; ++t) {
-    std::vector<uint64_t> hhat(kN), craw(kN), s2(kN), h(kN);
+    std::vector<uint64_t> hhat(kN), craw(kN), s2(kN);
     for (auto &x : hhat) x = g() % kQ;
     for (auto &x : craw) x = g() % kCutoff;
     // Short s2 (|x| < 200, centered in [0, q)) and arbitrary.
@@ -312,15 +286,6 @@ TEST(FalconEmulated, HostHelpersMatchTheirReferences) {
     ASSERT_EQ(a, s2);
     const auto s1 = host::s1_of(hhat, craw, s2, z);
     ASSERT_EQ(s1, old_host::s1_of(hhat, craw, s2, z));
-    // The quotient at the decoded key: a valid s1, then a wrong one.
-    h = emulated_ntt::decode(hhat, z, kQ);
-    ASSERT_EQ(host::quot_of(h, craw, s2, s1, kBias),
-              old_host::quot_of(h, craw, s2, s1));
-    auto bad = s1;
-    const size_t at = g() % kN;
-    bad[at] = (bad[at] + 1) % kQ;
-    EXPECT_THROW(host::quot_of(h, craw, s2, bad, kBias), std::runtime_error);
-    EXPECT_THROW(old_host::quot_of(h, craw, s2, bad), std::runtime_error);
     // Bits to words and bytes, and the MAC chunks.
     std::vector<uint64_t> bits(kN * 16);
     for (auto &x : bits) x = g() & 1;

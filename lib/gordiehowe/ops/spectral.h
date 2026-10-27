@@ -42,32 +42,10 @@
 #include "gordiehowe/domain.h"
 #include "gordiehowe/expr.h"
 #include "gordiehowe/ops/operators.h"
+#include "gordiehowe/ops/spectral_sum.h"
 #include "gordiehowe/predicates.h"
 
 namespace proofs::gordiehowe::ops {
-
-// scale * spec[k] * Ntt(x)[k], spec read at an offset (in elements) of its
-// node, x at an offset of its expression's coordinates. KEY names the
-// operand x: a handle's node, or the expression itself, so that an operand
-// passed twice is transformed once.
-template <class F>
-struct SpectralTerm {
-  Ref<F> spec;
-  size_t spec_at = 0;
-  ExprPtr<F> x;
-  size_t x_at = 0;
-  typename F::Elt scale;
-  std::pair<size_t, const void *> key;
-};
-
-// A sum of spectral terms under one staged transform (OP, the Ntt
-// operator; NTT its stages).
-template <class F>
-struct SpectralSum {
-  std::shared_ptr<const StagedNtt<F>> ntt;
-  Op<F> op;
-  std::vector<SpectralTerm<F>> terms;
-};
 
 namespace spectral_detail {
 // A spectrum: any value a circuit reads (no Bytes statement).
@@ -183,12 +161,6 @@ SpectralSum<F> operator-(SpectralSum<F> a, const SpectralSum<F> &b) {
   return a + (-b);
 }
 
-// One spectral row: Ntt(lhs) == rhs, LHS an expression of n coordinates.
-template <class F>
-struct SpectralRow {
-  ExprPtr<F> lhs;
-  SpectralSum<F> rhs;
-};
 // The row Ntt(LHS) == RHS, LHS a handle or an expression.
 template <class X, class F = PolyField<X>>
 SpectralRow<F> spectral_row(const X &lhs, SpectralSum<F> rhs) {
@@ -270,6 +242,41 @@ void assert_spectral(Sc &&sc, std::string nm, const X &lhs,
   assert_spectral(sc, std::move(nm),
                   std::vector<SpectralRow<F>>{
                       spectral_row(lhs, std::move(rhs))});
+}
+
+// rows[i].lhs = rows[i].rhs (mod M) as integers, for every row, M >= 2
+// (system_core.h's assert_mod_spectral, lowered by mod.h): the integer
+// value of a spectral sum is sum_t scale_t (h_t * x_t) in Z[X]/(X^n + 1),
+// h_t the polynomial whose spectrum spec_t is, which a public table
+// selects (its coefficients' interval is the hull of the table's columns,
+// range_internal::table_preimage_hull). The lowering derives the
+// quotient's interval and its sound bound, commits it (one value of
+// shape [rows][n]), and states each row as the spectral predicate
+//   Ntt(lhs_i - m qlo - m q_i) == rhs_i
+// pinned to the circuit, as assert_spectral does. NM names it.
+template <class F>
+Predicate assert_mod(const std::vector<SpectralRow<F>> &rows, Bound m,
+                     const Name &nm = {}) {
+  if (rows.empty() || rows[0].rhs.terms.empty())
+    fail("assert_mod '" + nm.name + "': no spectral rows");
+  const Scope sc = internal::predicate_scope(
+      internal::operand_graph(rows[0].rhs.terms[0].spec), nm, "assert_mod");
+  // The quotient's generator reads Ntt(lhs_i) - rhs_i, the rows
+  // concatenated.
+  const auto sides = spectral_sides(rows, "assert_mod '" + nm.name + "'");
+  Expr<F> diff = sides[0].first - sides[0].second;
+  for (size_t i = 1; i < sides.size(); ++i)
+    diff = diff.concat(sides[i].first - sides[i].second);
+  return internal::Predicates::mod_spectral(sc, rows, diff.node, m, nm.name);
+}
+// lhs = rhs (mod M) for one spectral row: LHS a handle or an expression of
+// n coordinates, RHS a spectral sum.
+template <class X, class F = PolyField<X>>
+Predicate assert_mod(const X &lhs, SpectralSum<F> rhs, Bound m,
+                     const Name &nm = {}) {
+  return assert_mod(std::vector<SpectralRow<F>>{
+                        spectral_row(lhs, std::move(rhs))},
+                    m, nm);
 }
 
 }  // namespace proofs::gordiehowe::ops

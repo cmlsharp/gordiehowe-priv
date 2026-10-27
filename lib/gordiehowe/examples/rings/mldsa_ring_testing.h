@@ -179,15 +179,16 @@ struct RingCase {
   }
 };
 
-// The carrier ring's host values (ml_dsa_fp::advice, and the quotient dq
-// of the relation w' + q dq = bias + A z - c 2^d t1 over the integers).
+// The carrier ring's host values (ml_dsa_fp::advice, and the integer
+// quotient wu = (w' - u) / q of the relation w' = u (mod q), u = A z -
+// c 2^d t1 over the integers; the assert_mod lowering commits wu - qlo).
 template <class S>
 struct CarrierExisting {
   using Params = typename S::Reference;
   static constexpr size_t kK = S::kK, kL = S::kL;
   static constexpr uint64_t kBound = S::kBound;
   ml_dsa_fp::Advice<Params> adv;
-  std::vector<uint64_t> dq;
+  std::vector<int64_t> wu;
   explicit CarrierExisting(const Existing<S> &old,
                            const MlDsaRingPublicKey<Params> &key) {
     const auto &wg = *old.wg;
@@ -195,10 +196,10 @@ struct CarrierExisting {
     std::vector<uint64_t> acoef(key.a_hat.begin(),
                                 key.a_hat.begin() + kK * kL * kN);
     host::intt_each(acoef);
-    dq.resize(kK * kN);
+    wu.resize(kK * kN);
     for (size_t i = 0; i < kK; ++i)
       for (size_t k = 0; k < kN; ++k) {
-        __int128_t u = (__int128_t)kCarrierBias<S>;
+        __int128_t u = 0;
         for (size_t j = 0; j < kL; ++j)
           for (size_t m = 0; m < kN; ++m) {
             const size_t idx = (k + kN - m) % kN;
@@ -215,10 +216,10 @@ struct CarrierExisting {
           const __int128_t t = (__int128_t)key.t1d[i * kN + idx] * cs;
           u += m + idx < kN ? -t : t;
         }
-        const __int128_t d = u - (__int128_t)adv.wp[i * kN + k];
-        if (d < 0 || d % kQ != 0)
+        const __int128_t d = (__int128_t)adv.wp[i * kN + k] - u;
+        if (d % kQ != 0)
           throw std::runtime_error("carrier relation: no quotient");
-        dq[i * kN + k] = uint64_t(d / kQ);
+        wu[i * kN + k] = int64_t(d / kQ);
       }
   }
   // The r0 complement of fill_split_A_priv's emulated layout.

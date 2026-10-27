@@ -3,8 +3,8 @@
 
 // GordieHowe: the host code of the Falcon relations' generators
 // (falcon_emulated.h, falcon_native.h and the Falcon ring): s1, the
-// committed-key quotient, the magnitudes, the encoding's low parts and the
-// norm's sum of squares. It also holds the key decoding, a public
+// committed key's coefficients, the magnitudes, the encoding's low parts
+// and the norm's sum of squares. It also holds the key decoding, a public
 // computation of the statement.
 
 #ifndef PRIVACY_PROOFS_ZK_LIB_GORDIEHOWE_EXAMPLES_FALCON_FALCON_EMULATED_WITNESS_H_
@@ -80,35 +80,6 @@ inline std::vector<uint64_t> s1_of(const std::vector<uint64_t> &hhat,
     s1hat[i] = mod_q(c_hat[i] + kQ * kQ - s2hat[i] * mod_q(hhat[i]));
   falcon_intt_ref<kQ>(s1hat, zetas);
   return s1hat;
-}
-
-// The quotient (bias + c - h s2 - s1) / q (the set's kBias, or a ring's).
-// A residual
-// that is not a nonnegative multiple of q below 2^64 (s1 not reduced from
-// this c, h and s2) clears a bit, and the error is thrown once, after
-// every coefficient.
-inline std::vector<uint64_t> quot_of(const std::vector<uint64_t> &h,
-                                     const std::vector<uint64_t> &craw,
-                                     const std::vector<uint64_t> &s2,
-                                     const std::vector<uint64_t> &s1,
-                                     uint64_t bias) {
-  const auto hs2 = emulated_ntt::integer_convolution(h, s2);
-  std::vector<uint64_t> dq(craw.size());
-  uint64_t ok = 1;
-  for (size_t j = 0; j < craw.size(); ++j) {
-    const __int128_t residual = (__int128_t)bias + craw[j] - hs2[j] - s1[j];
-    const ct::u128 r = static_cast<ct::u128>(residual);
-    // A negative residual has its high word all ones.
-    ok &= ct::is_zero(uint64_t(r >> 64));
-    const uint64_t lo = uint64_t(r);
-    const uint64_t quot = lo / kQ;
-    ok &= ct::eq(lo - quot * kQ, 0);
-    dq[j] = quot;
-  }
-  if (!ok)
-    throw std::runtime_error("falcon quotient: residual is not a "
-                             "nonnegative multiple of q");
-  return dq;
 }
 
 // The coefficients of the key whose spectrum under the staged transform T

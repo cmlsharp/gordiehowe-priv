@@ -17,7 +17,8 @@
 //                                  kPadded padded by duplicate members
 //   CarrierTamperRejected,         a wrong index, a key off the ring, a bad
 //   NativeTamperRejected           signature, a changed member key and an
-//                                  out-of-range digit
+//                                  out-of-range digit; the carrier's
+//                                  relation quotient plus one
 //   CarrierProgramExport,          the realized programs' invariants
 //   NativeProgramExport
 // The figures, timing and plan export are falcon_ring_bench's commands
@@ -94,7 +95,9 @@ TYPED_TEST_P(FalconRingCarrier, CarrierMatchesHostWitness) {
               return b;
             }());
   EXPECT_EQ(x.ints(cap, "signature.s1"), in.s1);
-  EXPECT_EQ(x.ints(cap, "signature.quot"), in.dq);
+  // The relation's quotient, which the assert_mod lowering derives and
+  // commits: the host's dq at qlo = -(1 + n (q - 1)).
+  EXPECT_EQ(x.ints(cap, "signature.equation.q"), in.dq);
   EXPECT_EQ(x.ints(cap, "magnitudes.mag2"), in.enc.mag);
   std::vector<uint64_t> low;
   for (size_t i = 0; i < in.enc.mag.size(); ++i)
@@ -107,7 +110,7 @@ TYPED_TEST_P(FalconRingCarrier, CarrierMatchesHostWitness) {
   for (size_t l = 0; l < 3; ++l) {
     std::vector<std::vector<uint64_t>> dq;
     for (uint64_t q : in.dq) dq.push_back(limbs(q, 2048, 3));
-    EXPECT_EQ(x.ints(cap, "range.signature.quot.d" + std::to_string(l)),
+    EXPECT_EQ(x.ints(cap, "range.signature.equation.q.d" + std::to_string(l)),
               column(dq, l));
   }
   for (size_t l = 0; l < 2; ++l) {
@@ -223,7 +226,9 @@ void tamper_cases(const X &x, const std::string &digit, uint64_t table) {
 
 // The carrier's digit case pushes mag1's first range digit, or mag1 itself
 // when the range planner realizes its request directly, by A's largest
-// range table (2048 at Falcon-512): out of every table.
+// range table (2048 at Falcon-512): out of every table. The quotient case
+// adds one to the relation's committed quotient (its first digit when the
+// range planner commits digits).
 TYPED_TEST_P(FalconRingCarrier, CarrierTamperRejected) {
   using P = typename TypeParam::Profile;
   using S = typename TypeParam::Set;
@@ -239,6 +244,15 @@ TYPED_TEST_P(FalconRingCarrier, CarrierTamperRejected) {
   const bool digits = x.c->realization("magnitudes.mag1").k > 0;
   tamper_cases(x, digits ? "range.magnitudes.mag1.d0" : "magnitudes.mag1",
                largest);
+  const bool qdigits = x.c->realization("signature.equation.q").k > 0;
+  const size_t d = x.id(qdigits ? "range.signature.equation.q.d0"
+                                : "signature.equation.q");
+  const auto &af = x.env.af;
+  EXPECT_TRUE(x.rejects([&af, d](size_t id, typename X::Value &v) {
+    if (id != d) return;
+    auto &a = std::get<typename X::AV>(v);
+    a.at(3) = af.addf(a[3], af.one());
+  })) << "quotient";
 }
 
 TYPED_TEST_P(FalconRingNative, NativeTamperRejected) {
