@@ -16,7 +16,9 @@
 #define PRIVACY_PROOFS_ZK_LIB_UTIL_PARALLEL_H_
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -55,13 +57,49 @@ inline size_t chunks(size_t n, size_t grain) {
   return grain == 0 ? 0 : (n + grain - 1) / grain;
 }
 
+// The kernel trace, a diagnostic off by default: while a thread's trace is
+// set, each for_chunks call it makes adds its range, its chunks and the
+// number of distinct threads that ran them. It changes no result.
+struct ChunkTrace {
+  size_t calls = 0, items = 0, chunks = 0;
+  // Calls split over a runner (two chunks or more), and the sum and the
+  // maximum of their distinct threads.
+  size_t split = 0, threads = 0, max_threads = 0;
+};
+inline thread_local ChunkTrace *trace = nullptr;
+// A small number per thread, in order of first use.
+inline unsigned thread_slot() {
+  static std::atomic<unsigned> next{0};
+  thread_local const unsigned id = next++;
+  return id;
+}
+
 // FN(BEGIN, END) for each chunk of [0, N) of GRAIN indices.
 template <class Fn>
 void for_chunks(size_t n, size_t grain, Fn &&fn) {
   const size_t nc = chunks(n, grain);
+  if (trace != nullptr) {
+    ++trace->calls;
+    trace->items += n;
+    trace->chunks += nc;
+  }
   if (current == nullptr || nc < 2) {
     for (size_t c = 0; c < nc; ++c)
       fn(c * grain, std::min(n, (c + 1) * grain));
+    return;
+  }
+  if (trace != nullptr) {
+    ChunkTrace *const t = trace;
+    std::atomic<uint64_t> seen{0};
+    current->run(nc, [&](size_t c) {
+      seen.fetch_or(uint64_t(1) << (thread_slot() % 64),
+                    std::memory_order_relaxed);
+      fn(c * grain, std::min(n, (c + 1) * grain));
+    });
+    const size_t k = size_t(__builtin_popcountll(seen.load()));
+    ++t->split;
+    t->threads += k;
+    t->max_threads = std::max(t->max_threads, k);
     return;
   }
   current->run(nc, [&](size_t c) {

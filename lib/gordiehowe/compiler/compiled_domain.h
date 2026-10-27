@@ -4453,8 +4453,30 @@ class DomainProver final : public DomainProverBase<S> {
     bool gkr_ok = true;
     const auto branch = [&](size_t i) {
       std::string pname;
-      if (profiling::enabled()) pname = cd_.branch_profile_name(i);
+      if (profiling::enabled() || GkrTrace::on())
+        pname = cd_.branch_profile_name(i);
       profiling::Session ses("gh.prove.branch", pname.c_str(), i, 0);
+      // The branch's kernel calls (GH_GKR_TRACE, sumcheck/prover_layers.h).
+      parallel::ChunkTrace ct;
+      parallel::ChunkTrace *const prev_trace = parallel::trace;
+      const auto t0 = std::chrono::steady_clock::now();
+      if (GkrTrace::on()) parallel::trace = &ct;
+      struct TraceEnd {
+        std::function<void()> f;
+        ~TraceEnd() { f(); }
+      } trace_end{[&] {
+        if (!GkrTrace::on()) return;
+        parallel::trace = prev_trace;
+        std::fprintf(stderr,
+                     "BRANCH_TRACE %s us=%.3f thread=%u calls=%zu items=%zu "
+                     "chunks=%zu split=%zu threads=%zu max_threads=%zu\n",
+                     pname.c_str(),
+                     std::chrono::duration<double, std::micro>(
+                         std::chrono::steady_clock::now() - t0)
+                         .count(),
+                     parallel::thread_slot(), ct.calls, ct.items, ct.chunks,
+                     ct.split, ct.threads, ct.max_threads);
+      }};
       Transcript &bt = *br[i];
       if (i == nb) {
         gkr_ok = p_.prove_gkr(zk_, W_, bt, *rows);
