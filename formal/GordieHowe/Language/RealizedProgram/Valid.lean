@@ -17,7 +17,8 @@ decidable predicates:
 
 * `GordieHowe.RealizedProgram.WellFormed`: identifiers in range, every expression of a predicate in its domain's field
   (the MAC's powers read by `macConv` excepted: they are read in their own field) and of consistent
-  lengths, coefficients and named operators' operands public, values acyclic (each reads values of
+  lengths, coefficients and named operators' operands public (a transform-form convolution's spectrum
+  excepted, `NamedOp.pubOperands`), values acyclic (each reads values of
   smaller identifier only), shared expressions acyclic (each reads entries of smaller index only),
   challenges of positive size in phases among the program's;
 * `GordieHowe.RealizedProgram.MessagesMatch`: the messages are the late values, in `MsgBefore` order, with their
@@ -91,6 +92,17 @@ def NamedOp.operands : NamedOp → List ℕ
   | .sum _ => []
   | .fromDigits _ _ => []
   | .batched _ op => operands op
+
+/-- **The operands a named operator requires public** (`Expr.pubNodes`): its operands
+(`NamedOp.operands`), but none for a negacyclic convolution or a polynomial broadcast in transform
+form, whose spectra a committed value may hold (the product form's kernels, which the circuit
+multiplies by the operand's transform). -/
+def NamedOp.pubOperands : NamedOp → List ℕ
+  | .negacyclicConv _ (.ntt _) => []
+  | .negacyclicConv _ (.nttNatural _) => []
+  | .polyBroadcast _ _ (.ntt _) => []
+  | .polyBroadcast _ _ (.nttNatural _) => []
+  | op => op.operands
 
 /-- **The public operands of a named operator read in their own field**: the MAC's powers `r` of
 `macConv` (their bits in the MAC field's polynomial basis). -/
@@ -178,6 +190,32 @@ def Expr.coefNodes : Expr → List ℕ
 def Expr.coefNodesList : List Expr → List ℕ
   | [] => []
   | e :: es => e.coefNodes ++ Expr.coefNodesList es
+
+end
+
+mutual
+
+/-- **The values an expression requires public**: its coefficients' values and its named
+operators' operands required public (`NamedOp.pubOperands`; `Expr.coefNodes` with every operand). -/
+def Expr.pubNodes : Expr → List ℕ
+  | .leaf _ => []
+  | .add e e' => e.pubNodes ++ e'.pubNodes
+  | .sub e e' => e.pubNodes ++ e'.pubNodes
+  | .scale c e => c.nodes ++ e.pubNodes
+  | .mul e e' => e.pubNodes ++ e'.pubNodes
+  | .reindex _ e => e.pubNodes
+  | .concat e e' => e.pubNodes ++ e'.pubNodes
+  | .linear rows e => rows.flatMap (·.flatMap fun t => t.2.nodes) ++ e.pubNodes
+  | .prod _ e => e.pubNodes
+  | .mux b t e => b.pubNodes ++ t.pubNodes ++ e.pubNodes
+  | .apply op e => op.pubOperands ++ op.foreignOperands ++ e.pubNodes
+  | .ref _ => []
+  | .logic _ _ args => Expr.pubNodesList args
+
+/-- The values a list of expressions requires public. -/
+def Expr.pubNodesList : List Expr → List ℕ
+  | [] => []
+  | e :: es => e.pubNodes ++ Expr.pubNodesList es
 
 end
 
@@ -361,11 +399,12 @@ def InSet.exprs : InSet → List Expr
 @[simp] theorem InSet.exprs_expr (e' : Expr) : (InSet.expr e').exprs = [e'] := rfl
 
 /-- **The expressions of a predicate body**, each with its domain: an `in` reads its records and
-the expression of its set. -/
+the expression of its set, a product-form `mod_q` its sides and its quotient. -/
 def PredBody.exprs : PredBody → List (ℕ × Expr)
   | .equal d e e' _ => [(d, e), (d, e')]
   | .mem d records set _ => (records ++ set.exprs).map ((d, ·))
-  | .mod d _ e e' _ => [(d, e), (d, e')]
+  | .mod d _ e e' real =>
+    [(d, e), (d, e')] ++ if real.form.isProduct then real.quotient.toList.map ((d, ·)) else []
   | .cross dx x dy y _ _ => [(dx, x), (dy, y)]
 
 /-- **A predicate body is the Boolean check of value `v`**: `v · v = v`, either way round. -/
@@ -556,8 +595,8 @@ structure ExprOk (f : ℕ) (e : Expr) : Prop where
   range : ∀ v ∈ ir.exprNodes e, v < ir.values.length
   /-- The values read in the expression's field lie in field `f`. -/
   field : ∀ v ∈ ir.closure Expr.fieldNodes e, ir.valueField v = f
-  /-- The coefficients and operands are public. -/
-  coefs : ∀ v ∈ ir.closure Expr.coefNodes e, ir.isPublic v = true
+  /-- The coefficients and operands are public (`Expr.pubNodes`). -/
+  coefs : ∀ v ∈ ir.closure Expr.pubNodes e, ir.isPublic v = true
   /-- The shared expressions exist. -/
   refs : ∀ k ∈ e.refs, k < ir.exprs.length
   /-- The lengths are consistent. -/
@@ -566,7 +605,7 @@ structure ExprOk (f : ℕ) (e : Expr) : Prop where
 theorem exprOk_iff (f : ℕ) (e : Expr) : ir.ExprOk f e ↔
     (∀ v ∈ ir.exprNodes e, v < ir.values.length) ∧
       (∀ v ∈ ir.closure Expr.fieldNodes e, ir.valueField v = f) ∧
-      (∀ v ∈ ir.closure Expr.coefNodes e, ir.isPublic v = true) ∧
+      (∀ v ∈ ir.closure Expr.pubNodes e, ir.isPublic v = true) ∧
       (∀ k ∈ e.refs, k < ir.exprs.length) ∧ ir.exprShapeOk e = true :=
   ⟨fun h => ⟨h.range, h.field, h.coefs, h.refs, h.shape⟩,
     fun ⟨h1, h2, h3, h4, h5⟩ => ⟨h1, h2, h3, h4, h5⟩⟩

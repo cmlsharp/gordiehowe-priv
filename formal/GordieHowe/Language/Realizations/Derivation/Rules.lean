@@ -221,6 +221,8 @@ def srcFact (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (fs : Li
       | some J => some (.ivl d (.leaf v) J.lo J.hi)
       | none => none
     else none
+  | .tableHull _ _ _ => none
+  | .tableKernel _ _ _ _ _ => none
 
 /-- **The intervals of an `ivlExpr` step's premises**, in order: the `ivl` facts of domain `d` at
 the premises `ks`. -/
@@ -519,8 +521,10 @@ def congrFact (fs : List Fact) (pid : ℕ) (body : PredBody) (k : ℕ) : Option 
   match fs[k]? with
   | some (.dvd d' x q') =>
     match body with
-    | .mod d q e e' _ =>
-      if d' = d ∧ q' = q ∧ x.beq (.sub e e') = true then some (.holds pid) else none
+    | .mod d q e e' real =>
+      if d' = d ∧ q' = q ∧ x.beq (.sub e e') = true ∧ real.form.isProduct = false then
+        some (.holds pid)
+      else none
     | _ => none
   | _ => none
 
@@ -1249,6 +1253,8 @@ theorem srcFact_sound (hwf : ir.WellFormed) (hI : I.Registered ir) (hL : I.Lawfu
       obtain ⟨n, hn, hnp, hrd⟩ := hv' i hi
       exact ⟨n, hn.1, hn.2, by rw [← hfd]; exact hnp, hrd⟩
     · cases hf
+  | tableHull _ _ _ => simp [srcFact] at hf
+  | tableKernel _ _ _ _ _ => simp [srcFact] at hf
 
 
 /-- **`ivlNatFact_sound`**: the rule is sound: its fact holds where its premises do. -/
@@ -1806,12 +1812,12 @@ theorem congrFact_sound {rd : ir.Valuation I} {fs : List Fact}
     · rename_i d q e e' r hb
       split_ifs at hf with hc
       cases hf
-      obtain ⟨rfl, rfl, hx⟩ := hc
+      obtain ⟨rfl, rfl, hx, hform⟩ := hc
       obtain rfl := Expr.eq_of_beq hx
       have hd : Fact.HoldsWith ir rd (.dvd d' (.sub e e') q') := hfs _ (List.mem_of_getElem? hk)
       show ir.HoldsWith rd (ir.predicate pid).body
       rw [hb]
-      exact hd
+      exact (holdsWith_mod_iff (.inl hform)).2 hd
     · cases hf
   · cases hf
 
@@ -2127,7 +2133,7 @@ theorem concludeFact_sound {rd : ir.Valuation I} {fs : List Fact}
       have hn : Fact.HoldsWith ir rd (.intEq d' a' b') := hfs _ (List.mem_of_getElem? hk)
       show ir.HoldsWith rd (ir.predicate pid).body
       rw [hb]
-      intro i hi
+      refine (holdsWith_mod_iff (.inr (by omega))).2 fun i hi => ?_
       rw [hn i hi, sub_self]
       exact dvd_zero _
     · cases hf

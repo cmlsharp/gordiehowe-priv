@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.Applications.Falcon512.Ring.Carrier.ROMParams.Facts
+public import GordieHowe.Applications.Falcon512.Ring.Carrier.ROMParams.ProofSystem
 
 @[expose] public section
 

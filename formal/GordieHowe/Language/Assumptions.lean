@@ -196,12 +196,14 @@ def RealHolds (rd : ir.Valuation I) : RealCircuit → Prop
 /-! ## The meaning of a circuit -/
 
 /-- **A predicate placed in a circuit holds** at `rd`: a `mod_q`'s field equation (`e = e'` in the
-field, for `q = 0` or the field form; the other forms' equations are given no meaning yet), any
-other predicate itself (`RealizedProgram.HoldsWith`). -/
+field, for `q = 0` or the field form; for the product form with `q > 2` its placed equation,
+`RealizedProgram.ProductPlaced`; the other forms' equations are given no meaning), any other
+predicate itself (`RealizedProgram.HoldsWith`). -/
 def PlacedHolds (rd : ir.Valuation I) : PredBody → Prop
   | .mod d q e e' real =>
     if q = 0 ∨ real.form = .field then
       ∀ i < ir.exprLen e, ir.evalWith rd d e i = ir.evalWith rd d e' i
+    else if real.form.isProduct = true ∧ 2 < q then ir.ProductPlaced rd d q e e' real
     else True
   | b => ir.HoldsWith rd b
 

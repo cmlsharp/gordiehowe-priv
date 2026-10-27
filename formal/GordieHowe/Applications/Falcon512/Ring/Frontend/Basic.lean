@@ -539,6 +539,14 @@ theorem holdsAt_src {e : program.Env I} (hs : program.SourceSatAt e) {p : ℕ}
   hs.preds _ (RealizedProgram.predicate_mem (FalconRingMember.inSource p hp).1)
     (FalconRingMember.inSource p hp).2
 
+/-- **The membership's predicates hold**: `member.signer` and the index bits' check. -/
+def MemberPreds (e : program.Env I) : Prop :=
+  ∀ p ∈ [0, FalconRingMember.idxPred program], program.HoldsAt e (program.predicate p).body
+
+/-- **The membership's predicates hold** where the source program holds. -/
+theorem memberPreds_of_source {e : program.Env I} (hs : program.SourceSatAt e) : MemberPreds e :=
+  fun _ hp => holdsAt_src hs hp
+
 /-- **Entry `i` of the challenge** (`statement.c`) of a statement, read in field `0`. -/
 def chalEntry (x : program.Valuation I) (i : ℕ) : (I 0).K :=
   RealizedProgram.castElt (x (FalconRingMember.chal program) i)
@@ -582,11 +590,12 @@ def bitsOf (e : program.Env I) (i : ℕ) : ℕ :=
 /-- **The signer's position**: the index bits read as a natural. -/
 def idxOf (e : program.Env I) : ℕ := lowBits (bitsOf e) 5
 
-/-- **The index bits are bits** where the source program holds (`member.signer.index.boolean`). -/
-theorem bitsOf_spec {e : program.Env I} (hs : program.SourceSatAt e) {i : ℕ} (hi : i < 6) :
+/-- **The index bits are bits** where the membership's predicates hold
+(`member.signer.index.boolean`). -/
+theorem bitsOf_spec {e : program.Env I} (hs : MemberPreds e) {i : ℕ} (hi : i < 6) :
     bitsOf e i ≤ 1 ∧ program.evalE (program.reader e) 0 (.leaf vIdx) i = (bitsOf e i : (I 0).K) := by
   obtain ⟨t, hb⟩ := FalconRingMember.idxBool (program := program)
-  have h := holdsAt_src hs (p := FalconRingMember.idxPred program) (by simp)
+  have h := hs (FalconRingMember.idxPred program) (by simp)
   rw [hb] at h
   have hx := holdsAt_equal0 h i (by
     rw [RealizedProgram.exprLen_mul, RealizedProgram.exprLen_leaf, (FalconRingMember.sizes (program := program)).1]
@@ -600,13 +609,13 @@ theorem bitsOf_spec {e : program.Env I} (hs : program.SourceSatAt e) {i : ℕ} (
   · rw [h1, RingField.toNat_one (negOne := FalconRingMember.mOne program), Nat.cast_one]
     exact ⟨le_rfl, rfl⟩
 
-theorem bitsOf_le (e : program.Env I) (hs : program.SourceSatAt e) (i : ℕ) : bitsOf e i ≤ 1 := by
+theorem bitsOf_le (e : program.Env I) (hs : MemberPreds e) (i : ℕ) : bitsOf e i ≤ 1 := by
   by_cases hi : i < 6
   · exact (bitsOf_spec hs hi).1
   · simp [bitsOf, hi]
 
 /-- **The signer's position is below `64`.** -/
-theorem idxOf_lt (e : program.Env I) (hs : program.SourceSatAt e) : idxOf e < 64 :=
+theorem idxOf_lt (e : program.Env I) (hs : MemberPreds e) : idxOf e < 64 :=
   lowBits_lt (bitsOf_le e hs) 5
 
 theorem decode_mOne : (I 0).decode (FalconRingMember.mOne program) = -1 :=
@@ -666,15 +675,15 @@ theorem evalE_zero (e : program.Env I) :
     ((FalconRingMember.fields (program := program)) _ (by simp)), e1,
     RingField.decode_zero (negOne := FalconRingMember.mOne program)]
 
-/-- **The membership's equation** (`member.signer`): where the source program holds, the
+/-- **The membership's equation** (`member.signer`): where the membership's predicates hold, the
 fingerprint `Σ_k spectrum_k γ^k` of the committed spectrum is the fingerprint of the natural-order
 transform of the ring's row at the signer's position (`idxOf`). -/
-theorem member_eq {e : program.Env I} (hs : program.SourceSatAt e) :
+theorem member_eq {e : program.Env I} (hs : MemberPreds e) :
     ∑ t : Fin 512, specOf e t * gammaOf e ^ (t : ℕ) = ∑ m : Fin 512, gammaOf e ^ (m : ℕ) *
       RealizedProgram.Ops.nttNatural 512 ((I 0).decode (FalconRingMember.psi program))
         (fun c => ringEntry e.stmt (idxOf e * 512 + c)) m := by
   obtain ⟨t, hb⟩ := FalconRingMember.member (program := program)
-  have h := holdsAt_src hs (p := 0) (by simp)
+  have h := hs 0 (by simp)
   rw [hb] at h
   have hx := holdsAt_equal0 h 0 (by rw [exprLen_memberLhs]; norm_num)
   rw [evalE_zero, evalE_memberLhs e fun i hi => bitsOf_spec hs hi] at hx
@@ -799,7 +808,7 @@ variable [RingField (I 0) (FalconRingMember.mOne program)]
 
 /-- **Without the event, the spectrum is the transform of the signer's row**: the fingerprints
 agree (`member_eq`), so `γ` is a root of the fingerprint's polynomial, which is then `0`. -/
-theorem spec_eq_of_not_event {e : program.Env I} (hs : program.SourceSatAt e)
+theorem spec_eq_of_not_event {e : program.Env I} (hs : MemberPreds e)
     (hev : ¬ ringEvent 0 e) (m : Fin 512) : specOf e m = keySpec e m := by
   have heval : (fpPoly e).eval (gammaOf e) = 0 := by
     rw [fpPoly, coeffPoly_eval, ← Fin.sum_univ_eq_sum_range
@@ -1104,7 +1113,7 @@ theorem mem_rel_of_source (hN : NormSound (program := program) (I := I)) {e : pr
     rw [DFT.negSpectrum_negacyclicConvCoeff (Native.psiF_pow _)]
     funext k
     have h := sig_eq hs k.isLt
-    rw [spec_eq_of_not_event hs hev k, keySpec, (FalconRingBase.ids (program := program)).2.2.2.1,
+    rw [spec_eq_of_not_event (memberPreds_of_source hs) hev k, keySpec, (FalconRingBase.ids (program := program)).2.2.2.1,
       nttNatural_eq_negSpectrum,
       nttNatural_eq_negSpectrum, nttNatural_eq_negSpectrum] at h
     exact h
@@ -1134,7 +1143,7 @@ theorem mem_rel_of_source (hN : NormSound (program := program) (I := I)) {e : pr
   have hq : ∀ i, chalNat e.stmt i < 2 ^ falconSampleBits := fun i =>
     (AField.toNat_lt _).trans (by norm_num [falconSampleBits])
   obtain ⟨hok, hbd⟩ := Native.ringAlgebra_sound hq halg hreq
-  refine ⟨by rw [proj_idx]; exact idxOf_lt e hs, ?_, ?_⟩
+  refine ⟨by rw [proj_idx]; exact idxOf_lt e (memberPreds_of_source hs), ?_, ?_⟩
   · show Falcon512.algebraOk falcon512 (ringKey e.stmt (proj e.stmt e.asg).idx).h _
       (proj e.stmt e.asg).s2.toRq
     rw [proj_idx, proj_s2]

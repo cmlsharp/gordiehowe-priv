@@ -1126,7 +1126,7 @@ theorem macFieldCheckAt_of_odd (hwf : ir.WellFormed) (hI : I.Registered ir)
           exact m.2
         have hT' := hT
         rw [hbt] at hT'
-        have h2d := hT' m hm
+        have h2d := hT'.1 m hm
         obtain ⟨bt, hbt2, hrdtb, hbtiff⟩ := reader_targetBits hwf hL e htb hd (by omega) htf m
         have hint : ir.evalIntWith rd d (.leaf tb) m = bt := by
           simp only [evalIntWith, Expr.evalInt]

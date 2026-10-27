@@ -1604,7 +1604,7 @@ def exprOkB (f : ℕ) (e : Expr) : Bool :=
   e.refs.all (· < ir.exprs.length) &&
     ir.closAll Expr.directNodes (· < ir.values.length) e &&
     ir.closAll Expr.fieldNodes (fun v => ir.valueFieldT v == f) e &&
-    ir.closAll Expr.coefNodes ir.isPublicT e &&
+    ir.closAll Expr.pubNodes ir.isPublicT e &&
     ir.shapeOkV (ir.lenT.getD · 0) e
 
 /-- **`KindOk v k`**, through the tables: the values it reads through `valueT`, a public or bound
@@ -1900,13 +1900,16 @@ def BodyRefsOk (b : PredBody) : Prop := ∀ de ∈ b.exprs, ∀ k ∈ de.2.refs,
 
 theorem lensOkB_iff (ho : ir.RefsOrdered) {b : PredBody} (hb : ir.BodyRefsOk b) :
     ir.lensOkB b = true ↔ ir.LensOk b := by
-  cases b <;> simp only [BodyRefsOk, PredBody.exprs, List.mem_cons, List.mem_map,
-    forall_eq_or_imp, List.not_mem_nil, IsEmpty.forall_iff,
-    implies_true, and_true] at hb <;>
-    simp only [lensOkB, LensOk, beq_iff_eq]
-  · rw [lenOf_eq ho hb.1, lenOf_eq ho hb.2]
-  · rw [lenOf_eq ho hb.1, lenOf_eq ho hb.2]
-  · rw [lenOf_eq ho hb.1, lenOf_eq ho hb.2]
+  cases b <;> simp only [lensOkB, LensOk, beq_iff_eq]
+  · rename_i d e e' t
+    rw [lenOf_eq ho (hb (d, e) (by simp [PredBody.exprs])),
+      lenOf_eq ho (hb (d, e') (by simp [PredBody.exprs]))]
+  · rename_i d q e e' real
+    rw [lenOf_eq ho (hb (d, e) (by simp [PredBody.exprs])),
+      lenOf_eq ho (hb (d, e') (by simp [PredBody.exprs]))]
+  · rename_i dx x dy y k real
+    rw [lenOf_eq ho (hb (dx, x) (by simp [PredBody.exprs])),
+      lenOf_eq ho (hb (dy, y) (by simp [PredBody.exprs]))]
 
 theorem PredOk.bodyRefsOk {b : PredBody} (h : ir.PredOk b) : ir.BodyRefsOk b :=
   fun de hde => (h.1 de hde).2.refs
@@ -2127,13 +2130,13 @@ theorem bodyAdmittedB_iff (ho : ir.RefsOrdered) (pid : ℕ) {b : PredBody} (hb :
     exact targetAdmitsB_iff ho pid d hb.1 hb.2 t
   | mem => simp [bodyAdmittedB, BodyAdmitted]
   | mod d q e e' real =>
-    simp only [BodyRefsOk, PredBody.exprs, List.mem_cons, forall_eq_or_imp, List.not_mem_nil,
-      IsEmpty.forall_iff, implies_true, and_true] at hb
+    have hb1 := hb (d, e) (by simp [PredBody.exprs])
+    have hb2 := hb (d, e') (by simp [PredBody.exprs])
     simp only [bodyAdmittedB, BodyAdmitted, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq]
     refine and_congr (by tauto) ?_
     cases real.target with
     | none => simp [OptTargetAdmits]
-    | some t => exact targetAdmitsB_iff ho pid d hb.1 hb.2 t
+    | some t => exact targetAdmitsB_iff ho pid d hb1 hb2 t
   | cross => simp [bodyAdmittedB, BodyAdmitted]
 
 /-- **`targetsB` is `TargetsAdmit`** for a well-formed program. -/

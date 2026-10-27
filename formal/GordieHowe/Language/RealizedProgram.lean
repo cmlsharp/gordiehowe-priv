@@ -94,12 +94,14 @@ inductive Coef where
 
 /-- **The form of a polynomial operand** of a named operator: its coefficients, or its
 negacyclic transform at the root `psi` (the field element of natural `psi` in the C++ encoding, a
-primitive `2n`-th root of unity) in scheme order. -/
+primitive `2n`-th root of unity) in scheme order or in natural order. -/
 inductive ConvForm where
   /-- The coefficients. -/
   | coefficients
   /-- The transform at `psi`, in scheme order. -/
   | ntt (psi : Nat)
+  /-- The transform at `psi`, in natural order. -/
+  | nttNatural (psi : Nat)
   deriving Repr, DecidableEq, Inhabited
 
 /-- **The output order of a negacyclic transform**: the scheme order (frequency `m` at
@@ -682,9 +684,13 @@ inductive InRealization where
 `e − e' = q (quotientLo + Q)` with `Q` zero (`constant`), a Boolean derived quotient (`bit`), a
 derived quotient bounded by one `in` (`oneDigit`), digits in base `radix` with the top one derived
 (`digits`) or all committed (`committedDigits`), the field equation itself for `q = p` (`field`),
-the grouped form when the left side reaches `p` (`grouped`), or integer equality (`integer`,
+the grouped form when the left side reaches `p` (`grouped`), integer equality (`integer`,
 `q = 0`, `assert_int_equal`: the field equation `e = e'` with the sides' intervals and their span
-below `p`). -/
+below `p`), or the product form (`product`, `spectralProduct`; `lib/gordiehowe/ops/integer_congruence.h`): the
+congruence `e − e' = q (quotientLo + Q)` of terms that are not all affine, `e` the terms of sign
+`+1` and `e'` of sign `−1`, `Q` a quotient the program declares, stated in the field coordinate
+by coordinate (`product`) or, row by row, in the spectrum of its convolutions' transform
+(`spectralProduct`, `RealizedProgram.ProductPlaced`). -/
 inductive ModForm where
   /-- The field equation, `q = p`. -/
   | field
@@ -702,7 +708,17 @@ inductive ModForm where
   | grouped
   /-- Integer equality, `q = 0` (`assert_int_equal`). -/
   | integer
+  /-- The product form, its equation in the field. -/
+  | product
+  /-- The product form, its equation in the spectrum of its convolutions' transform. -/
+  | spectralProduct
   deriving Repr, DecidableEq, Inhabited
+
+/-- Whether a `mod_q`'s realization is the product form (`product` or `spectralProduct`). -/
+def ModForm.isProduct : ModForm → Bool
+  | .product => true
+  | .spectralProduct => true
+  | _ => false
 
 /-- **The grouped form of a `mod_q`**: per group `g` of units `(first, count)` the accumulator `S_g`,
 its quotient digits in base `base` (`digitCount` digits, `groupDigits`), the residue

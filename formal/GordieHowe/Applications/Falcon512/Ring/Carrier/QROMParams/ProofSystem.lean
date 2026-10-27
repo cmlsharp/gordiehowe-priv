@@ -7,6 +7,7 @@ public import GordieHowe.ProofSystem.Program.Headlines
 public import GordieHowe.ProofSystem.Program.FieldProofSystem
 public import GordieHowe.ProofSystem.Program.FieldPackings
 public import GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Realize
+public import GordieHowe.Applications.Falcon512.Ring.Carrier.QROMParams.Facts
 
 @[expose] public section
 
@@ -14,7 +15,7 @@ public import GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Realize
 # GordieHowe: the proof system of `Falcon512.Ring.Carrier.QROMParams`
 
 The security theorem of the proof system at the realized program of the Falcon ring carrier at the QROM parameters
-(`GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Program.program`, export `b65a4929`: one domain `A` over
+(`GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Program.program`, export `5d775ae1`: one domain `A` over
 Goldilocks⁴, one phase with the challenges `member.ring.gamma` and `alpha:A`, the lookup
 tables `A.128` and `A.2048` of one group each, one batch `magnitudes.s2`, no late value), at the GKR
 sources `src` of its circuit:
@@ -32,7 +33,9 @@ sources `src` of its circuit:
   completeness alone;
 * **the round errors**, in full (the carrier has no hand-built model): at the phase's challenge
   round, the source protocol `Π_P₀`'s round error at its one challenge `member.ring.gamma`
-  (`alpha:A` is a realization challenge) and LogUp's `7304 / (p^4 − 2048)` (`GordieHowe.RealizedProgram.realError_eq`:
+  (`alpha:A` is a realization challenge), the selection's `511/p^4` at `member.ring.gamma`
+  (`GordieHowe.RealizedProgram.selError_eq`: the membership's fingerprint, of degree `511`, whose spectrum the
+  signature equation's kernel reads; `selSound`) and LogUp's `7304 / (p^4 − 2048)` (`GordieHowe.RealizedProgram.realError_eq`:
   the groups' `N_g + T − 1`, `(3072 + 127) + (2058 + 2047)`, about `2^-243.17`); at domain `A`'s
   proof rounds each its own charge (`GordieHowe.RealizedProgram.FieldRoundsLe`): the batches' `35/|F|`, GKR's
   `max 3 (2 · gkrWidth)/|F|` per round, the root's combination `1/|F|`, the tree layout's test round `1/|F|`
@@ -80,6 +83,13 @@ source values, the source values are computed only from source values and read f
 the source challenge `member.ring.gamma`. -/
 theorem sourceValid : program.SourceValid := by decide +kernel
 
+/-- **The selections' error** (`RealizedProgram.SelSound`): the one selection the product form's
+kernel reads is the membership's, whose event implies the membership's event
+(`Ring.selSound_carrier`; the selections, the reads and the selection error decided). -/
+theorem selSound : program.SelSound interpQROM :=
+  Ring.selSound_carrier (by decide +kernel) Generated.Falcon512.Ring.Carrier.QROMParams.Valid.wellFormed
+    (by decide +kernel) (by decide +kernel) (by decide +kernel)
+
 variable (src : ∀ c : Fin program.circuits.length, program.CircuitSource interpQROM c)
 
 /-! ## The proof system -/
@@ -113,7 +123,7 @@ def proofSystem :
     ⟨Generated.Falcon512.Ring.Carrier.QROMParams.Valid.valid,
       Generated.Falcon512.Ring.Carrier.QROMParams.Realize.derivable,
       sourceValid, cellsValid, locality⟩
-    interpModel src ready
+    interpModel src ready selSound
 
 /-- **The domains' honest provers of the proof system** (`RealizedProgram.ProofSystem.fieldHonestDomains`), from the
 compiler's completeness. -/

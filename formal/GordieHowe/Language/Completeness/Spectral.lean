@@ -266,7 +266,7 @@ theorem holds_specRowC_srcEnv (hbd : ir.StmtBounded I x) {m q : ℕ}
     obtain ⟨-, hc⟩ := exprIvl_within_of hwf hI hL hIF hlok hd h2 he hwe hi
     obtain ⟨-, hc'⟩ := exprIvl_within_of hwf hI hL hIF hlok hd h2 he' hwe'
       (by rw [← hlen]; exact hi)
-    have hz := hsm i hi
+    have hz := hsm.1 i hi
     rw [Nat.cast_zero, zero_dvd_iff, sub_eq_zero] at hz
     rw [← hc, ← hc', hz]
   · cases hB

@@ -109,12 +109,14 @@ noncomputable def mag2 (j : ℕ) : ℕ := if j < 512 then w.mag (512 + j) else 0
 -- spec-side
 noncomputable def mag1 (j : ℕ) : ℕ := if j < 512 then w.mag j else 0
 
-/-- **The carriers' bias** `512 (q − 1)² + 12289 · 2`, a multiple of `q` above every negative
+/-- **The carriers' quotient offset** `q · 6291457`: `−q · qlo` at the lower end
+`qlo = −6291457` of the signature equation's quotient, a multiple of `q` above every negative
 residual `c − h s2 − s1`. -/
-abbrev bias : ℕ := 77309435394
+abbrev bias : ℕ := 77315715073
 
-/-- **The honest quotient of coefficient `j`** of the biased signature equation
-(`Emulated.Rows.honestQuotient` at the carriers' bias: `(bias + c − h s2 − s1) / q`). -/
+/-- **The honest quotient of coefficient `j`** of the signature equation
+(`Emulated.Rows.honestQuotient` at the carriers' offset: `(bias + c − h s2 − s1) / q`, the
+quotient `Q` of `c − s1 − h s2 = q (qlo + Q)`). -/
 -- spec-side
 noncomputable def quot (j : ℕ) : ℕ :=
   if h : j < 512 then Emulated.Rows.honestQuotient 12289 bias

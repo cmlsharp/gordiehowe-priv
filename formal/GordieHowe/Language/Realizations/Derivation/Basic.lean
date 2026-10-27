@@ -42,6 +42,11 @@ inductive Fact where
   | inRows (t : ℕ) (e : Expr)
   /-- The body of predicate `p` holds. -/
   | holds (p : ℕ)
+  /-- The polynomial whose spectrum, under the negacyclic transform of length `n` at the root `psi`
+  (in natural order when `natural`, in scheme order otherwise), is coordinates `[b n, (b + 1) n)`
+  of value `v` has every coefficient's integer reading (`FieldInterp.coefInt`) in `[lo, hi]`,
+  casting to the coefficient, in domain `d`'s field (`kernelPoly`). -/
+  | kernel (d v b n psi : ℕ) (natural : Bool) (lo hi : ℤ)
   deriving Repr, Inhabited
 
 /-- **The source of a leaf's interval** in a `src` step. -/
@@ -64,6 +69,14 @@ inductive IvlSrc where
   /-- The root-set equations of the predicates `qs`, covering every coordinate: the hull of their
   roots (`rootSetSrc`). -/
   | rootSet (qs : List ℕ)
+  /-- The public-table selections or lookups `qs` place the value's coordinates among the entries
+  of their tables' columns: `[lo, hi]` within the hull of those entries (`tableHullFact`). -/
+  | tableHull (qs : List ℕ) (lo hi : ℤ)
+  /-- Block `b` of the kernel of the C++ operator `op` (a convolution by the spectrum the value
+  holds) is, by the public-table selections `qs`, the transform of a row of their table: its
+  polynomial's coefficients within the hull `[lo, hi]` of the row's entries (`tableKernelFact`,
+  a `kernel` fact). -/
+  | tableKernel (op b : ℕ) (qs : List ℕ) (lo hi : ℤ)
   deriving Repr, Inhabited
 
 /-- **An instance of the linear-operator rule** (`linopFact`). -/
@@ -176,6 +189,10 @@ inductive Step where
   | inDom (d : ℕ) (s : Step)
   /-- A `mod_q` in the grouped form (`groupedFact`): its rows cited by rank, its facts by index. -/
   | groupedMod (rows ivs : List ℕ)
+  /-- The product form of the derivation's predicate (`productModFact`): its quotient's range
+  (premise `ks[0]`) and the intervals of its sides' parts (the other premises, `kernel` facts and
+  `ivl` facts in the order of the parts). -/
+  | productMod (ks : List ℕ)
   deriving Repr, Inhabited
 
 /-- **A derivation**: its steps in order. -/
@@ -261,6 +278,8 @@ def Fact.beq : Fact → Fact → Bool
   | .dvd d e q, .dvd d' e' q' => d == d' && e.beq e' && q == q'
   | .inRows t e, .inRows t' e' => t == t' && e.beq e'
   | .holds p, .holds p' => p == p'
+  | .kernel d v b n psi o lo hi, .kernel d' v' b' n' psi' o' lo' hi' =>
+    d == d' && v == v' && b == b' && n == n' && psi == psi' && o == o' && lo == lo' && hi == hi'
   | _, _ => false
 
 theorem Expr.beq_iff {e e' : Expr} : e.beq e' = true ↔ e = e' :=
@@ -279,6 +298,7 @@ def Fact.dom : Fact → ℕ
   | .dvd d _ _ => d
   | .inRows _ _ => 0
   | .holds _ => 0
+  | .kernel d _ _ _ _ _ _ _ => d
 
 /-- **The body a shared entry is checked against** in domain `d`: an `in` with no records, which
 no rule concludes. -/
@@ -306,6 +326,14 @@ section
 
 variable (ir : RealizedProgram) {I : Interp}
 
+/-- **Coefficient `i` of the polynomial whose spectrum is coordinates `[b n, (b + 1) n)` of value
+`v`**, in domain `d`'s field: the inverse transform of length `n` at the root `psi`, in natural
+order when `natural`, in scheme order otherwise (`NamedOp.formPoly`). -/
+def kernelPoly (rd : ir.Valuation I) (d v b n psi : ℕ) (natural : Bool) (i : ℕ) :
+    (I (ir.domainField d)).K :=
+  NamedOp.formPoly (I := I) (ir.domainField d) n (fun k => castElt (rd v (b * n + k)))
+    (if natural then .nttNatural psi else .ntt psi) i
+
 /-- **A fact holds** at the reader `rd`. -/
 def Fact.HoldsWith (rd : ir.Valuation I) : Fact → Prop
   | .eq d e₁ e₂ => ∀ i < ir.exprLen e₁, ir.evalWith rd d e₁ i = ir.evalWith rd d e₂ i
@@ -318,6 +346,11 @@ def Fact.HoldsWith (rd : ir.Valuation I) : Fact → Prop
   | .inRows t e => ∀ i < ir.exprLen e, ∃ j, ir.tableRow rd (ir.chalField (ir.alphaOf t)) t j =
       ir.evalE rd (ir.chalField (ir.alphaOf t)) e i
   | .holds p => ir.HoldsWith rd (ir.predicate p).body
+  | .kernel d v b n psi natural lo hi => ∀ i < n,
+      lo ≤ (I (ir.domainField d)).coefInt (ir.kernelPoly rd d v b n psi natural i) ∧
+      (I (ir.domainField d)).coefInt (ir.kernelPoly rd d v b n psi natural i) ≤ hi ∧
+      (((I (ir.domainField d)).coefInt (ir.kernelPoly rd d v b n psi natural i) : ℤ) :
+        (I (ir.domainField d)).K) = ir.kernelPoly rd d v b n psi natural i
 
 variable {ir} in
 /-- **A fact holds in the environment `e`**: at its reader. -/

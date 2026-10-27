@@ -452,7 +452,7 @@ theorem holdsAt {e : program.Env I} (hs : program.SourceSatAt e) {p : ℕ}
 theorem eq_of_modZero {rd : program.Valuation I} {d : ℕ} {l r : RealizedProgram.Expr} {real : RealizedProgram.ModRealization}
     (h : program.HoldsWith rd (.mod d 0 l r real)) {i : ℕ} (hi : i < program.exprLen l) :
     program.evalIntWith rd d l i = program.evalIntWith rd d r i := by
-  have := h i hi
+  have := h.1 i hi
   rwa [Nat.cast_zero, zero_dvd_iff, sub_eq_zero] at this
 
 /-- **A range membership of one record** gives a natural below the bound. -/

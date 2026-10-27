@@ -14,7 +14,7 @@ public import GordieHowe.Language.Realizations.Realize
 # GordieHowe: the fields of the emulated Falcon programs
 
 The ring carrier programs at the ROM and QROM parameters (`Falcon512.Ring.Carrier.ROMParams`,
-`Falcon512.Ring.Carrier.QROMParams`, export `b65a4929`) emulate Falcon's arithmetic modulo `q` in
+`Falcon512.Ring.Carrier.QROMParams`, export `5d775ae1`) emulate Falcon's arithmetic modulo `q` in
 one domain `A` over a Goldilocks extension (Goldilocks² at the ROM parameters, Goldilocks⁴ at the
 QROM parameters: `GordieHowe.RealizedProgram.gold2`, `GordieHowe.RealizedProgram.gold4`, which
 decode a natural as its cast; every constant of these programs is below `p`). This file states the

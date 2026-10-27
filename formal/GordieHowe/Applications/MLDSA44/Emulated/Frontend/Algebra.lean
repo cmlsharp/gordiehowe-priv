@@ -78,7 +78,8 @@ class MldsaEAlgebra (program : RealizedProgram) extends MldsaECross program wher
   /-- `hint_weight.weight`: the hint's sum below `81`. -/
   pred15 : ∃ real, (program.predicate 15).body = .mem 0 [.apply (.sum 1024) (.leaf 60)] (.range 81) real
   /-- `signature.relation`: `q` divides the sides' integer difference. -/
-  pred274 : ∃ real, (program.predicate 274).body = .mod 0 8380417 sigL sigR real
+  pred274 : ∃ real, (program.predicate 274).body = .mod 0 8380417 sigL sigR real ∧
+    real.form.isProduct = false
   /-- `expr7`. -/
   expr7 : program.expr 7 = .reindex idx11 (.leaf 61)
   /-- `expr8`. -/
@@ -163,7 +164,8 @@ theorem pred15 : ∃ real, (program.predicate 15).body =
     .mem 0 [.apply (.sum 1024) (.leaf 60)] (.range 81) real :=
   MldsaEAlgebra.pred15
 
-theorem pred274 : ∃ real, (program.predicate 274).body = .mod 0 8380417 sigL sigR real :=
+theorem pred274 : ∃ real, (program.predicate 274).body = .mod 0 8380417 sigL sigR real ∧
+    real.form.isProduct = false :=
   MldsaEAlgebra.pred274
 
 /-- **A natural below the offset's bound has room in the Goldilocks prime.** -/
@@ -610,7 +612,7 @@ theorem decompose {e : program.Env interp} (hs : program.SourceSatAt e) {m : ℕ
 theorem eq_of_modZero {rd : program.Valuation interp} {d : ℕ} {l r : RealizedProgram.Expr} {real : RealizedProgram.ModRealization}
     (h : program.HoldsWith rd (.mod d 0 l r real)) {i : ℕ} (hi : i < program.exprLen l) :
     program.evalIntWith rd d l i = program.evalIntWith rd d r i := by
-  have := h i hi
+  have := h.1 i hi
   rwa [Nat.cast_zero, zero_dvd_iff, sub_eq_zero] at this
 
 /-- The values UseHint reads are not constants, of field `0`. -/
@@ -1110,9 +1112,9 @@ theorem sig_mod {e : program.Env interp} (hs : program.SourceSatAt e) {pk : MLDS
         (fun m => (program.intOf (program.reader e) 59 ((l : ℕ) * 256 + m) : _root_.MLDSA.Coeff)) k =
       0 := by
   have h := holdsA hs (p := 274) (by simp)
-  obtain ⟨_, hb⟩ := pred274 (program := program)
+  obtain ⟨_, hb, -⟩ := pred274 (program := program)
   rw [hb] at h
-  have hd := h ((i : ℕ) * 256 + k) (by
+  have hd := h.1 ((i : ℕ) * 256 + k) (by
     change _ < program.exprLen sigL
     have : program.exprLen sigL = 1024 := MldsaEAlgebra.lenSigL
     rw [this]

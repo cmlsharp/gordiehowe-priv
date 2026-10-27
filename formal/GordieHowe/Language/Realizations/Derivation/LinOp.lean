@@ -414,6 +414,7 @@ theorem block_eq_opRows {rd : ir.Valuation I} {f : ℕ} [CharP (I f).K (ir.charO
       simp only [NamedOp.block, NamedOp.formPoly, Nat.zero_add]
       exact negacyclic_split _ _ _ hr
     | ntt psi => simp [opRows, opRow] at hPQ
+    | nttNatural psi => simp [opRows, opRow] at hPQ
   | .polyBroadcast t K form, x, j, P, Q, hr, hPQ => by
     cases form with
     | coefficients =>
@@ -437,6 +438,7 @@ theorem block_eq_opRows {rd : ir.Valuation I} {f : ℕ} [CharP (I f).K (ir.charO
         obtain ⟨rfl, rfl⟩ := hPQ
         simp [NamedOp.block, if_neg hj]
     | ntt psi => simp [opRows, opRow] at hPQ
+    | nttNatural psi => simp [opRows, opRow] at hPQ
   | .polyMatVec a K L form, x, j, P, Q, hr, hPQ => by
     cases form with
     | coefficients =>
@@ -466,6 +468,7 @@ theorem block_eq_opRows {rd : ir.Valuation I} {f : ℕ} [CharP (I f).K (ir.charO
         obtain ⟨rfl, rfl⟩ := hPQ
         simp [NamedOp.block, if_neg hj]
     | ntt psi => simp [opRows, opRow] at hPQ
+    | nttNatural psi => simp [opRows, opRow] at hPQ
   | .fromDigits k base, x, r, P, Q, hr, hPQ => by
     simp only [opRows] at hPQ
     split_ifs at hPQ with hb

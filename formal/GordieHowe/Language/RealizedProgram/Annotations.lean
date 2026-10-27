@@ -204,7 +204,7 @@ def annAtB (a : ExprAnn) (k : ℕ) (e : Expr) : Bool :=
     (e.fieldNodes.all fun v => (a.fieldsAt k).testBit (ir.valueFieldT v)) &&
     e.refs.all (fun j => a.fieldsAt j &&& a.fieldsAt k == a.fieldsAt j) &&
     (!a.pub.testBit k ||
-      (e.coefNodes.all ir.isPublicT && e.refs.all fun j => a.pub.testBit j)) &&
+      (e.pubNodes.all ir.isPublicT && e.refs.all fun j => a.pub.testBit j)) &&
     a.lenAt k == ir.lenV a.lenAt e
 
 /-- **The annotations' check**: every shared expression passes its local rules. -/
@@ -275,7 +275,7 @@ theorem field_rule {a : ExprAnn} (h : ir.exprAnnOkB a = true) :
 
 /-- **The public mask covers the coefficient values read.** -/
 theorem pub_rule {a : ExprAnn} (h : ir.exprAnnOkB a = true) :
-    ∀ k < ir.exprs.length, (∀ x ∈ Expr.coefNodes (ir.expr k),
+    ∀ k < ir.exprs.length, (∀ x ∈ Expr.pubNodes (ir.expr k),
       a.pub.testBit k = true → ir.isPublicT x = true) ∧
       ∀ j ∈ (ir.expr k).refs, ∀ x, (a.pub.testBit j = true → ir.isPublicT x = true) →
         a.pub.testBit k = true → ir.isPublicT x = true := by
@@ -408,15 +408,15 @@ def inFieldA (f : ℕ) (e : Expr) : Bool :=
   (e.fieldNodes.all fun v => ir.valueFieldT v == f) &&
     e.refs.all fun j => a.fieldsAt j == 0 || a.fieldsAt j == 1 <<< f
 
-/-- **`closAll Expr.coefNodes isPublicT`, through the public mask.** -/
-def pubA (e : Expr) : Bool := e.coefNodes.all ir.isPublicT && e.refs.all fun j => a.pub.testBit j
+/-- **`closAll Expr.pubNodes isPublicT`, through the public mask.** -/
+def pubA (e : Expr) : Bool := e.pubNodes.all ir.isPublicT && e.refs.all fun j => a.pub.testBit j
 
 /-! ### One walk for the three node tests -/
 
 mutual
 
 /-- **The three node tests in one walk**: `p` on the values `e` reads directly, `q` on those it
-reads in its own field, `r` on its coefficient values (`directNodes`, `fieldNodes`, `coefNodes`). -/
+reads in its own field, `r` on its coefficient values (`directNodes`, `fieldNodes`, `pubNodes`). -/
 def Expr.walk3 (p q r : ℕ → Bool) : Expr → Bool
   | .leaf v => p v && q v
   | .add e e' => Expr.walk3 p q r e && Expr.walk3 p q r e'
@@ -431,8 +431,8 @@ def Expr.walk3 (p q r : ℕ → Bool) : Expr → Bool
   | .prod _ e => Expr.walk3 p q r e
   | .mux b t e => Expr.walk3 p q r b && Expr.walk3 p q r t && Expr.walk3 p q r e
   | .apply op e =>
-    op.operands.all (fun v => p v && q v && r v) && op.foreignOperands.all (fun v => p v && r v) &&
-      Expr.walk3 p q r e
+    op.operands.all (fun v => p v && q v) && op.pubOperands.all r &&
+      op.foreignOperands.all (fun v => p v && r v) && Expr.walk3 p q r e
   | .ref _ => true
   | .logic _ _ args => Expr.walk3List p q r args
 
@@ -462,53 +462,53 @@ theorem all_and2 (l : List ℕ) (p r : ℕ → Bool) :
 mutual
 
 theorem Expr.walk3_eq (p q r : ℕ → Bool) : ∀ e : Expr,
-    Expr.walk3 p q r e = (e.directNodes.all p && e.fieldNodes.all q && e.coefNodes.all r)
-  | .leaf v => by simp [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes]
+    Expr.walk3 p q r e = (e.directNodes.all p && e.fieldNodes.all q && e.pubNodes.all r)
+  | .leaf v => by simp [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes]
   | .add e e' | .sub e e' | .mul e e' | .concat e e' => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, List.all_append,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, List.all_append,
       Expr.walk3_eq p q r e, Expr.walk3_eq p q r e']
-    cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;>
-      cases e'.directNodes.all p <;> cases e'.fieldNodes.all q <;> cases e'.coefNodes.all r <;> rfl
+    cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;>
+      cases e'.directNodes.all p <;> cases e'.fieldNodes.all q <;> cases e'.pubNodes.all r <;> rfl
   | .scale c e => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, List.all_append,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, List.all_append,
       Expr.walk3_eq p q r e, all_and3]
     cases c.nodes.all p <;> cases c.nodes.all q <;> cases c.nodes.all r <;>
-      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;> rfl
+      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;> rfl
   | .reindex _ e | .prod _ e => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, Expr.walk3_eq p q r e]
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, Expr.walk3_eq p q r e]
   | .linear rows e => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, List.all_append,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, List.all_append,
       Expr.walk3_eq p q r e, all_and3]
     generalize (rows.flatMap (·.flatMap fun t => t.2.nodes)) = L
     cases L.all p <;> cases L.all q <;> cases L.all r <;>
-      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;> rfl
+      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;> rfl
   | .mux b t e => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, List.all_append,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, List.all_append,
       Expr.walk3_eq p q r b, Expr.walk3_eq p q r t, Expr.walk3_eq p q r e]
-    cases b.directNodes.all p <;> cases b.fieldNodes.all q <;> cases b.coefNodes.all r <;>
-      cases t.directNodes.all p <;> cases t.fieldNodes.all q <;> cases t.coefNodes.all r <;>
-      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;> rfl
+    cases b.directNodes.all p <;> cases b.fieldNodes.all q <;> cases b.pubNodes.all r <;>
+      cases t.directNodes.all p <;> cases t.fieldNodes.all q <;> cases t.pubNodes.all r <;>
+      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;> rfl
   | .apply op e => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes, List.all_append,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes, List.all_append,
       Expr.walk3_eq p q r e, all_and3, all_and2]
-    cases op.operands.all p <;> cases op.operands.all q <;> cases op.operands.all r <;>
+    cases op.operands.all p <;> cases op.operands.all q <;> cases op.pubOperands.all r <;>
       cases op.foreignOperands.all p <;> cases op.foreignOperands.all r <;>
-      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;> rfl
+      cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;> rfl
   | .ref _ => rfl
   | .logic _ _ args => by
-    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.coefNodes,
+    simp only [Expr.walk3, Expr.directNodes, Expr.fieldNodes, Expr.pubNodes,
       Expr.walk3List_eq p q r args]
 
 theorem Expr.walk3List_eq (p q r : ℕ → Bool) : ∀ es : List Expr,
     Expr.walk3List p q r es = ((Expr.directNodesList es).all p &&
-      (Expr.fieldNodesList es).all q && (Expr.coefNodesList es).all r)
+      (Expr.fieldNodesList es).all q && (Expr.pubNodesList es).all r)
   | [] => rfl
   | e :: es => by
-    simp only [Expr.walk3List, Expr.directNodesList, Expr.fieldNodesList, Expr.coefNodesList,
+    simp only [Expr.walk3List, Expr.directNodesList, Expr.fieldNodesList, Expr.pubNodesList,
       List.all_append, Expr.walk3_eq p q r e, Expr.walk3List_eq p q r es]
-    cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.coefNodes.all r <;>
+    cases e.directNodes.all p <;> cases e.fieldNodes.all q <;> cases e.pubNodes.all r <;>
       cases (Expr.directNodesList es).all p <;> cases (Expr.fieldNodesList es).all q <;>
-      cases (Expr.coefNodesList es).all r <;> rfl
+      cases (Expr.pubNodesList es).all r <;> rfl
 
 end
 
@@ -591,9 +591,9 @@ theorem closAll_inField (h : ir.exprAnnOkB a = true) {f : ℕ} {e : Expr}
 
 theorem closAll_pub (h : ir.exprAnnOkB a = true) {e : Expr}
     (he : ∀ k ∈ e.refs, k < ir.exprs.length) (hp : ir.pubA a e = true) :
-    ir.closAll Expr.coefNodes ir.isPublicT e = true := by
+    ir.closAll Expr.pubNodes ir.isPublicT e = true := by
   simp only [pubA, Bool.and_eq_true, List.all_eq_true] at hp
-  exact closAll_of_rule (refsOrdered_of_ann h) Expr.coefNodes (fun k => a.pub.testBit k)
+  exact closAll_of_rule (refsOrdered_of_ann h) Expr.pubNodes (fun k => a.pub.testBit k)
     (fun b x => b = true → ir.isPublicT x = true) (pub_rule h) _ he
     (List.all_eq_true.2 hp.1) fun k hk x hx => hx (hp.2 k hk)
 
@@ -610,7 +610,7 @@ theorem exprOkF_eq (f : ℕ) (e : Expr) : ir.exprOkF a f e = ir.exprOkA a f e :=
   cases e.refs.all (· < ir.exprs.length) <;>
     cases e.directNodes.all (· < ir.values.length) <;>
     cases e.fieldNodes.all (fun v => ir.valueFieldT v == f) <;>
-    cases e.coefNodes.all ir.isPublicT <;>
+    cases e.pubNodes.all ir.isPublicT <;>
     cases e.refs.all (fun j => a.maxAt j ≤ ir.values.length) <;>
     cases e.refs.all (fun j => a.fieldsAt j == 0 || a.fieldsAt j == 1 <<< f) <;>
     cases e.refs.all (fun j => a.pub.testBit j) <;> cases ir.shapeOkV a.lenAt e <;> rfl
@@ -649,10 +649,10 @@ theorem lensOkB_of_A (h : ir.exprAnnOkB a = true) {b : PredBody} (hb : ir.BodyRe
     rwa [← lenV_lenAt h hb.1, ← lenV_lenAt h hb.2]
   | mem _ _ _ _ => rfl
   | mod d q e e' r =>
-    simp only [BodyRefsOk, PredBody.exprs, List.mem_cons, List.not_mem_nil, or_false,
-      forall_eq_or_imp, forall_eq] at hb
+    have hb1 := hb (d, e) (by simp [PredBody.exprs])
+    have hb2 := hb (d, e') (by simp [PredBody.exprs])
     simp only [lensOkA, lensOkB] at hA ⊢
-    rwa [← lenV_lenAt h hb.1, ← lenV_lenAt h hb.2]
+    rwa [← lenV_lenAt h hb1, ← lenV_lenAt h hb2]
   | cross dx x dy y k r =>
     simp only [BodyRefsOk, PredBody.exprs, List.mem_cons, List.not_mem_nil, or_false,
       forall_eq_or_imp, forall_eq] at hb
@@ -793,15 +793,15 @@ theorem bodyAdmittedB_of_A (hl : ir.exprAnnOkB a = true) (hd : ir.degZeroOkB a =
     exact targetAdmitsB_of_A hl hd hc hb.1 hb.2 t h
   | mem _ _ _ _ => rfl
   | mod d q e e' real =>
-    simp only [BodyRefsOk, PredBody.exprs, List.mem_cons, List.not_mem_nil, or_false,
-      forall_eq_or_imp, forall_eq] at hb
+    have hb1 := hb (d, e) (by simp [PredBody.exprs])
+    have hb2 := hb (d, e') (by simp [PredBody.exprs])
     simp only [bodyAdmittedA, bodyAdmittedB, Bool.and_eq_true] at h ⊢
     refine ⟨h.1, ?_⟩
     have h2 := h.2
     revert h2
     cases real.target with
     | none => exact fun _ => rfl
-    | some t => exact fun h2 => targetAdmitsB_of_A hl hd hc hb.1 hb.2 t h2
+    | some t => exact fun h2 => targetAdmitsB_of_A hl hd hc hb1 hb2 t h2
   | cross _ _ _ _ _ _ => rfl
 
 /-- **`targetsB` from `targetsA`, with checked annotations and closures.** -/

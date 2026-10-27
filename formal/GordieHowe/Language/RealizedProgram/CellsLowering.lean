@@ -97,7 +97,8 @@ def loweredB (d p : ℕ) : Bool :=
   decide (p < ir.predicates.length) &&
     (ir.isRow d p || ir.isViewRow d p || ir.batchPartB d p || ir.bitsBatchPartB d p ||
       ir.isQuad d p ||
-      (((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq) &&
+      (((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq ||
+        (ir.predicate p).body.isProductMod) &&
         (List.finRange ir.circuits.length).any fun c =>
           decide ((ir.circuit c).domain = d) &&
             (decide (CircuitEntry.pred p ∈ (ir.circuit c).entries) ||
@@ -224,7 +225,8 @@ structure CellsValid : Prop where
   /-- Every field `equal` and every `mod_0` is lowered into its domain, or realized through its
   convolutions' realizations. -/
   equal : ∀ p < ir.predicates.length,
-    ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq) = true →
+    ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq ||
+        (ir.predicate p).body.isProductMod) = true →
       (ir.loweredOwnB p || ir.realizedOwnB p) = true
   /-- Every group's LogUp identity is a realization circuit of a domain. -/
   logup : ∀ t < ir.tables.length, ∀ g < ir.groupCountOf t, ir.logupAnyB t g = true
@@ -240,7 +242,8 @@ structure CellsValid : Prop where
 theorem cellsValid_iff : ir.CellsValid ↔
     ir.domains.length ≠ 0 ∧
       (∀ p < ir.predicates.length,
-        ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq) = true →
+        ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq ||
+        (ir.predicate p).body.isProductMod) = true →
           (ir.loweredOwnB p || ir.realizedOwnB p) = true) ∧
       (∀ t < ir.tables.length, ∀ g < ir.groupCountOf t, ir.logupAnyB t g = true) ∧
       (∀ t < ir.tables.length, ir.alphaNodeB t = true) ∧
@@ -266,7 +269,7 @@ theorem lowered_of_loweredB {d p : ℕ} (h : ir.loweredB d p = true) : ir.Lowere
   · exact .batch ⟨b, hb⟩ hmem
   · exact .bitsBatch b hb hmem
   · exact .quad hp hq
-  · exact .placed ⟨c, hc⟩ (Bool.or_eq_true_iff.2 heq) hmem
+  · exact .placed ⟨c, hc⟩ (by simpa only [Bool.or_eq_true] using heq) hmem
 
 /-- **A predicate decided lowered into its own domain** is lowered into a domain `d` of the
 program, its domain. -/
@@ -529,6 +532,27 @@ theorem realizedAt_of_holds (hv : ir.CellsValid) (hl : ir.Local treeNodes)
         (placedHolds_of_holds hadd hz (h d) hlow)
       rw [hb, placedHolds_mod_zero_iff] at hl'
       exact hl'
+  product p hp dd m lhs rhs real hb hf h2 := by
+    obtain ⟨pid, hpid, rfl⟩ := exists_index_of_mem hp
+    have hown := hv.equal pid hpid (by rw [hb]; simp [PredBody.isProductMod, hf])
+    have hre : ir.realizedOwnB pid = false := by
+      unfold realizedOwnB
+      rw [hb]
+      cases m with
+      | zero => omega
+      | succ k => rfl
+    rw [hre, Bool.or_false] at hown
+    obtain ⟨d, hd, hlow⟩ := exists_lowered_of_loweredOwnB hown
+    have hl' := (placedHolds_cellValuation_iff hl a d hpid hd).1
+      (placedHolds_of_holds hadd hz (h d) hlow)
+    have hnf : ¬ (m = 0 ∨ real.form = .field) := by
+      rintro (h0 | h0)
+      · omega
+      · rw [h0] at hf
+        cases hf
+    rw [hb] at hl'
+    simp only [PlacedHolds, if_neg hnf, if_pos (And.intro hf h2)] at hl'
+    exact hl'
   logup t ht g hg := by
     obtain ⟨c, hcd, hc⟩ := exists_logup_of_logupAnyB (hv.logup t ht g hg)
     obtain ⟨v, hnode, hf⟩ := exists_chalNode_of_alphaNodeB (hv.alpha t ht)

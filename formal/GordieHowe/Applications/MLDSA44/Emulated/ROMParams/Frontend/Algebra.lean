@@ -46,7 +46,7 @@ instance : Emulated.MldsaEAlgebra program where
   pred13 := ⟨_, rfl⟩
   pred14 := ⟨_, rfl⟩
   pred15 := ⟨_, rfl⟩
-  pred274 := ⟨_, rfl⟩
+  pred274 := ⟨_, rfl, rfl⟩
   expr7 := rfl
   expr8 := rfl
   expr0 := rfl

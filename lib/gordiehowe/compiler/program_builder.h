@@ -3742,6 +3742,24 @@ class ProgramBuilder : Lowering {
       q.size = r.size;
       P_.predicates.push_back(std::move(q));
     }
+    // The quotient of a source product-form mod_q is a source value (the
+    // declaration commits it with the program), so its range is a source
+    // predicate too, as the source program reads it (Lean `inSource`).
+    for (size_t i = 0; i < P_.predicates.size(); ++i) {
+      const ir::Predicate &m = P_.predicates[i];
+      if (m.body != ir::Predicate::kMod || m.role != ir::Predicate::Role::kSource ||
+          (m.mod.form != ir::ModForm::kProduct &&
+           m.mod.form != ir::ModForm::kSpectralProduct))
+        continue;
+      for (Id rid : m.mod.ranges) {
+        if (rid >= P_.predicates.size()) continue;
+        ir::Predicate &rq = P_.predicates[rid];
+        if (rq.role == ir::Predicate::Role::kRealization && rq.owner == Id(i)) {
+          rq.role = ir::Predicate::Role::kSource;
+          rq.owner = kNone;
+        }
+      }
+    }
     // Tables.
     for (const auto &T : tables_) {
       ir::Table t;

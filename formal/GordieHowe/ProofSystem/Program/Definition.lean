@@ -182,6 +182,9 @@ structure ProofSystem (P : Export.Plan) (ir : RealizedProgram) (I : Interp) wher
   /-- Every domain's circuit proof, of the domain's predicate under the compiler trust. -/
   proof : ∀ d : Fin ir.domains.length, DomainProof (ir.layout I) (ir.Valuation I)
     ((ir.domainOf I d).guard (ir.CircuitsEnforce I src))
+  /-- The selections' error bound (`RealizedProgram.SelSound`): the probability of the selection
+  events a product form's kernels read. -/
+  selSound : ir.SelSound I
 
 namespace ProofSystem
 
@@ -353,7 +356,7 @@ def realizeSource :
 /-- **The realization step from the source program has the realization step's errors.** -/
 theorem eventBound_realizeSource :
     B.realizeSource.EventBound fun k => ∑ jj : ir.ChalAt k, ir.realError I jj.1 :=
-  Lowering.eventBound_weaken (eventBound_realizeLowering_of_derivable _ _ _ _ _ _ _)
+  Lowering.eventBound_weaken (eventBound_realizeLowering_of_derivable _ _ _ _ _ _ _ B.selSound)
 
 /-- **The cells lowering under the trust adds no error.** -/
 theorem eventBound_cellsLowering (T : B.CircuitsEnforce) : (B.cellsLowering T).EventBound 0 :=

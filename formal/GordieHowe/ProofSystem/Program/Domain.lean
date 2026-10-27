@@ -213,9 +213,10 @@ inductive Lowered (d p : ℕ) : Prop where
   | row (hp : p < ir.predicates.length) (hrow : ir.isRow d p = true)
   /-- A family of rows on views of `d`. -/
   | viewRow (hp : p < ir.predicates.length) (hrow : ir.isViewRow d p = true)
-  /-- A field `equal` or a `mod_0` placed in circuit `c` of `d`. -/
+  /-- A field `equal`, a `mod_0` or a product-form `mod_q` placed in circuit `c` of `d`. -/
   | placed (c : ir.DomainCircuit d)
-      (heq : ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq) = true)
+      (heq : ((ir.predicate p).body.isEqual || (ir.predicate p).body.isIntEq ||
+        (ir.predicate p).body.isProductMod) = true)
       (hmem : CircuitEntry.pred p ∈ (ir.circuit c.1).entries ∨
         CircuitEntry.typeCheck p ∈ (ir.circuit c.1).entries)
   /-- A part of batch `b` of `d`. -/

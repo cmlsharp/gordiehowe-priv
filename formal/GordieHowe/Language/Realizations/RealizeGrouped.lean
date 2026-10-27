@@ -557,6 +557,7 @@ theorem holdsWith_mod_of_grouped (hwf : ir.WellFormed) (hI : I.Registered ir)
         have hcm : 2 * u.width < ir.charOf (ir.domainField d) := hcmB
         set rd := ir.reader e with hrd
         set ng := G.groups.length with hng
+        refine (holdsWith_mod_iff (.inl (by rw [hok.form]; rfl))).2 ?_
         intro i hi
         have hiw : i < u.width := by
           change i < (ir.value u.blind).size at hi
@@ -849,8 +850,8 @@ final quotient below their bounds, the blind's and the right side's intervals, a
 conditions at those numbers. -/
 theorem holdsWith_mod_of_grouped_named (hwf : ir.WellFormed) (hI : I.Registered ir)
     (hL : I.Lawful ir primeNodes) (e : ir.Env I) {d q : ℕ} {E E' : Expr} {real : ModRealization}
-    (hpo : ir.PredOk (.mod d q E E' real)) (hq : 0 < q) (h2 : 2 < ir.charOf (ir.domainField d))
-    {G : GroupedMod} {u : MacUnits} {acc : ℕ} (hu : macUnits? E = some u)
+    (hpo : ir.PredOk (.mod d q E E' real)) (hform : real.form.isProduct = false) (hq : 0 < q)
+    (h2 : 2 < ir.charOf (ir.domainField d)) {G : GroupedMod} {u : MacUnits} {acc : ℕ} (hu : macUnits? E = some u)
     (hunits : ir.macUnitsOkB d u G = true) (hres : ir.residuesB d q u G acc = true)
     (hfin : ir.finalQuotB d q E' u G real = true) (rows : List ℕ)
     (hrowsB : ∀ g < G.groups.length, ir.groupRowCoreB d u G acc g (G.groups.getD g default)
@@ -898,6 +899,7 @@ theorem holdsWith_mod_of_grouped_named (hwf : ir.WellFormed) (hI : I.Registered 
     have hcm : 2 * u.width < ir.charOf (ir.domainField d) := hcmB
     set rd := ir.reader e with hrd
     set ng := G.groups.length with hng
+    refine (holdsWith_mod_iff (.inl hform)).2 ?_
     intro i hi
     have hiw : i < u.width := by
       change i < (ir.value u.blind).size at hi

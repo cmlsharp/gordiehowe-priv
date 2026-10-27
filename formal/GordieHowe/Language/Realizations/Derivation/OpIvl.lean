@@ -223,6 +223,20 @@ theorem inverseNtt_mem_range {n : ℕ} {ψ : K} {g : ℕ → K} (ψ' : ZMod p)
   simp only [g', dif_pos hm]
   exact Classical.choose_spec (hg m hm)
 
+/-- **The natural-order inverse transform of prime-field entries** at a prime-field root is in the
+prime field. -/
+theorem inverseNttNatural_mem_range {n : ℕ} {ψ : K} {g : ℕ → K} (ψ' : ZMod p)
+    (hψ : ψ = ZMod.castHom (dvd_refl p) K ψ')
+    (hg : ∀ s < n, ∃ z : ZMod p, g s = ZMod.castHom (dvd_refl p) K z) (i : ℕ) :
+    ∃ z : ZMod p, Ops.inverseNttNatural n ψ g i = ZMod.castHom (dvd_refl p) K z := by
+  classical
+  let g' : ℕ → ZMod p := fun s => if h : s < n then Classical.choose (hg s h) else 0
+  refine ⟨Ops.inverseNttNatural n ψ' g' i, ?_⟩
+  rw [Ops.map_inverseNttNatural, ← hψ]
+  refine Ops.inverseNttNatural_congr (fun m hm => ?_) i
+  simp only [g', dif_pos hm]
+  exact Classical.choose_spec (hg m hm)
+
 end Prime
 
 /-- **A centred residue's magnitude** is at most the characteristic. -/
@@ -287,6 +301,8 @@ theorem negacyclicConv_entries {f p : ℕ} [CharP (I f).K p] [_root_.Fact p.Prim
       (castElt (leaf h s) : (I f).K) = ZMod.castHom (dvd_refl p) (I f).K z)
     (hψ : ∀ psi, form = .ntt psi → ∃ z : ZMod p,
       (I f).decode psi = ZMod.castHom (dvd_refl p) (I f).K z)
+    (hψN : ∀ psi, form = .nttNatural psi → ∃ z : ZMod p,
+      (I f).decode psi = ZMod.castHom (dvd_refl p) (I f).K z)
     (t r : ℕ) :
     ∃ z : ZMod p, NamedOp.block ir f leaf (.negacyclicConv h form)
       (fun s => if s = t then 1 else 0) r = ZMod.castHom (dvd_refl p) (I f).K z := by
@@ -302,6 +318,9 @@ theorem negacyclicConv_entries {f p : ℕ} [CharP (I f).K p] [_root_.Fact p.Prim
   | ntt psi =>
     obtain ⟨ψ', hψ'⟩ := hψ psi rfl
     exact inverseNtt_mem_range ψ' hψ' hh s
+  | nttNatural psi =>
+    obtain ⟨ψ', hψ'⟩ := hψN psi rfl
+    exact inverseNttNatural_mem_range ψ' hψ' hh s
 
 /-- **The public operand an `ivlApply` step names** has its interval at a premise. -/
 theorem ivlApply_pub {fs : List Fact} {d : ℕ} {a : Option ℕ} {v : ℕ} {A : Ivl}
@@ -504,7 +523,7 @@ theorem ivlApplyFact_sound {primeNodes : ℕ → List String} (hwf : ir.WellForm
       rw [map_natCast, hdec psi hpsi]
     have hR := applyInt_of_range hp htn rd (.negacyclicConv v (.ntt psi))
       (x := ir.evalIntWith rd d' x') (y := ir.evalWith rd d' x') (M := (⟨l, h⟩ : Ivl).mag) hi
-      (fun t _ => negacyclicConv_entries rd hh hψ t _)
+      (fun t _ => negacyclicConv_entries rd hh hψ (fun _ h => by cases h) t _)
       (fun t ht => Ivl.abs_le_mag (hxm t ht)) hxc
     refine ⟨Ivl.mem_sym.2 ?_, hR.2⟩
     exact_mod_cast hR.1

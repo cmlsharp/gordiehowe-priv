@@ -412,6 +412,7 @@ interval `leafI h` in coefficient form; none in transform form. -/
 def formIvl (leafI : ℕ → Option Ivl) (h : ℕ) : ConvForm → Option Ivl
   | .coefficients => leafI h
   | .ntt _ => none
+  | .nttNatural _ => none
 
 /-- **The largest absolute row sum** of `R` rows of `W` entries `es` (row-major, `0` past the
 entries), each entry read centred at `p` (`centeredZ`). -/
@@ -1360,6 +1361,7 @@ theorem formPoly_small {f : ℕ} {leaf : ir.Valuation I} {leafI : ℕ → Option
     obtain ⟨hm, hc⟩ := hA h A hF s hs
     exact ⟨_, Ivl.abs_le_mag hm, hc.symm⟩
   | ntt psi => cases hF
+  | nttNatural psi => cases hF
 
 /-! ### Row-form operators -/
 

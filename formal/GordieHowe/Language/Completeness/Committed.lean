@@ -504,7 +504,7 @@ theorem holds_oneDigitQuot_srcEnvC (hbd : ir.StmtBounded I x) {m rid : ℕ}
         obtain ⟨⟨h3, h4⟩, hc'⟩ := exprIvl_within_of hwf hI hL hIF hlok
           he'.1 h2 he'.2 hwe' (by rw [← hlen]; exact hi)
         simp only at h1 h2' h3 h4 hc hc'
-        obtain ⟨z, hz⟩ := hmod i hi
+        obtain ⟨z, hz⟩ := hmod.1 i hi
         have hq0 : (0 : ℤ) < q := by exact_mod_cast hq
         have hz0 : real.quotientLo ≤ z := by
           by_contra hneg

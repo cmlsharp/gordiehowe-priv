@@ -37,7 +37,7 @@ more than one configuration uses:
 * **Goldilocks² with `k = 512` at two low-degree repetitions** (`gold2K512R2…`): `(rate,
   block_enc) = (5, 3583)`, `(N, k) = (2560, 512)`, `t = 96`, `nrep = 2`, the compiler's choice for
   domain A of `MLDSA44.Emulated.ROMParams` (the same export) and `Falcon512.Ring.Carrier.ROMParams` (at
-  `b65a4929`);
+  `5d775ae1`);
 * **`GF(2^256)` with `k = 339` at two low-degree repetitions** (`gf256K339R2…`): `(rate,
   block_enc) = (12, 4746)`, `(N, k) = (4069, 339)`, `t = 128`, `nrep = 2`, the compiler's choice for
   domain H of `Falcon512.Native.QROMParams`, `MLDSA44.Native.QROMParams` and

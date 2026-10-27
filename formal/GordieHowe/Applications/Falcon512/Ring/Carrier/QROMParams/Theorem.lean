@@ -3,7 +3,7 @@
 
 module
 
-public import GordieHowe.Applications.Falcon512.Ring.Carrier.QROMParams.Facts
+public import GordieHowe.Applications.Falcon512.Ring.Carrier.QROMParams.ProofSystem
 
 @[expose] public section
 

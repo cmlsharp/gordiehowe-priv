@@ -34,22 +34,27 @@ variable {P : Export.Plan} {ir : RealizedProgram} {I : Interp}
 
 /-- **The proof system of a program on the generic per-field domain proofs**: the program's checks
 `checks` at the opaque ranges `orng`, the model `model` of the interpretation, the GKR sources
-`src`, and every domain's circuit proof `fieldProof` at its ready data `R d` (its soundness:
-`ofFieldProofsSound`). -/
+`src`, every domain's circuit proof `fieldProof` at its ready data `R d` (its soundness:
+`ofFieldProofsSound`), and the selections' bound `hsel` (by default from a program without a
+product form, `RealizedProgram.selSound_of_noProduct`). -/
 def ofFieldProofs {orng : List (ℕ × ℕ)} (checks : ir.Checks P orng)
     (model : I.Model P ir orng) (src : ∀ c : Fin ir.circuits.length, ir.CircuitSource I c)
-    (R : ∀ d : Fin ir.domains.length, ir.FieldReady I d P) : ir.ProofSystem P I where
+    (R : ∀ d : Fin ir.domains.length, ir.FieldReady I d P)
+    (hsel : ir.SelSound I := by exact RealizedProgram.selSound_of_noProduct _ (by decide +kernel)) :
+    ir.ProofSystem P I where
   opaqueRanges := orng
   checks := checks
   model := model
   src := src
   proof d := ir.fieldProof src (R d)
+  selSound := hsel
 
 /-- **The soundness of the domain proofs of `ofFieldProofs`**: every domain's `fieldSound`. -/
 noncomputable def ofFieldProofsSound {orng : List (ℕ × ℕ)} (checks : ir.Checks P orng)
     (model : I.Model P ir orng) (src : ∀ c : Fin ir.circuits.length, ir.CircuitSource I c)
-    (R : ∀ d : Fin ir.domains.length, ir.FieldReady I d P) :
-    (ofFieldProofs checks model src R).Sound := fun d =>
+    (R : ∀ d : Fin ir.domains.length, ir.FieldReady I d P)
+    (hsel : ir.SelSound I := by exact RealizedProgram.selSound_of_noProduct _ (by decide +kernel)) :
+    (ofFieldProofs checks model src R hsel).Sound := fun d =>
   ir.fieldSound src (R d)
 
 end ProofSystem
@@ -65,11 +70,11 @@ every domain's circuit proof `fieldProof` at its ready data `R d` (`ofFieldProof
 `withFieldProofsSound`). A proof system built by `ofFieldProofs` at `R` is its own
 `withFieldProofs R`. -/
 def withFieldProofs : ir.ProofSystem P I :=
-  ofFieldProofs B.checks B.model B.src R
+  ofFieldProofs B.checks B.model B.src R B.selSound
 
 /-- **The soundness of `withFieldProofs`**: every domain's `fieldSound` (`ofFieldProofsSound`). -/
 noncomputable def withFieldProofsSound : (B.withFieldProofs R).Sound :=
-  ofFieldProofsSound B.checks B.model B.src R
+  ofFieldProofsSound B.checks B.model B.src R B.selSound
 
 /-- **The domains' simulator data of the proof system** (`fieldSim`). -/
 def fieldSims : (B.withFieldProofs R).DomainSims := fun d => ir.fieldSim B.src (R d)

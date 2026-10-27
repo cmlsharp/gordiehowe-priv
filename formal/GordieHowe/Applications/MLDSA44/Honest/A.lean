@@ -409,6 +409,7 @@ theorem interval3_of (hb : ∀ m < 1024, ∀ t < 6, rdA e 63 (6 * m + t) = 0 ∨
       (rdA e 66 m) (UseHint.outputFromBits (UseHint.hiCount mldsa44.γ₂) (bitsA e m))) :
     program.HoldsWith (program.reader e) (program.predicate 3).body := by
   rw [(pred3 (program := program))]
+  refine ⟨?_, RealizedProgram.productQuotWith_of_not (.inl rfl)⟩
   intro m hm
   rw [RealizedProgram.exprLen_add, (lensU (program := program)).2.2] at hm
   obtain ⟨ko, hko, hov⟩ := hoff m hm

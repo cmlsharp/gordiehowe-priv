@@ -15,7 +15,7 @@ public import GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Realize
 The program facts the honest strategy of the Falcon ring carriers reads
 (`GordieHowe.Falcon512.Ring.FalconRingRoleFacts`, `GordieHowe.Falcon512.Ring.FalconRingSource`,
 `GordieHowe.Falcon512.Ring.FalconCarrierHonest`), decided on the tables of
-`GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Program.program` (export `b65a4929`), and domain `A`'s node
+`GordieHowe.Generated.Falcon512.Ring.Carrier.QROMParams.Program.program` (export `5d775ae1`), and domain `A`'s node
 `GF(p^1)`, the prime subfield (`GordieHowe.Falcon512.Ring.PrimeNode`).
 -/
 

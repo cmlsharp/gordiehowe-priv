@@ -830,7 +830,7 @@ theorem rhs_honest (hB : ir.BlindsArePadCopies) (hS : M.Source HE) {i : ℕ} (hi
   have htail := M.tail_honest hgen stmtOf val SL y c π hwf hI hL hM hB hS
   rw [M.hbt] at htail
   have hLlen : i < ir.exprLen M.L := M.lLen ▸ hi
-  have hcong := htail i hLlen
+  have hcong := htail.1 i hLlen
   rw [heint, ← M.lhsNat_eq hgen stmtOf val SL y c π hwf hI hL hB hS hi] at hcong
   rw [hecast]
   congr 1
@@ -1096,7 +1096,7 @@ theorem rhs_honest (hB : ir.BlindsArePadCopies) (hS : M.Source HE) {i : ℕ} (hi
   have htail := M.tail_honest hgen stmtOf val SL y c π hwf hI hL hM hB hS
   rw [M.hbt] at htail
   have hLlen : i < ir.exprLen M.L := M.lLen ▸ hi
-  have hcong := htail i hLlen
+  have hcong := htail.1 i hLlen
   rw [heint, ← M.lhsNat_eq hgen stmtOf val SL y c π hwf hI hL hB hS hi] at hcong
   rw [hecast]
   congr 1
@@ -1592,7 +1592,7 @@ theorem finalLookup_honest (hB : ir.BlindsArePadCopies) (hS : M.Source HE) {p : 
   have htail := M.tail_honest hgen stmtOf val SL y c π hwf hI hL hM hB hS
   rw [M.hbt] at htail
   have hLlen : i < ir.exprLen M.L := M.lLen ▸ hiw
-  have hcongL := htail i hLlen
+  have hcongL := htail.1 i hLlen
   rw [M.lhs_honest hgen stmtOf val SL y c π hwf hI hL hS hiw, hbint, heint] at hcongL
   set A := fun g => ir.accNat rd M.dy M.u M.Gm (g * M.u.width + i)
   set ng := M.Gm.groups.length

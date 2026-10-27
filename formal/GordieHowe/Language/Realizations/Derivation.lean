@@ -12,6 +12,8 @@ public import GordieHowe.Language.Realizations.Derivation.OpIvl
 public import GordieHowe.Language.Realizations.Derivation.Events
 public import GordieHowe.Language.Realizations.Derivation.Mac
 public import GordieHowe.Language.Realizations.Derivation.Grouped
+public import GordieHowe.Language.Realizations.Derivation.ProductMod
+public import GordieHowe.Language.Realizations.Derivation.TableKernel
 
 @[expose] public section
 
@@ -80,7 +82,10 @@ def stepFact (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (ctx : 
   | .lookup ms => ir.lookupFact ms
   | .rangeNat k => ir.rangeNatFact fs body.dom k
   | .holdsIn k => ir.holdsInFact fs k
-  | .src v s => if ir.srcGuard body.dom v = true then ir.srcFact primeNodes sr fs body.dom v s else none
+  | .src v s =>
+    if ir.srcGuard body.dom v = true then
+      (ir.srcFact primeNodes sr fs body.dom v s).or (ir.tableKernelFact sr ctx self body.dom v s)
+    else none
   | .ivlNat k => ir.ivlNatFact fs body.dom k
   | .ivlExpr ks x lo hi => ir.ivlExprFact fs body.dom ks x lo hi
   | .ivlSolve k ks a j lo hi => ir.ivlSolveFact fs body.dom k ks a j lo hi
@@ -105,6 +110,7 @@ def stepFact (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (ctx : 
   | .fact k => if ctx.srank k < self then ctx.sfact k else none
   | .inDom d s => stepFact primeNodes sr ctx self pid (entryBody d) fs s
   | .groupedMod rows ivs => ir.groupedFact ctx self pid body fs rows ivs
+  | .productMod ks => ir.productModFact fs pid body ks
 
 /-- **The facts of a derivation**: one pass over the steps, each step's fact appended. -/
 def runSteps (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (ctx : DerivCtx) (self pid : ℕ)
@@ -261,8 +267,14 @@ def fieldRowOkB : PredBody → Bool
         ir.predicates.any fun p => ir.fieldRowB d e e' p.body)
   | _ => true
 
+/-- **A product-form `mod_q` passes the structural check** (`productOkB`) in a field of
+characteristic above `2`; any other predicate body needs nothing. -/
+def productValidB (b : PredBody) : Bool :=
+  !b.isProductMod || (ir.productOkB b && decide (2 < ir.charOf (ir.domainField b.dom)))
+
 /-- **The checker of `DerivationsValid`**: one derivation per predicate and every shared entry,
 each checking at its rank. -/
+
 def derivsB (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (D : Derivations) : Bool :=
   ir.allDerivsB primeNodes sr D.ctx D.shared 0 ir.predicates D.derivs &&
     (D.shared.zipIdx.all fun ek => ir.entryB primeNodes sr D.ctx ek.2 ek.1) &&
@@ -270,7 +282,8 @@ def derivsB (primeNodes : ℕ → List String) (sr : List (ℕ × ℕ)) (D : Der
     (ir.predicates.zipIdx.all fun pq => !derivCrossB pq.1.body || ir.macOkB pq.2 pq.1.body) &&
     allIdx (fun pid p => ir.lookupCoreB pid p.body) ir.predicates 0 &&
     allIdx (fun _ x => ir.boundOkV x) ir.values 0 &&
-    allIdx (fun _ p => ir.fieldRowOkB p.body) ir.predicates 0
+    allIdx (fun _ p => ir.fieldRowOkB p.body) ir.predicates 0 &&
+    allIdx (fun _ p => ir.productValidB p.body) ir.predicates 0
 
 /-- **The derivations are valid**: aligned with the predicates, every predicate's derivation and
 every shared entry checks at its rank (`Derivations.ctx`). -/
@@ -303,6 +316,11 @@ structure DerivationsValid (primeNodes : ℕ → List String) (sr : List (ℕ ×
     (ir.predicate pid).body = .mod d q e e' real → q ≠ 0 → real.form = .field →
       q = ir.charOf (ir.domainField d) ∧ 2 < q ∧
         ir.predicates.any (fun p => ir.fieldRowB d e e' p.body) = true
+  /-- Every product-form `mod_q` passes the structural check (`productOkB`) in a field of
+  characteristic above `2` (the honest prover's placed equation reads it). -/
+  products : ∀ pid < ir.predicates.length, ∀ d q e e' real,
+    (ir.predicate pid).body = .mod d q e e' real → real.form.isProduct = true →
+      ir.productOkB (.mod d q e e' real) = true ∧ 2 < ir.charOf (ir.domainField d)
 
 /-- **The realization step has valid derivations** (`DerivationsValid`): the realization
 condition of a program, at the plan's prime-subfield nodes `primeNodes` and the value ranges
@@ -318,8 +336,8 @@ variable {ir : RealizedProgram} {I : Interp} {primeNodes : ℕ → List String}
 
 /-- **Every rule is sound** at the reader of a sampled environment of the realized program at a
 realized assignment (`hB`) within the value ranges `sr` (`hS`), where what the derivation cites
-holds (`hc`): the step's fact holds where its premises' do, or (`lookup`) a realization event
-happens. -/
+holds (`hc`): the step's fact holds where its premises' do, or (`lookup`, `mac`, `src … tableKernel`)
+a realization event happens. -/
 theorem stepFact_sound (hM : ir.DerivModel I primeNodes) {sr : List (ℕ × ℕ)} {e : ir.Env I}
     (he : Env.Sampled ir e) (h : ir.RealizedAt e)
     (hS : ∀ vN ∈ sr, ∀ i < (ir.value vN.1).size,
@@ -362,7 +380,9 @@ theorem stepFact_sound (hM : ir.DerivModel I primeNodes) {sr : List (ℕ × ℕ)
   | src v s =>
     simp only [stepFact] at hf
     split_ifs at hf with hg
-    exact .inl (srcFact_sound hM.wf hM.registered hM.lawful h hS hfs hg hf)
+    rcases Option.or_eq_some_iff.1 hf with hf | ⟨-, hf⟩
+    · exact .inl (srcFact_sound hM.wf hM.registered hM.lawful h hS hfs hg hf)
+    · exact tableKernelFact_sound hM.wf hM.registered hM.lawful hS hc hf
   | ivlExpr ks x lo hi => exact .inl (ivlExprFact_sound hM.wf hM.registered hM.lawful hK hfs hf)
   | lift k a b => exact .inl (liftFact_sound hM.wf hM.registered hM.lawful hK hfs hf)
   | digits k ds T => exact .inl (digitsFact_sound hM.wf hM.registered hM.lawful hK hfs hf)
@@ -393,6 +413,8 @@ theorem stepFact_sound (hM : ir.DerivModel I primeNodes) {sr : List (ℕ × ℕ)
     exact ih (.inr ⟨d, rfl⟩) hf
   | groupedMod rows ivs =>
     exact .inl (groupedFact_sound hM.wf hM.registered hM.lawful hown hc hfs hf)
+  | productMod ks =>
+    exact .inl (productModFact_sound hM.wf hM.registered hM.lawful h hS hfs hown hf)
 
 /-- **The facts of a derivation hold**, or a realization event happens. -/
 theorem runSteps_sound (hM : ir.DerivModel I primeNodes) {sr : List (ℕ × ℕ)} {e : ir.Env I}
@@ -555,17 +577,19 @@ theorem derivationsValid_of_derivsB (hwf : ir.WellFormed) {sr : List (ℕ × ℕ
     (h : ir.derivsB primeNodes sr D = true) : ir.DerivationsValid primeNodes sr D := by
   unfold derivsB at h
   simp only [Bool.and_eq_true] at h
-  obtain ⟨⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩ := h
+  obtain ⟨⟨⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩, h8⟩ := h
   have hk := allDerivsB_sound h1
   rw [allIdx_iff] at h5
   rw [allIdx_values_iff] at h6
   rw [allIdx_iff] at h7
+  rw [allIdx_iff] at h8
   refine ⟨fun pid hpid => by simpa [predicate, Derivations.stepsOf] using (hk pid hpid).1,
     fun pid hpid => by simpa [predicate, Derivations.stepsOf] using (hk pid hpid).2,
     fun k hk' => ?_,
     fun t ht => (tableOkB_iff hwf t).1 (List.all_eq_true.1 h3 t (List.mem_range.2 ht)),
     fun p hp hc => ?_, fun pid hpid d recs set r hb => ?_,
-    fun v hv => (boundOkV_iff hwf v).1 (h6 v hv), fun pid hpid d q e e' real hb hq hf => ?_⟩
+    fun v hv => (boundOkV_iff hwf v).1 (h6 v hv), fun pid hpid d q e e' real hb hq hf => ?_,
+    fun pid hpid d q e e' real hb hf => ?_⟩
   · have := List.all_eq_true.1 h2 (D.shared[k], k) (List.mem_iff_getElem.2
       ⟨k, by simpa using hk', by simp⟩)
     simpa [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hk'] using this
@@ -591,6 +615,12 @@ theorem derivationsValid_of_derivsB (hwf : ir.WellFormed) {sr : List (ℕ × ℕ
     change ir.fieldRowOkB (ir.predicate pid).body = true at this
     rw [hb] at this
     simpa [fieldRowOkB, hq, hf, and_assoc] using this
+  · have := h8 pid hpid
+    change ir.productValidB (ir.predicate pid).body = true at this
+    rw [hb] at this
+    simp only [productValidB, PredBody.isProductMod, hf, Bool.not_true, Bool.false_or,
+      Bool.and_eq_true, PredBody.dom] at this
+    exact ⟨this.1, of_decide_eq_true this.2⟩
 
 /-- **Valid derivations give the structural checks the events read** (`EventsOk`). -/
 theorem DerivationsValid.eventsOk {sr : List (ℕ × ℕ)} {D : Derivations}
@@ -625,12 +655,13 @@ theorem challengeUseAt_realEvent_of_derivs (hwf : ir.WellFormed) {sr : List (ℕ
   challengeUseAt_realEvent_ev hwf hv.eventsOk
 
 /-- **The realization event at challenge `j` has probability at most `realError`**, from valid
-derivations (`probUniform_realEvent_le_ev` at their structural checks). -/
+derivations (`probUniform_realEvent_le_ev` at their structural checks) and the selections' bound
+(`SelSound`). -/
 theorem probUniform_realEvent_le_of_derivs (hwf : ir.WellFormed) {sr : List (ℕ × ℕ)}
-    {D : Derivations} (hv : ir.DerivationsValid primeNodes sr D) (hI : I.Registered ir) (j : ℕ)
-    (e : ir.Env I) :
+    {D : Derivations} (hv : ir.DerivationsValid primeNodes sr D) (hI : I.Registered ir)
+    (hsel : ir.SelSound I) (j : ℕ) (e : ir.Env I) :
     Pr[c ← ir.ChalVal I j : ir.RealEvent j (e.setChal j c)] ≤ ir.realError I j :=
-  probUniform_realEvent_le_ev hwf hv.eventsOk hI j e
+  probUniform_realEvent_le_ev hwf hv.eventsOk hI hsel j e
 
 /-- **The realized program gives the program, or a realization event**, where every predicate has
 a derivation that checks (`DerivationsValid`): in a sampled environment of the realized program at
