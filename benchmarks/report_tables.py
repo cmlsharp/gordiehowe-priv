@@ -73,6 +73,12 @@ protocol hash of every system and baseline, which the report states first.
 Longfellow's mdoc benchmark on this host) and prints the Vega scale factors
 (benchmarks/vega_calib.py, which holds Vega's reported figures).
 
+The ring split (render_ring_split): each ring proof's GH_RING_SPLIT line
+(bench_hook.h's header) splits P and verify into the work that depends on
+the ring's keys alone (reused by every proof on the ring), the work that
+also reads the message (reused by proofs of the same message) and the rest;
+the three add up to the proof's P and verify.
+
 --split-json FILE writes the per-domain table's figures as JSON (see
 render_domain_split): per case, each domain's field, prover, verify and
 bytes, the shared term, and the baseline's per-circuit split.
@@ -1290,6 +1296,76 @@ def render_gordiehowe(results, gh):
                      cell(su, "setup")])
     table(["Construction", "Witness ms", "Late ms", "H KiB",
            "A KiB", "Build ms", "Compile ms", "Prepare ms", "Cached ms"], rows)
+
+
+RING_SPLIT = re.compile(r"^\[([^]]+)\] GH_RING_SPLIT (.*)$")
+RING_SPLIT_KEYS = ("ring_p", "message_p", "proof_p", "prover",
+                   "ring_v", "message_v", "proof_v", "verify")
+
+
+def parse_ring_split(lines, mode="single"):
+    """Each ring case's GH_RING_SPLIT figures in MODE (bench_hook.h): per
+    key, the median over the measured trials."""
+    runs = {}
+    for line in lines:
+        m = RING_SPLIT.match(line.strip())
+        if not m:
+            continue
+        name = m[1]
+        multi = name.endswith(MULTI)
+        if multi != (mode == "multi"):
+            continue
+        name = name[:-len(MULTI)] if multi else name
+        if name not in GH_RING:
+            raise ValueError(f"GH_RING_SPLIT of a case outside the rings: {name}")
+        values = dict(kv.split("=", 1) for kv in m[2].split())
+        runs.setdefault(name, []).append({k: float(values[k]) for k in RING_SPLIT_KEYS})
+    out = {}
+    for name, rs in runs.items():
+        if len(rs) != WARMUPS + TRIALS:
+            raise ValueError(f"{name}: expected {WARMUPS} warm-ups and {TRIALS} "
+                             f"GH_RING_SPLIT lines, got {len(rs)}")
+        out[name] = {k: statistics.median(r[k] for r in rs[WARMUPS:])
+                     for k in RING_SPLIT_KEYS}
+    return out
+
+
+def render_ring_split(split, par_split=None, cores=None):
+    """The ring table with the prover's and the verifier's time split per
+    ring, per message and per proof (parse_ring_split), single-threaded and,
+    when the log has them, multi-threaded."""
+    for title, sp in (("single-threaded", split),
+                      (f"{cores[1]} threads" if cores else "multi-threaded",
+                       par_split or {})):
+        rows = []
+        for s, label in (("ml", "ML-DSA"), ("fn", "Falcon")):
+            for arm in ("native", "carrier"):
+                for r in RING_SIZES:
+                    g = sp.get(f"gh-{s}-ring-{arm}-{r}")
+                    if g is None:
+                        continue
+                    rows.append([f"{label} {arm}", str(r)]
+                                + [f"{g[k]:.1f}" for k in RING_SPLIT_KEYS])
+        if not rows:
+            continue
+        print(f"## GordieHowe ring signatures per ring, per message and per "
+              f"proof ({title})\n")
+        print(f"Medians over the {TRIALS} measured trials, each figure its own "
+              "median (so a row's three parts add up to its total within the "
+              "trials' spread; in every trial they add up exactly). Per ring "
+              "is the work that depends on the ring's keys alone, which every "
+              "proof on the ring could reuse: the statement's prepare (the "
+              "keys' packing and codecs and their cached decode: ML-DSA's tr "
+              "and key rows, Falcon's key values) and any other public value "
+              "computed from the keys alone. Per message "
+              "is the work that also reads the message, which proofs of the "
+              "same message could reuse (ML-DSA's mu limbs; Falcon has none, "
+              "since its challenge c hashes the signature's salt). Per proof is "
+              "the rest of P and Verify.\n")
+        table(["Ring", "R", "Prover per ring ms", "Prover per message ms",
+               "Prover per proof ms", "Prover ms", "Verify per ring ms",
+               "Verify per message ms", "Verify per proof ms", "Verify ms"],
+              rows)
 
 
 def parallel_cores(lines):
@@ -2576,6 +2652,9 @@ if __name__ == "__main__":
         render_parsing(results, split_lines, base_parse)
         gh = parse_gordiehowe(lines)
         render_gordiehowe(results, gh)
+        render_ring_split(parse_ring_split(lines),
+                          parse_ring_split(lines, "multi"),
+                          parallel_cores(lines))
         if "--binius" in options:
             binius_meta, binius_runs = parse_binius(options["--binius"])
             render_binius(results, par, lines, (binius_meta, binius_runs))

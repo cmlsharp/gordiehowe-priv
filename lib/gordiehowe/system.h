@@ -417,6 +417,9 @@ struct ProveTimes {
   // its reductions and opening (parts of COMMIT and PROVE; the phase
   // challenges and messages are shared and in neither).
   std::vector<double> domain_commit, domain_prove;
+  // Phase 0's constants and uncached public computations, each node's id
+  // and time, in declaration order (parts of COMMIT).
+  std::vector<std::pair<size_t, double>> public0;
 };
 // The verifier's time per domain, in domain order: its commitment, its
 // low-degree test and its reductions and opening. DOMAIN_POST is the part
@@ -428,6 +431,9 @@ struct VerifyTimes {
   // decoded from the proof's bytes (the domain verifiers' construction
   // apart).
   double parse = 0;
+  // Phase 0's constants and uncached public computations, each node's id
+  // and time, in declaration order (parts of the verify() call).
+  std::vector<std::pair<size_t, double>> public0;
 };
 
 namespace internal {
@@ -1904,6 +1910,12 @@ class BasicPrepared {
   // The time of the setup: the cached public computations of this
   // statement (zero when every one was memoized).
   double setup_ms() const { return setup_ms_; }
+  // Each cached public computation's id and its part of the setup's time
+  // (its memo key's digest and, on a miss, its computation), in
+  // declaration order.
+  const std::vector<std::pair<size_t, double>> &setup_node_ms() const {
+    return setup_nodes_;
+  }
 
  private:
   void statement(const Assignment &st) {
@@ -1967,6 +1979,7 @@ class BasicPrepared {
       if (N[id].kind == Kind::kConstant && cs_.gens_[id].eval)
         v.v[id] = cs_.gens_[id].eval(v);
       if (!N[id].cached) continue;
+      const auto tn = Clock::now();
       Hash h;
       std::vector<uint8_t> key;
       put_u64(key, id);
@@ -2019,6 +2032,9 @@ class BasicPrepared {
         rejected_row_ = SIZE_MAX;
         break;
       }
+      setup_nodes_.emplace_back(
+          id, std::chrono::duration<double, std::milli>(Clock::now() - tn)
+                  .count());
     }
     setup_ms_ =
         std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
@@ -2083,7 +2099,7 @@ class BasicPrepared {
     sec.reset();
     sec.emplace("gh.p.public0", "main", 0, 0);
     t0 = Clock::now();
-    evaluate(0, v, /*prover=*/true, opt, Part::kPublic);
+    evaluate(0, v, /*prover=*/true, opt, Part::kPublic, &times.public0);
     times.commit += ms(t0);
     sec.reset();
     sec.emplace("gh.p.witness0", "main", 0, 0);
@@ -2296,7 +2312,9 @@ class BasicPrepared {
     for (const auto &[id, b] : bytes_) v.bytes[id] = b;
     for (const auto &[id, x] : cached_) v.held[id] = x;
     ProveOptions none;
-    evaluate(0, v, /*prover=*/false, none);
+    std::vector<std::pair<size_t, double>> public0;
+    evaluate(0, v, /*prover=*/false, none, Part::kAll,
+             times != nullptr ? &public0 : nullptr);
     std::vector<double> dt(vs.size(), 0);
     std::optional<profiling::Session> sec;
     sec.emplace("gh.v.recv_ldt", "main", 0, 0);
@@ -2343,6 +2361,7 @@ class BasicPrepared {
       times->domain = std::move(dt);
       times->domain_post = std::move(post);
       times->parse = parse;
+      times->public0 = std::move(public0);
     }
     return ok;
   }
@@ -2470,9 +2489,14 @@ class BasicPrepared {
   // public computations), or every other value.
   enum class Part { kAll, kPublic, kPrivate };
   // Every value of phase K in PART that this party computes, in declaration
-  // order. The prover forms t = x + P right after each late x.
+  // order. The prover forms t = x + P right after each late x. NODE_MS,
+  // when set, receives each constant's and uncached public computation's
+  // id and time.
   void evaluate(size_t k, ValueStore<S> &v, bool prover,
-                const ProveOptions &opt, Part part = Part::kAll) const {
+                const ProveOptions &opt, Part part = Part::kAll,
+                std::vector<std::pair<size_t, double>> *node_ms =
+                    nullptr) const {
+    using Clock = std::chrono::steady_clock;
     const auto &N = cs_.nodes_;
     for (size_t id = 0; id < N.size(); ++id) {
       const Node &n = N[id];
@@ -2481,6 +2505,8 @@ class BasicPrepared {
           n.kind == Kind::kConstant || n.kind == Kind::kPublicCompute;
       if (part == Part::kPublic && !pub) continue;
       if (part == Part::kPrivate && pub) continue;
+      const bool timed = node_ms != nullptr && pub && !n.cached;
+      const auto tn = timed ? Clock::now() : Clock::time_point{};
       switch (n.kind) {
         case Kind::kConstant:
           v.v[id] = cs_.gens_[id].eval(v);
@@ -2564,6 +2590,10 @@ class BasicPrepared {
         default:
           break;
       }
+      if (timed)
+        node_ms->emplace_back(
+            id, std::chrono::duration<double, std::milli>(Clock::now() - tn)
+                    .count());
     }
   }
 
@@ -2609,6 +2639,7 @@ class BasicPrepared {
   std::vector<std::shared_ptr<const Value>> tampered_;
   std::map<size_t, std::vector<uint8_t>> bytes_;  // Bytes statements
   double setup_ms_ = 0;
+  std::vector<std::pair<size_t, double>> setup_nodes_;
   std::string rejected_;
   size_t rejected_row_ = SIZE_MAX;
 };

@@ -64,6 +64,8 @@ void with_system(const bench::Flags &f, Fn fn) {
     const auto &ex = support::benchmark_example<S>();
     const RingCase<S> rc(ex, R, R - 1);
     hook::Setup su{Arm::kConfig.c_str(), P::kId, R};
+    // The ring split: mu_j reads the message (mldsa_ring.h's ring_rows).
+    su.ring_split = hook::RingSplit{{"ring.mu"}, {}};
     auto t0 = hook::Clock::now();
     typename Arm::T t(env, R, ex.msg.size(), ex.ctx.size());
     su.build = hook::ms_since(t0) - hook::relation_compile_ms(t);

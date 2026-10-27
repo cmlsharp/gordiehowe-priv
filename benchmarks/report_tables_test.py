@@ -1217,5 +1217,73 @@ class SkipAblationTest(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
 
 
+def ring_split_log(names=("gh-ml-ring-native-64", "gh-fn-ring-carrier-1024"),
+                   multi=False):
+    """Each ring proof's GH_RING_SPLIT line: per ring 2 + trial, per message
+    3, per proof 95 (prover 100 + trial) and per ring 1, per message 0.5,
+    per proof 8.5 (verify 10), the warm-ups 100 times slower."""
+    lines = []
+    for trial in range(tables.WARMUPS + tables.TRIALS):
+        k = 100 if trial < tables.WARMUPS else 1
+        for name in names:
+            for label in (name, name + "@multi") if multi else (name,):
+                lines.append(
+                    f"[{label}] GH_RING_SPLIT ring_p={(2 + trial) * k} "
+                    f"message_p={3 * k} proof_p={95 * k} ring_v={1 * k} "
+                    f"message_v={0.5 * k} proof_v={8.5 * k} "
+                    f"prover={(100 + trial) * k} verify={10 * k}")
+    return lines
+
+
+class RingSplitTest(unittest.TestCase):
+    def test_medians_exclude_warmups(self):
+        split = tables.parse_ring_split(ring_split_log())
+        mid = tables.WARMUPS + (tables.TRIALS - 1) / 2
+        self.assertEqual(split["gh-ml-ring-native-64"],
+                         {"ring_p": 2 + mid, "message_p": 3, "proof_p": 95,
+                          "prover": 100 + mid, "ring_v": 1, "message_v": 0.5,
+                          "proof_v": 8.5, "verify": 10})
+
+    def test_modes_separate(self):
+        lines = ring_split_log(multi=True)
+        self.assertEqual(tables.parse_ring_split(lines),
+                         tables.parse_ring_split(lines, "multi"))
+        self.assertEqual(tables.parse_ring_split(ring_split_log(), "multi"), {})
+
+    def test_missing_trial(self):
+        with self.assertRaises(ValueError):
+            tables.parse_ring_split(ring_split_log()[1:])
+
+    def test_outside_rings(self):
+        with self.assertRaises(ValueError):
+            tables.parse_ring_split(ring_split_log(("gh-ml-native",)))
+
+    def test_table(self):
+        lines = ring_split_log(multi=True)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            tables.render_ring_split(tables.parse_ring_split(lines),
+                                     tables.parse_ring_split(lines, "multi"),
+                                     ("0-31", 32, "set"))
+        text = output.getvalue()
+        mid = 2 + tables.WARMUPS + (tables.TRIALS - 1) / 2
+        self.assertIn("(single-threaded)", text)
+        self.assertIn("(32 threads)", text)
+        self.assertIn(f"| ML-DSA native | 64 | {mid:.1f} | 3.0 | 95.0 | "
+                      f"{mid + 98:.1f} | 1.0 | 0.5 | 8.5 | 10.0 |", text)
+        self.assertIn(f"| Falcon carrier | 1024 | {mid:.1f} |", text)
+
+    def test_absent_no_table(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            tables.render_ring_split({}, {})
+        self.assertEqual(output.getvalue(), "")
+
+    def test_other_parsers_ignore_split(self):
+        # The split lines leave the run lines' parsers as they were.
+        lines = run_log() + ring_split_log()
+        self.assertEqual(tables.parse(lines), tables.parse(run_log()))
+
+
 if __name__ == "__main__":
     unittest.main()

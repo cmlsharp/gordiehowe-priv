@@ -51,6 +51,9 @@ void with_arm_system(const std::string &config, const char *profile, I in,
                      Fn fn) {
   typename T::Env env;
   hook::Setup su{config.c_str(), profile, in.R};
+  // The ring split: c = HashToPoint(r || m) hashes the signature's salt, so
+  // it changes with every proof (falcon_ring.h's ring_values).
+  su.ring_split = hook::RingSplit{{}, {"statement.c"}};
   auto t0 = hook::Clock::now();
   T t(env, in.R);
   su.build = hook::ms_since(t0) - hook::relation_compile_ms(t);
