@@ -467,6 +467,7 @@ public import GordieHowe.Generated.MLDSA44.Native.ROMParams.Realize
 public import GordieHowe.Generated.MLDSA44.Native.ROMParams.Valid
 public import GordieHowe.Headline
 public import GordieHowe.Language.Assumptions
+public import GordieHowe.Language.CertCheck
 public import GordieHowe.Language.Completeness.Check
 public import GordieHowe.Language.Completeness.Execution
 public import GordieHowe.Language.Completeness.Late

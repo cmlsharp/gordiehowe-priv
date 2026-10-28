@@ -4,26 +4,36 @@
 
 # Build the GordieHowe library and report remaining sorries and axioms.
 #
+# The GKR certificate check mode (gh_cert_check; scripts/cert_mode.sh: kernel, the default, or
+# native) is the build's; the report prints it and every headline theorem that depends on a
+# compiler-trust axiom: Lean.ofReduceBool, Lean.trustCompiler, or the axiom
+# `<decl>._native.native_decide.ax_<i>_<j>` that native_decide adds per use in Lean v4.34. A
+# published, merge or commit check runs in kernel mode: in native mode the check fails unless
+# --dev says it is a development check.
+#
 # Mathlib must come from the cache.  The first step refuses to proceed if any
 # Mathlib module our files import is missing from .lake, so a stale cache
 # fails loudly instead of starting a Mathlib build.
 #
-# Usage: scripts/check.sh [--quiet] [--paper-dir DIR]
+# Usage: scripts/check.sh [--quiet] [--dev] [--paper-dir DIR]
 #   --quiet          print only the build's errors, then the checks.
+#   --dev            a development check: native mode does not fail it.
 #   --paper-dir DIR  also check the paper's LaTeX source in DIR against GordieHowe/PaperManifest.lean
 #                    (scripts/paper_manifest.py --check); without it that step is skipped.
 set -euo pipefail
 
 quiet=
+dev=
 paper_dir=
 while [ $# -gt 0 ]; do
   case "$1" in
     --quiet) quiet=1; shift ;;
+    --dev) dev=1; shift ;;
     --paper-dir)
       [ $# -ge 2 ] || { echo "check.sh: --paper-dir needs a directory" >&2; exit 2; }
       paper_dir=$(cd "$2" && pwd) || { echo "check.sh: no directory $2" >&2; exit 2; }
       shift 2 ;;
-    *) echo "usage: scripts/check.sh [--quiet] [--paper-dir DIR]" >&2; exit 2 ;;
+    *) echo "usage: scripts/check.sh [--quiet] [--dev] [--paper-dir DIR]" >&2; exit 2 ;;
   esac
 done
 cd "$(dirname "$0")/.."
@@ -42,6 +52,7 @@ if ! lake build $(mathlib_imports) --no-build >/dev/null 2>&1; then
 fi
 
 status=0
+cert_mode=$(scripts/cert_mode.sh status) || exit 2
 scripts/lake.sh build GordieHowe 2>&1 | awk -v quiet="$quiet" 'quiet == "" || /^(error|✖)/ { print }' || status=$?
 
 echo
@@ -102,8 +113,40 @@ echo "== declared axioms =="
 grep -rn '^axiom ' GordieHowe $vendor_proofs --include='*.lean' || echo "none"
 
 echo
-echo "== native_decide trust steps =="
-grep -rn '\bnative_decide\b' GordieHowe $vendor_proofs --include='*.lean' || echo "none"
+echo "== GKR certificate check mode =="
+echo "(gh_cert_check, GordieHowe/Language/CertCheck.lean; set by scripts/cert_mode.sh)"
+case "$cert_mode" in
+  kernel) echo "kernel: the GKR certificates are checked by decide +kernel" ;;
+  native)
+    echo "native: the GKR certificates are checked by native_decide (trusts the compiled checkers)"
+    if [ -z "$dev" ]; then
+      echo "FAIL: native mode is a development mode; run scripts/cert_mode.sh kernel for this check, or pass --dev for a development check"
+      status=1
+    fi ;;
+esac
+
+echo
+echo "== native_decide trust steps outside gh_cert_check =="
+grep -rn '\bnative_decide\b' GordieHowe $vendor_proofs --include='*.lean' \
+  | grep -v '^GordieHowe/Language/CertCheck\.lean:' || echo "none"
+
+echo
+echo "== headline theorems trusting compiled code =="
+echo "(axioms Lean.ofReduceBool, Lean.trustCompiler or *._native.native_decide.ax_*, from the axioms of"
+echo " every headline theorem, scripts/HeadlineAxioms.lean; each line: headline, number of such axioms)"
+if scripts/lake.sh env lean scripts/HeadlineAxioms.lean > .lake/headline_axioms.txt.tmp 2>&1; then
+  mv .lake/headline_axioms.txt.tmp .lake/headline_axioms.txt
+  echo "headline theorems: $(grep -c . .lake/headline_axioms.txt)"
+  awk -F'\t' '{
+      k = 0; m = split($2, ax, ",")
+      for (i = 1; i <= m; i++)
+        if (ax[i] == "Lean.ofReduceBool" || ax[i] == "Lean.trustCompiler" || ax[i] ~ /\._native\.native_decide\.ax_/) k++
+      if (k) { print $1 "\t" k; n++ }
+    } END { if (!n) print "none" }' .lake/headline_axioms.txt
+else
+  echo "headline axiom script failed:" && tail -5 .lake/headline_axioms.txt.tmp
+  status=1
+fi
 
 echo
 echo "== paper manifest (GordieHowe/PaperManifest.lean against the paper; scripts/paper_manifest.py) =="
@@ -113,4 +156,9 @@ else
   echo "no --paper-dir; skipped"
 fi
 
+if [ "$cert_mode" = native ]; then
+  echo
+  echo "check.sh: GKR certificates checked in native mode (scripts/cert_mode.sh kernel restores the default)" >&2
+  [ -n "$dev" ] || echo "check.sh: FAILED: native mode without --dev" >&2
+fi
 exit "$status"

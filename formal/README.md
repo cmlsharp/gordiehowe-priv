@@ -29,9 +29,22 @@ one-way-to-hiding lemma of Ambainis, Hamburg and Unruh.
 
 ## Assumptions
 
-The library declares no axioms, contains no `sorry` and never uses `native_decide`. The C++
-compiler exports each application's realized program as Lean definitions, and the kernel checks
-that it is valid and that its realizations meet their conditions.
+The library declares no axioms and contains no `sorry`. The C++ compiler exports each
+application's realized program as Lean definitions, and the kernel checks that it is valid and
+that its realizations meet their conditions.
+
+The plan and program certificates (the generated `Valid`, `Realize`, `Annotations`, `Completion`
+and `Facts` proofs) are closed by `decide +kernel`. The GKR circuit certificates are closed by the
+tactic `gh_cert_check` (`GordieHowe/Language/CertCheck.lean`), which runs `decide +kernel` by
+default. For development builds, `scripts/cert_mode.sh native` switches it to `native_decide` for
+the whole build, which trusts the compiled checkers through an axiom per check
+(`<theorem>._native.native_decide.ax_<i>_<j>`); `scripts/cert_mode.sh kernel` switches back. The
+switch is the definition `GordieHowe.certCheckNative`, which every module using the tactic imports,
+so Lake rebuilds those modules after a switch. The published check runs in kernel mode: there the
+library never uses `native_decide`, and `check.sh` reports the mode and every headline theorem
+whose axioms include such an axiom or `Lean.ofReduceBool` (none in kernel mode). In native mode
+`check.sh` fails unless given `--dev`, so a merge, commit or published check always runs in kernel
+mode.
 
 The GKR circuits are not exported. The configuration theorems take as hypotheses
 (`RealizedProgram.CircuitsEnforce`, `RealizedProgram.CircuitsAccept`,
@@ -69,7 +82,8 @@ scripts/check.sh --quiet
 
 Never build Mathlib from source; `check.sh` refuses to start if the cache is incomplete. It builds
 the library and checks the running-time lint, the headline theorems' statement closure
-(`audit/statement_closure.txt`), `sorry` counts, the axioms and `native_decide`.
+(`audit/statement_closure.txt`), `sorry` counts, the axioms, the certificate check mode,
+`native_decide` and the headline theorems' axioms (`scripts/HeadlineAxioms.lean`).
 
 `check.sh` caps memory: `LEAN_NUM_THREADS` (default 12) sets the parallelism and `PQ_MEM_MAX`
 (default `96G`) the limit; lower both together on a smaller machine. With 12 threads a check
