@@ -17,7 +17,7 @@ python3 scripts/longfellow_changes.py --diff lib/zk/zk_prover.h
 
 | File | Kind | Upstream source | Change |
 |---|---|---|---|
-| `CMakeLists.txt` | modified | `lib/CMakeLists.txt` | C++23, Dev build type, OpenSSL, separate third_party/longfellow include root and object libraries, report_bench target, tools directory, Longfellow's own tests built from third_party/longfellow |
+| `CMakeLists.txt` | modified | `lib/CMakeLists.txt` | C++23, Dev build type, OpenSSL, separate third_party/longfellow include root and object libraries, report_bench target, tools directory, Longfellow's own tests built from third_party/longfellow; on aarch64, a caller's -march/-mcpu in place of the default -march; aarch64 build goals |
 
 ## `lib/CMake`
 

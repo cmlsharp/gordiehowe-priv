@@ -48,6 +48,7 @@
 // (bench/cli.h: --seed, --serial-commitments, --diagnostics,
 // --rate-requests) and the bench hook's (bench/hook_flags.h: --params,
 // --commit, --report).
+#include <sys/resource.h>
 #include <sys/wait.h>
 #if defined(__linux__)
 #include <sys/prctl.h>
@@ -174,7 +175,14 @@ struct Worker {
     while (next_line(line))
       std::printf("[%s] %s", name.c_str(), line.c_str());
     fclose(output); output = nullptr;
-    int status; waitpid(pid, &status, 0); pid = -1;
+    // The worker's peak resident set (its whole life: build, warm-ups and
+    // trials), from wait4's rusage.
+    int status;
+    struct rusage ru {};
+    wait4(pid, &status, 0, &ru);
+    pid = -1;
+    std::printf("PQ_RSS %s maxrss_kb=%ld\n", name.c_str(), ru.ru_maxrss);
+    std::fflush(stdout);
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
       throw std::runtime_error(name + ": worker process failed");
   }

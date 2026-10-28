@@ -187,6 +187,10 @@ class TaskPool : public parallel::Runner {
   static void relax() {
 #if defined(__x86_64__) || defined(__i386__)
     __builtin_ia32_pause();
+#elif defined(__aarch64__)
+    // The spin-wait hint, as pause on x86; std::this_thread::yield is a
+    // system call.
+    asm volatile("yield" ::: "memory");
 #else
     std::this_thread::yield();
 #endif
